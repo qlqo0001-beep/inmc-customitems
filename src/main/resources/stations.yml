@@ -1,0 +1,989 @@
+# 제작대. /커스텀아이템 관리 → 제작 에서 GUI 로 고치는 것을 권장합니다(재료·결과는 화면에 끌어다 넣습니다).
+# 플레이어는 /제작 <제작대> 로 열거나 연결한 블록을 우클릭합니다.
+# MMOItems 의 crafting-stations 에서 옮겨 왔습니다.
+#
+# seconds  0 이면 바로 받습니다. 아니면 대기열에 들어가 그만큼 뒤에 받습니다(접속을 끊어도 흐릅니다).
+# level    바닐라 레벨. permission 비우면 누구나.
+
+tier1:
+  name: 1티어 근원 무기
+  recipes:
+    r1:
+      results:
+        0:
+          item: inmc:강화나무검
+          material: minecraft:wooden_sword
+          name: 강화 나무검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:wooden_sword
+          material: minecraft:wooden_sword
+          amount: 1
+          name: 나무 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r2:
+      results:
+        0:
+          item: inmc:강화돌검
+          material: minecraft:stone_sword
+          name: 강화 돌검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:stone_sword
+          material: minecraft:stone_sword
+          amount: 1
+          name: 돌 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r3:
+      results:
+        0:
+          item: inmc:강화금검
+          material: minecraft:golden_sword
+          name: 강화 금검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:golden_sword
+          material: minecraft:golden_sword
+          amount: 1
+          name: 금 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r4:
+      results:
+        0:
+          item: inmc:강화철검
+          material: minecraft:iron_sword
+          name: 강화 철검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:iron_sword
+          material: minecraft:iron_sword
+          amount: 1
+          name: 철 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r5:
+      results:
+        0:
+          item: inmc:강화다이아몬드검
+          material: minecraft:diamond_sword
+          name: 강화 다이아몬드 검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:diamond_sword
+          material: minecraft:diamond_sword
+          amount: 1
+          name: 다이아몬드 검
+        1:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 10
+        2:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 10
+      seconds: 10
+    r6:
+      results:
+        0:
+          item: inmc:강화네더라이트검
+          material: minecraft:netherite_sword
+          name: 강화 네더라이트 검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_sword
+          material: minecraft:netherite_sword
+          amount: 1
+          name: 네더라이트 검
+        1:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 1
+      seconds: 10
+tier2:
+  name: 2티어
+  recipes:
+    r1:
+      results:
+        0:
+          item: inmc:강화나무검
+          material: minecraft:wooden_sword
+          name: 강화 나무검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:wooden_sword
+          material: minecraft:wooden_sword
+          amount: 1
+          name: 나무 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r2:
+      results:
+        0:
+          item: inmc:강화돌검
+          material: minecraft:stone_sword
+          name: 강화 돌검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:stone_sword
+          material: minecraft:stone_sword
+          amount: 1
+          name: 돌 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r3:
+      results:
+        0:
+          item: inmc:강화금검
+          material: minecraft:golden_sword
+          name: 강화 금검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:golden_sword
+          material: minecraft:golden_sword
+          amount: 1
+          name: 금 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r4:
+      results:
+        0:
+          item: inmc:강화철검
+          material: minecraft:iron_sword
+          name: 강화 철검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:iron_sword
+          material: minecraft:iron_sword
+          amount: 1
+          name: 철 검
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 5
+      seconds: 10
+    r5:
+      results:
+        0:
+          item: inmc:강화다이아몬드검
+          material: minecraft:diamond_sword
+          name: 강화 다이아몬드 검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:diamond_sword
+          material: minecraft:diamond_sword
+          amount: 1
+          name: 다이아몬드 검
+        1:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 10
+        2:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 10
+      seconds: 10
+    r6:
+      results:
+        0:
+          item: inmc:강화네더라이트검
+          material: minecraft:netherite_sword
+          name: 강화 네더라이트 검
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_sword
+          material: minecraft:netherite_sword
+          amount: 1
+          name: 네더라이트 검
+        1:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 1
+      seconds: 10
+pickaxe3:
+  name: 재료 제작
+  recipes:
+    r1:
+      results:
+        0:
+          item: inmc:고대망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:구리곡괭이
+          material: minecraft:stone_pickaxe
+          name: 강화된 구리 곡괭이
+          amount: 1
+        1:
+          item: minecraft:diamond_pickaxe
+          material: minecraft:diamond_pickaxe
+          amount: 1
+          name: 다이아몬드 곡괭이
+        2:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 100
+      level: 1
+      seconds: 5
+    r2:
+      results:
+        0:
+          item: inmc:교환권_미약한달의곡괭이
+          material: minecraft:netherite_pickaxe
+          name: 미약한달의곡괭이
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:고대의망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 3
+        3:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+      level: 1
+      seconds: 5
+    r3:
+      results:
+        0:
+          item: inmc:교환권_미약한별의곡괭이
+          material: minecraft:netherite_pickaxe
+          name: 미약한별의곡괭이
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:고대의망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 3
+        3:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+      level: 1
+      seconds: 5
+    r4:
+      results:
+        0:
+          item: inmc:교환권_미약한자연의곡괭이
+          material: minecraft:netherite_pickaxe
+          name: 미약한자연의곡괭이
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:고대의망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 3
+        3:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+      level: 1
+      seconds: 5
+    r5:
+      results:
+        0:
+          item: inmc:교환권_미약한태양의곡괭이
+          material: minecraft:netherite_pickaxe
+          name: 미약한태양의곡괭이
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:고대의망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 3
+        3:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+      level: 1
+      seconds: 5
+    r6:
+      results:
+        0:
+          item: inmc:교환권_미약한악마의곡괭이
+          material: minecraft:netherite_pickaxe
+          name: 미약한악마의곡괭이
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:고대의망치
+          material: minecraft:netherite_pickaxe
+          name: 고대의 망치
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 3
+        3:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+      level: 1
+      seconds: 5
+time_stone:
+  name: 10주년 기념 아이템 제작소
+  recipes:
+    relic_to_stone:
+      results:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      ingredients:
+        0:
+          item: inmc:강화유물
+          material: minecraft:emerald
+          name: '[InMc]'
+          amount: 1
+      seconds: 1
+    relic:
+      results:
+        0:
+          item: inmc:강화유물
+          material: minecraft:emerald
+          name: '[InMc]'
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket1:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv1
+          material: minecraft:stick
+          name: 이벤트 1강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket2:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv2
+          material: minecraft:stick
+          name: 이벤트 2강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket3:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv3
+          material: minecraft:stick
+          name: 이벤트 3강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket4:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv4
+          material: minecraft:stick
+          name: 이벤트 4강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket5:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv5
+          material: minecraft:stick
+          name: 이벤트 5강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket6:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv6
+          material: minecraft:stick
+          name: 이벤트 6강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket7:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv7
+          material: minecraft:stick
+          name: 이벤트 7강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket8:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv8
+          material: minecraft:stick
+          name: 이벤트 8강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket9:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv9
+          material: minecraft:stick
+          name: 이벤트 9강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+    ticket10:
+      results:
+        0:
+          item: inmc:이벤트교환권_lv10
+          material: minecraft:stick
+          name: 이벤트 10강화 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:타임스톤
+          material: minecraft:emerald
+          name: 타임 스톤
+          amount: 3
+      seconds: 1
+stone:
+  name: 강화석 제작
+  recipes:
+    r1:
+      results:
+        0:
+          item: inmc:랜덤강화석상자
+          material: minecraft:stick
+          name: 랜덤 강화석 상자
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:강화석파편
+          material: minecraft:prismarine_shard
+          name: 강화석 파편
+          amount: 10
+      seconds: 5
+netherium:
+  name: 네더리움 주조
+  recipes:
+    netherium_helmet:
+      results:
+        0:
+          item: inmc:netherium_helmet
+          material: minecraft:netherite_helmet
+          name: 네더리움 투구
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_helmet
+          material: minecraft:netherite_helmet
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 60
+        3:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 20
+        4:
+          item: inmc:items8
+          material: minecraft:rabbit_hide
+          name: 강화 에메랄드
+          amount: 10
+      seconds: 25
+    netherium_chestplate:
+      results:
+        0:
+          item: inmc:netherium_chestplate
+          material: minecraft:netherite_chestplate
+          name: 네더리움 흉갑
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_chestplate
+          material: minecraft:netherite_chestplate
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 120
+        3:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 30
+        4:
+          item: inmc:items8
+          material: minecraft:rabbit_hide
+          name: 강화 에메랄드
+          amount: 20
+      seconds: 35
+    netherium_leggings:
+      results:
+        0:
+          item: inmc:netherium_leggings
+          material: minecraft:netherite_leggings
+          name: 네더리움 레깅스
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_leggings
+          material: minecraft:netherite_leggings
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 100
+        3:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 20
+        4:
+          item: inmc:items8
+          material: minecraft:rabbit_hide
+          name: 강화 에메랄드
+          amount: 20
+      seconds: 30
+    netherium_boots:
+      results:
+        0:
+          item: inmc:netherium_boots
+          material: minecraft:netherite_boots
+          name: 네더리움 부츠
+          amount: 1
+      ingredients:
+        0:
+          item: minecraft:netherite_boots
+          material: minecraft:netherite_boots
+          amount: 1
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 30
+        2:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 60
+        3:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 10
+        4:
+          item: inmc:items8
+          material: minecraft:rabbit_hide
+          name: 강화 에메랄드
+          amount: 10
+      seconds: 20
+material:
+  name: 재료
+  recipes:
+    items0:
+      results:
+        0:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items2
+          material: minecraft:rabbit_hide
+          name: 광물의 기운
+          amount: 5
+        1:
+          item: inmc:items4
+          material: minecraft:rabbit_hide
+          name: 영혼석
+          amount: 5
+      seconds: 5
+    r2:
+      results:
+        0:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 60
+      ingredients:
+        0:
+          item: inmc:items2
+          material: minecraft:rabbit_hide
+          name: 광물의 기운
+          amount: 300
+        1:
+          item: inmc:items4
+          material: minecraft:rabbit_hide
+          name: 영혼석
+          amount: 300
+      seconds: 60
+    items1:
+      results:
+        0:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items13
+          material: minecraft:rabbit_hide
+          name: 다이아몬드의 기운
+          amount: 1
+        1:
+          item: inmc:items14
+          material: minecraft:rabbit_hide
+          name: 에메랄드의 기운
+          amount: 1
+        2:
+          item: inmc:items15
+          material: minecraft:rabbit_hide
+          name: 루비의 기운
+          amount: 1
+        3:
+          item: inmc:items16
+          material: minecraft:rabbit_hide
+          name: 사파이어의 기운
+          amount: 1
+        4:
+          item: inmc:items17
+          material: minecraft:rabbit_hide
+          name: 결정석의 기운
+          amount: 1
+        5:
+          item: inmc:items18
+          material: minecraft:rabbit_hide
+          name: 토파즈의 기운
+          amount: 1
+        6:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 10
+      seconds: 5
+    items13:
+      results:
+        0:
+          item: inmc:items13
+          material: minecraft:rabbit_hide
+          name: 다이아몬드의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items7
+          material: minecraft:rabbit_hide
+          name: 강화 다이아몬드
+          amount: 5
+      seconds: 5
+    items14:
+      results:
+        0:
+          item: inmc:items14
+          material: minecraft:rabbit_hide
+          name: 에메랄드의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items8
+          material: minecraft:rabbit_hide
+          name: 강화 에메랄드
+          amount: 5
+      seconds: 5
+    items15:
+      results:
+        0:
+          item: inmc:items15
+          material: minecraft:rabbit_hide
+          name: 루비의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items9
+          material: minecraft:rabbit_hide
+          name: 루비
+          amount: 5
+      seconds: 5
+    items16:
+      results:
+        0:
+          item: inmc:items16
+          material: minecraft:rabbit_hide
+          name: 사파이어의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items10
+          material: minecraft:rabbit_hide
+          name: 사파이어
+          amount: 5
+      seconds: 5
+    items17:
+      results:
+        0:
+          item: inmc:items17
+          material: minecraft:rabbit_hide
+          name: 결정석의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items11
+          material: minecraft:rabbit_hide
+          name: 결정석
+          amount: 5
+      seconds: 5
+    items18:
+      results:
+        0:
+          item: inmc:items18
+          material: minecraft:rabbit_hide
+          name: 토파즈의 기운
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 4
+        1:
+          item: inmc:items12
+          material: minecraft:rabbit_hide
+          name: 토파즈
+          amount: 5
+      seconds: 5
+    items19:
+      results:
+        0:
+          item: inmc:items19
+          material: minecraft:rabbit_hide
+          name: 진 근원
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 100
+        1:
+          item: inmc:items1
+          material: minecraft:rabbit_hide
+          name: 무지개파편
+          amount: 10
+      seconds: 5
+    items20:
+      results:
+        0:
+          item: inmc:items20
+          material: minecraft:rabbit_hide
+          name: 티타늄
+          amount: 1
+      ingredients:
+        0:
+          item: inmc:items6
+          material: minecraft:rabbit_hide
+          name: 강철 주괴
+          amount: 1000
+        1:
+          item: inmc:items0
+          material: minecraft:rabbit_hide
+          name: 근원
+          amount: 100
+      seconds: 5

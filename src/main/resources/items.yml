@@ -1,0 +1,3028 @@
+# ============================================================
+#  커스텀 아이템
+# ============================================================
+#  /커스텀아이템 관리 에서 전부 GUI 로 만들고 고칠 수 있습니다.
+#  손으로 고쳤다면 /커스텀아이템 리로드 를 실행하세요.
+#
+#  여기서 만든 아이템은 다른 INMC 플러그인 전부에서 **inmc:아이디** 로 씁니다.
+#
+#  [모양]
+#    material           바탕이 되는 바닐라 아이템
+#    display-name       표시 이름. 등급 색이 앞에 저절로 붙습니다
+#    lore               설명. 등급·능력치·기능 줄은 저절로 붙으니 적지 마세요
+#    custom-model-data  리소스팩 모델 번호
+#    enchants           인챈트 id → 레벨. 바닐라 상한을 넘겨도 됩니다
+#    flags              숨김 옵션 (HIDE_ENCHANTS 등)
+#    glow               인챈트 없이 반짝이게
+#    unbreakable        닳지 않게
+#    max-durability     최대 내구도. 0 이면 바닐라 기본값
+#
+#  [분류]
+#    type   weapon / armor / tool / consumable / accessory / talisman / relic /
+#           material / gem / misc
+#           talisman(부적)·relic(유물)은 가방·장착 칸에서 효과가 납니다. 유물은 한 번에 하나만.
+#    tier   common / uncommon / rare / epic / legendary / mythic
+#    category  소분류 id (categories.yml). 종류 아래의 서랍 — 표시와 걸러보기 전용
+#
+#  [능력치] stats
+#    바닐라로 내려가는 것: attack-damage, attack-speed, armor, armor-toughness,
+#                          max-health, movement-speed, knockback-resistance, luck,
+#                          attack-knockback
+#    이 플러그인이 계산하는 것: crit-chance(%), crit-damage(배), lifesteal(%),
+#                               damage-bonus, damage-reduction(%), thorns
+#
+#  [기능] abilities — 번호 순서대로 터집니다
+#    trigger   right-click / left-click / on-hit / on-kill / when-damaged / passive
+#    effect    potion / damage / heal / ignite / lightning / launch / teleport /
+#              sound / particle / command / message
+#    chance    발동 확률(%). 없으면 100
+#    cooldown  재사용 대기 시간(초)
+#    interval  passive 일 때 발동 주기(초)
+#    values    효과마다 요구하는 값이 다릅니다. GUI 가 알려줍니다
+#
+#  [연동 값] data
+#    **다른 플러그인이 읽는 값입니다.** 이 플러그인은 뜻을 모릅니다.
+#    예: fishing.reel-power 를 적으면 낚시가 이 아이템을 낚싯대로 씁니다.
+#
+#  [그 밖에] set(세트) · sockets(보석 칸) · gem(보석) · consume(소모·강화석) ·
+#            upgrade(강화) · requirement(요구 조건) · components(1.21 부품)
+#    전부 GUI 에서 설명과 함께 고칠 수 있습니다.
+#
+#  아래 "MMOItems 에서 옮겨 온 것" 은 기존 서버의 MMOItems 아이템입니다.
+#  필요 없으면 지워도 됩니다.
+# ============================================================
+items:
+
+  # 예시 1 — 기능이 붙은 무기.
+  # 우클릭하면 8칸 앞으로 순간이동하고, 때리면 30% 확률로 번개가 칩니다.
+  example_blade:
+    material: NETHERITE_SWORD
+    type: weapon
+    tier: legendary
+    display-name: "섬광검"
+    lore:
+      - "&7번개를 머금은 검."
+    glow: true
+    # pack/textures/ 에 이 이름으로 png 를 넣고 /커스텀아이템 리팩 빌드 하면
+    # 모델까지 자동으로 만들고 아이템에 item_model 이 붙습니다.
+    # 파일이 없으면 빌드 보고서에 적히고 바닐라 모양으로 나옵니다.
+    texture: "example_blade.png"
+    stats:
+      attack-damage: 9.0
+      attack-speed: -2.0
+      crit-chance: 25.0
+      crit-damage: 2.5
+      lifesteal: 8.0
+    abilities:
+      0:
+        trigger: right-click
+        effect: teleport
+        cooldown: 6.0
+        values:
+          distance: "8"
+      1:
+        trigger: right-click
+        effect: sound
+        cooldown: 6.0
+        values:
+          sound: ENTITY_ENDERMAN_TELEPORT
+          volume: "1"
+          pitch: "1.2"
+      2:
+        trigger: on-hit
+        effect: lightning
+        chance: 30.0
+        values:
+          target: other
+          damage: "1"
+
+  # 예시 2 — 낚싯대. **낚시 플러그인이 이 data 를 읽습니다.**
+  # 낚시에서 따로 등록할 필요 없이 여기서 만들면 됩니다.
+  example_rod:
+    material: FISHING_ROD
+    type: tool
+    tier: epic
+    display-name: "심해의 낚싯대"
+    lore:
+      - "&7깊은 곳의 것들이 끌려 올라옵니다."
+    unbreakable: true
+    data:
+      fishing.rod: "1"
+      fishing.reel-power: "15"
+      fishing.line-strength: "30"
+      fishing.reel-durability: "15"
+      fishing.big-fish-chance: "2"
+      fishing.double-chance: "3"
+      fishing.max-fatigue: "500"
+      fishing.fatigue-recovery: "50"
+      fishing.grade-bonus.a: "3"
+      fishing.grade-bonus.s: "2"
+
+  # 예시 3 — 지속 기능이 붙은 방어구.
+  # 착용한 동안 10초마다 재생 효과를 받습니다.
+  example_crown:
+    material: GOLDEN_HELMET
+    type: armor
+    tier: mythic
+    display-name: "재생의 왕관"
+    lore:
+      - "&7쓰고 있으면 상처가 아뭅니다."
+    stats:
+      armor: 4.0
+      max-health: 4.0
+      damage-reduction: 10.0
+      thorns: 2.0
+    abilities:
+      0:
+        trigger: passive
+        effect: potion
+        interval: 10.0
+        values:
+          effect: REGENERATION
+          seconds: "4"
+          level: "1"
+          target: self
+  # ============ MMOItems 에서 옮겨 온 것 ============
+
+  # --- 무기 ---
+  신화_나무검:
+    material: WOODEN_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 6
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 단계만
+  신화_돌검:
+    material: STONE_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 7
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 100
+    upgrade:
+      template: 단계만
+  신화_철검:
+    material: IRON_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 9
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 200
+    upgrade:
+      template: 단계만
+  신화_금검:
+    material: GOLDEN_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 10
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 300
+    upgrade:
+      template: 단계만
+  신화_다이아몬드검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 11
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 400
+    upgrade:
+      template: 단계만
+  신화_네더라이트검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 신화무기
+    tier: mythic
+    stats:
+      attack-damage: 12
+      attack-speed: -2.2
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 500
+    upgrade:
+      template: 단계만
+  폭풍심장검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 영웅무기
+    tier: epic
+    display-name: '&f&l폭풍 심장검'
+    max-durability: 5000
+    stats:
+      attack-damage: 9.5
+      attack-speed: -2
+      crit-chance: 20
+      crit-power: 35
+    sockets:
+    - 마석
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  파멸대철퇴:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 영웅무기
+    tier: epic
+    display-name: '&f&l파멸 대철퇴'
+    max-durability: 5000
+    stats:
+      attack-damage: 11.5
+      attack-speed: -2.5
+      crit-chance: 12
+      crit-power: 45
+    sockets:
+    - 마석
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  패왕장검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 영웅무기
+    tier: epic
+    display-name: '&f&l패왕 장검'
+    max-durability: 5000
+    stats:
+      attack-damage: 10
+      attack-speed: -2.2
+      crit-chance: 14
+      crit-power: 35
+    sockets:
+    - 마석
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  심연심판검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 영웅무기
+    tier: epic
+    display-name: '&f&l심연 심판검'
+    max-durability: 5000
+    stats:
+      attack-damage: 10.2
+      attack-speed: -2.3
+      crit-chance: 25
+      crit-power: 40
+    sockets:
+    - 마석
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  강화나무검:
+    material: WOODEN_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: '&f강화 나무검'
+    max-durability: 1500
+    stats:
+      attack-damage: 5
+      attack-speed: -2.2
+      crit-chance: 8
+      crit-power: 20
+    sockets:
+    - 마석
+    upgrade:
+      template: 일반
+  강화돌검:
+    material: STONE_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: '&f강화 돌검'
+    max-durability: 1500
+    stats:
+      attack-damage: 6
+      attack-speed: -2.4
+      crit-chance: 5
+      crit-power: 40
+    sockets:
+    - 마석
+    upgrade:
+      template: 일반
+  강화금검:
+    material: GOLDEN_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: '&f강화 금검'
+    max-durability: 1500
+    stats:
+      attack-damage: 4.5
+      attack-speed: -2
+      crit-chance: 25
+      crit-power: 18
+    sockets:
+    - 마석
+    upgrade:
+      template: 일반
+  강화철검:
+    material: IRON_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: '&f강화 철검'
+    max-durability: 1500
+    stats:
+      attack-damage: 6.5
+      attack-speed: -2.4
+      crit-chance: 12
+      crit-power: 25
+    sockets:
+    - 마석
+    upgrade:
+      template: 일반
+  강화다이아몬드검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: 강화 다이아몬드 검
+    max-durability: 1500
+    stats:
+      attack-damage: 7.5
+      attack-speed: -2.4
+      crit-chance: 15
+      crit-power: 30
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  강화네더라이트검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 일반무기
+    tier: common
+    display-name: 강화 네더라이트 검
+    max-durability: 1500
+    stats:
+      attack-damage: 8.5
+      attack-speed: -2.4
+      crit-chance: 18
+      crit-power: 33
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  전설_나무검:
+    material: WOODEN_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 5
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 단계만
+  전설_돌검:
+    material: STONE_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 6
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 50
+    upgrade:
+      template: 단계만
+  전설_철검:
+    material: IRON_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 8
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 60
+    upgrade:
+      template: 단계만
+  전설_금검:
+    material: GOLDEN_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 9
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 70
+    upgrade:
+      template: 단계만
+  전설_다이아몬드검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 10
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 80
+    upgrade:
+      template: 단계만
+  전설_네더라이트검:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 전설무기
+    tier: legendary
+    stats:
+      attack-damage: 11
+      attack-speed: -2.3
+    sockets:
+    - 마석
+    - 마석
+    requirement:
+      level: 90
+    upgrade:
+      template: 단계만
+  질풍의칼날:
+    material: WOODEN_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l질풍의 칼날'
+    max-durability: 3000
+    stats:
+      attack-damage: 5.5
+      attack-speed: -1.8
+      crit-chance: 10
+      crit-power: 20
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  파쇄의대검:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l파쇄의 대검'
+    max-durability: 3000
+    stats:
+      attack-damage: 7.8
+      attack-speed: -2.5
+      crit-chance: 5
+      crit-power: 50
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  섬광의춤:
+    material: GOLDEN_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l섬광의 춤'
+    max-durability: 3000
+    stats:
+      attack-damage: 5.2
+      attack-speed: -1.9
+      crit-chance: 35
+      crit-power: 20
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  강철의심장:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l강철의 심장'
+    stats:
+      attack-damage: 7.5
+      attack-speed: -2.4
+      crit-chance: 15
+      crit-power: 30
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  연격의망치:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l연격의 망치'
+    stats:
+      attack-damage: 6.3
+      attack-speed: -2.2
+      crit-chance: 8
+      crit-power: 38
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  질풍의섬광:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l질풍의 섬광'
+    max-durability: 3000
+    stats:
+      attack-damage: 5.5
+      attack-speed: -1.9
+      crit-chance: 28
+      crit-power: 20
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  단련된쾌검:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l단련된 쾌검'
+    stats:
+      attack-damage: 6.5
+      attack-speed: -2.2
+      crit-chance: 12
+      crit-power: 25
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  폭풍전야:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l폭풍전야'
+    stats:
+      attack-damage: 6.8
+      attack-speed: -2.4
+      crit-chance: 20
+      crit-power: 45
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  중철검:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l중철검'
+    stats:
+      attack-damage: 7
+      attack-speed: -2.3
+      crit-chance: 9
+      crit-power: 35
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  예리한강철검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: common
+    display-name: '&f&l예리한 강철검'
+    stats:
+      attack-damage: 6.5
+      attack-speed: -2.1
+      crit-chance: 20
+      crit-power: 25
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 영웅
+  질풍의쌍검:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l질풍의 쌍검'
+    max-durability: 3000
+    stats:
+      attack-damage: 5.8
+      attack-speed: -1.7
+      crit-chance: 18
+      crit-power: 20
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  분쇄의철퇴:
+    material: IRON_AXE
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l분쇄의 철퇴'
+    max-durability: 3000
+    stats:
+      attack-damage: 8
+      attack-speed: -2.6
+      crit-chance: 6
+      crit-power: 35
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  균형의장검:
+    material: IRON_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l균형의 장검'
+    max-durability: 3000
+    stats:
+      attack-damage: 6.2
+      attack-speed: -2.1
+      crit-chance: 12
+      crit-power: 25
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  파괴의대검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l파괴의 대검'
+    max-durability: 3000
+    stats:
+      attack-damage: 8.5
+      attack-speed: -2.5
+      crit-chance: 8
+      crit-power: 40
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  광휘의검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l광휘의 검'
+    max-durability: 3000
+    stats:
+      attack-damage: 7.6
+      attack-speed: -2.2
+      crit-chance: 22
+      crit-power: 35
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  강철장도:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l강철 장도'
+    max-durability: 3000
+    stats:
+      attack-damage: 7.9
+      attack-speed: -2.3
+      crit-chance: 14
+      crit-power: 30
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  심연의참도:
+    material: NETHERITE_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l심연의 참도'
+    max-durability: 3000
+    stats:
+      attack-damage: 9.2
+      attack-speed: -2.4
+      crit-chance: 18
+      crit-power: 40
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+  섬광의장검:
+    material: DIAMOND_SWORD
+    type: weapon
+    category: 희귀무기
+    tier: rare
+    display-name: '&f&l섬광의 장검'
+    max-durability: 3000
+    stats:
+      attack-damage: 7
+      attack-speed: -2
+      crit-chance: 14
+      crit-power: 28
+    sockets:
+    - 마석
+    - 마석
+    upgrade:
+      template: 희귀
+
+  # --- 방어구 ---
+  netherium_helmet:
+    material: NETHERITE_HELMET
+    type: armor
+    category: 네더리움
+    tier: common
+    display-name: 네더리움 투구
+    max-durability: 1000
+    stats:
+      armor: 6
+      armor-toughness: 4
+      knockback-resistance: 0.1
+      max-health: 4
+      defense: 3
+    set: netherium
+    sockets:
+    - 마석
+  netherium_chestplate:
+    material: NETHERITE_CHESTPLATE
+    type: armor
+    category: 네더리움
+    tier: common
+    display-name: 네더리움 흉갑
+    max-durability: 1000
+    stats:
+      armor: 12
+      armor-toughness: 6
+      knockback-resistance: 0.1
+      max-health: 8
+      defense: 3
+    set: netherium
+    sockets:
+    - 마석
+  netherium_leggings:
+    material: NETHERITE_LEGGINGS
+    type: armor
+    category: 네더리움
+    tier: common
+    display-name: 네더리움 레깅스
+    max-durability: 1000
+    stats:
+      armor: 8
+      armor-toughness: 4
+      knockback-resistance: 0.1
+      max-health: 6
+      defense: 3
+    set: netherium
+    sockets:
+    - 마석
+  netherium_boots:
+    material: NETHERITE_BOOTS
+    type: armor
+    category: 네더리움
+    tier: common
+    display-name: 네더리움 부츠
+    max-durability: 1000
+    stats:
+      armor: 4
+      armor-toughness: 2
+      knockback-resistance: 0.1
+      max-health: 2
+      defense: 3
+    set: netherium
+    sockets:
+    - 마석
+  ironwall_helmet:
+    material: NETHERITE_HELMET
+    type: armor
+    category: 철벽
+    tier: rare
+    display-name: 철벽 투구
+    max-durability: 1500
+    stats:
+      armor: 6
+      armor-toughness: 6
+      knockback-resistance: 0.15
+      max-health: 6
+      defense: 5
+    set: 철벽
+    sockets:
+    - 마석
+  ironwall_chestplate:
+    material: NETHERITE_CHESTPLATE
+    type: armor
+    category: 철벽
+    tier: rare
+    display-name: 철벽 흉갑
+    max-durability: 1500
+    stats:
+      armor: 12
+      armor-toughness: 8
+      knockback-resistance: 0.15
+      max-health: 8
+      defense: 5
+    set: 철벽
+    sockets:
+    - 마석
+  ironwall_leggings:
+    material: NETHERITE_LEGGINGS
+    type: armor
+    category: 철벽
+    tier: rare
+    display-name: 철벽 레깅스
+    max-durability: 1500
+    stats:
+      armor: 8
+      armor-toughness: 6
+      knockback-resistance: 0.15
+      max-health: 6
+      defense: 5
+    set: 철벽
+    sockets:
+    - 마석
+  ironwall_boots:
+    material: NETHERITE_BOOTS
+    type: armor
+    category: 철벽
+    tier: rare
+    display-name: 철벽 부츠
+    max-durability: 1500
+    stats:
+      armor: 4
+      armor-toughness: 4
+      knockback-resistance: 0.15
+      max-health: 4
+      defense: 5
+    set: 철벽
+    sockets:
+    - 마석
+  assault_helmet:
+    material: NETHERITE_HELMET
+    type: armor
+    category: 맹공
+    tier: rare
+    display-name: 맹공 투구
+    max-durability: 1500
+    stats:
+      armor: 6
+      armor-toughness: 3
+      knockback-resistance: 0.05
+      max-health: 3
+      defense: 2.5
+    set: 맹공
+    sockets:
+    - 마석
+  assault_chestplate:
+    material: NETHERITE_CHESTPLATE
+    type: armor
+    category: 맹공
+    tier: rare
+    display-name: 맹공 흉갑
+    max-durability: 1500
+    stats:
+      armor: 12
+      armor-toughness: 5
+      knockback-resistance: 0.05
+      max-health: 4
+      defense: 2.5
+    set: 맹공
+    sockets:
+    - 마석
+  assault_leggings:
+    material: NETHERITE_LEGGINGS
+    type: armor
+    category: 맹공
+    tier: rare
+    display-name: 맹공 레깅스
+    max-durability: 1500
+    stats:
+      armor: 7
+      armor-toughness: 4
+      knockback-resistance: 0.05
+      max-health: 3
+      defense: 2.5
+    set: 맹공
+    sockets:
+    - 마석
+  assault_boots:
+    material: NETHERITE_BOOTS
+    type: armor
+    category: 맹공
+    tier: rare
+    display-name: 맹공 부츠
+    max-durability: 1500
+    stats:
+      armor: 3
+      armor-toughness: 2
+      knockback-resistance: 0.05
+      max-health: 2
+      defense: 2.5
+    set: 맹공
+    sockets:
+    - 마석
+  balance_helmet:
+    material: NETHERITE_HELMET
+    type: armor
+    category: 평형
+    tier: rare
+    display-name: 평형 투구
+    max-durability: 1500
+    stats:
+      armor: 6
+      armor-toughness: 5
+      knockback-resistance: 0.12
+      max-health: 4
+      defense: 4
+    set: 평형
+    sockets:
+    - 마석
+  balance_chestplate:
+    material: NETHERITE_CHESTPLATE
+    type: armor
+    category: 평형
+    tier: rare
+    display-name: 평형 흉갑
+    max-durability: 1500
+    stats:
+      armor: 12
+      armor-toughness: 7
+      knockback-resistance: 0.12
+      max-health: 8
+      defense: 4
+    set: 평형
+    sockets:
+    - 마석
+  balance_leggings:
+    material: NETHERITE_LEGGINGS
+    type: armor
+    category: 평형
+    tier: rare
+    display-name: 평형 레깅스
+    max-durability: 1500
+    stats:
+      armor: 8
+      armor-toughness: 5
+      knockback-resistance: 0.12
+      max-health: 6
+      defense: 4
+    set: 평형
+    sockets:
+    - 마석
+  balance_boots:
+    material: NETHERITE_BOOTS
+    type: armor
+    category: 평형
+    tier: rare
+    display-name: 평형 부츠
+    max-durability: 1500
+    stats:
+      armor: 4
+      armor-toughness: 3
+      knockback-resistance: 0.12
+      max-health: 2
+      defense: 4
+    set: 평형
+    sockets:
+    - 마석
+
+  # --- 도구 ---
+  구리곡괭이:
+    material: STONE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f강화된 구리 곡괭이'
+    enchants:
+      unbreaking: 3
+  고대의망치:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f고대의 망치'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 10%'
+    - '&7경험치 획득량: 1 - 10'
+    enchants:
+      unbreaking: 3
+    max-durability: 1000000
+  미약한달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f미달곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 20%'
+    - '&7경험치 획득량: 5 - 30'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 5000000
+  달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f달곡'
+    lore:
+    - '&7블록 채굴 시 3x2 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 20%'
+    - '&7경험치 획득량: 10 - 50'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 10000000
+  진정한달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f진달곡'
+    lore:
+    - '&7블록 채굴 시 3x3 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 20%'
+    - '&7경험치 획득량: 30 - 85'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 5
+    max-durability: 30000000
+    components:
+      max-stack: 1
+  미약한별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f미별곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 50%'
+    - '&7경험치 획득량: 5 - 10'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 5000000
+  별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f별곡'
+    lore:
+    - '&7블록 채굴 시 3x2 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 50%'
+    - '&7경험치 획득량: 10 - 15'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 4
+    max-durability: 10000000
+  진정한별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f진별곡'
+    lore:
+    - '&7블록 채굴 시 3x3 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 50%'
+    - '&7경험치 획득량: 15 - 30'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 5
+    max-durability: 30000000
+  미약한자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f미자곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 80%'
+    - '&7경험치 획득량: 1 - 5'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 5000000
+  자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f자곡'
+    lore:
+    - '&7블록 채굴 시 3x2 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 80%'
+    - '&7경험치 획득량: 5 - 10'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 4
+    max-durability: 10000000
+  진정한자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f진자곡'
+    lore:
+    - '&7블록 채굴 시 3x3 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 80%'
+    - '&7경험치 획득량: 10 - 15'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 5
+    max-durability: 30000000
+  미약한태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f미태곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 100%'
+    - '&7경험치 획득량: 1 - 1'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 5000000
+  태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f태곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 100%'
+    - '&7경험치 획득량: 5 - 5'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 4
+    max-durability: 10000000
+  진정한태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f진태곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 100%'
+    - '&7경험치 획득량: 10 - 10'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 5
+    max-durability: 30000000
+  미약한악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f미악곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 5%'
+    - '&7경험치 획득량: 10 - 100'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 3
+    max-durability: 5000000
+  악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f악곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 5%'
+    - '&7경험치 획득량: 2 - 250'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 4
+    max-durability: 10000000
+  진정한악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: tool
+    category: 곡괭이
+    display-name: '&f진악곡'
+    lore:
+    - '&7블록 채굴 시 3x1 크기로 블록이 채굴됩니다.'
+    - '&7블록 채굴 시 일정확률로 경험치가 나옵니다.'
+    - '&7경험치 획득 확률: 5%'
+    - '&7경험치 획득량: 60 - 400'
+    enchants:
+      unbreaking: 3
+      fortune: 3
+      efficiency: 5
+    max-durability: 30000000
+  1차낚싯대:
+    material: FISHING_ROD
+    type: tool
+    category: 낚싯대
+    tier: common
+    display-name: '&7&l낡은낚싯대'
+    enchants:
+      lure: 3
+    unbreakable: true
+  2차낚싯대:
+    material: FISHING_ROD
+    type: tool
+    category: 낚싯대
+    tier: rare
+    display-name: '&3&l좋은낚싯대'
+    custom-model-data: 10006
+    enchants:
+      lure: 3
+    unbreakable: true
+  3차낚싯대:
+    material: FISHING_ROD
+    type: tool
+    category: 낚싯대
+    tier: epic
+    display-name: '&b&l장인낚싯대'
+    custom-model-data: 10007
+    enchants:
+      lure: 3
+    unbreakable: true
+  4차낚싯대:
+    material: FISHING_ROD
+    type: tool
+    category: 낚싯대
+    tier: legendary
+    display-name: '&d&l마스터낚싯대'
+    custom-model-data: 10008
+    enchants:
+      lure: 3
+    unbreakable: true
+  5차낚싯대:
+    material: FISHING_ROD
+    type: tool
+    category: 낚싯대
+    tier: mythic
+    display-name: '&6&l전설낚싯대'
+    custom-model-data: 10009
+    enchants:
+      lure: 3
+    unbreakable: true
+
+  # --- 소모품 · 강화석 · 교환권 · 상자 ---
+  마석제거:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 기타소모품
+    display-name: '&c&l마석제거제'
+    lore:
+    - '&7마석을 제거할 아이템에'
+    - '&7겹쳐주세요!'
+    custom-model-data: 10001
+    consume:
+      unsocket: true
+  하급수리도구:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 기타소모품
+    display-name: '&f하급 수리도구'
+    custom-model-data: 10003
+    consume:
+      repair: 500
+  중급수리도구:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 기타소모품
+    display-name: '&f&l중급 수리도구'
+    custom-model-data: 10004
+    consume:
+      repair: 2000
+  숫자게임초기화:
+    material: STICK
+    type: consumable
+    category: 기타소모품
+    display-name: '&6&l숫자게임 초기화권'
+    custom-model-data: 10074
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: 숫자게임 개인초기화 {player}
+          console: '1'
+    consume:
+      uses: 1
+  각인:
+    material: EMERALD
+    type: consumable
+    category: 기타소모품
+    display-name: '&6&l각인석'
+    lore:
+    - '&7아이템에 겹치면 각인에 성공합니다.'
+    - '&7각인된 아이템은 잃어버리지 않습니다.'
+    custom-model-data: 10091
+  방어구강화석:
+    material: EMERALD
+    type: consumable
+    category: 강화석
+    display-name: '&6&l방어구 강화석'
+    lore:
+    - '&730% 확률로 강화에 성공합니다.'
+    custom-model-data: 10046
+    consume:
+      upgrade-stone:
+        templates:
+        - 방어구
+        chance: 30
+  티어1-하급:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 강화석
+    tier: common
+    display-name: '&f&l하급 강화석'
+    lore:
+    - '&6&l확률표'
+    - '&7일반등급 : 10%'
+    - '&7희귀등급 : 8%'
+    - '&7영웅등급 : 5%'
+    - '&7전설등급 : 1%'
+    - '&7신화등급 : 0.01%'
+    - '&7의 확률로 강화에 성공합니다.'
+    custom-model-data: 10008
+    consume:
+      upgrade-stone:
+        chance: 10
+        chances:
+          common: 10
+          rare: 8
+          epic: 5
+          legendary: 1
+          mythic: 0.01
+  티어1-중급:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 강화석
+    tier: rare
+    display-name: '&f&l중급 강화석'
+    lore:
+    - '&6&l확률표'
+    - '&7일반등급 : 30%'
+    - '&7희귀등급 : 20%'
+    - '&7영웅등급 : 10%'
+    - '&7전설등급 : 1%'
+    - '&7신화등급 : 0.1%'
+    - '&7의 확률로 강화에 성공합니다.'
+    custom-model-data: 10007
+    consume:
+      upgrade-stone:
+        chance: 30
+        chances:
+          common: 30
+          rare: 20
+          epic: 10
+          legendary: 1
+          mythic: 0.1
+  티어1-상급:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 강화석
+    tier: epic
+    display-name: '&f&l상급 강화석'
+    lore:
+    - '&6&l확률표'
+    - '&7일반등급 : 50%'
+    - '&7희귀등급 : 40%'
+    - '&7영웅등급 : 10%'
+    - '&7전설등급 : 5%'
+    - '&7신화등급 : 0.5%'
+    - '&7의 확률로 강화에 성공합니다.'
+    custom-model-data: 10006
+    consume:
+      upgrade-stone:
+        chance: 50
+        chances:
+          common: 50
+          rare: 40
+          epic: 10
+          legendary: 5
+          mythic: 0.5
+  티어1-최상급:
+    material: PRISMARINE_SHARD
+    type: consumable
+    category: 강화석
+    tier: legendary
+    display-name: '&f&l최상급 강화석'
+    lore:
+    - '&6&l확률표'
+    - '&7일반등급 : 100%'
+    - '&7희귀등급 : 80%'
+    - '&7영웅등급 : 50%'
+    - '&7전설등급 : 10%'
+    - '&7신화등급 : 1%'
+    - '&7의 확률로 강화에 성공합니다.'
+    custom-model-data: 10005
+    consume:
+      upgrade-stone:
+        chance: 100
+        chances:
+          common: 100
+          rare: 80
+          epic: 50
+          legendary: 10
+          mythic: 1
+  고대망치:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f고대의 망치'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick1 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_미약한달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f미약한달의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick2 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f달의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick3 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_진정한달의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f진정한달의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick4 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_미약한별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f미약한별의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick5 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f별의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick6 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_진정한별의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f진정한별의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick7 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_미약한자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f미약한자연의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick8 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f자연의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick9 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_진정한자연의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f진정한자연의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick10 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_미약한태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f미약한태양의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick11 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f태양의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick12 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_진정한태양의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f진정한태양의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick13 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_미약한악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f미약한악마의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick14 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f악마의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick15 1
+          console: '1'
+    consume:
+      uses: 1
+  교환권_진정한악마의곡괭이:
+    material: NETHERITE_PICKAXE
+    type: consumable
+    category: 도구교환권
+    display-name: '&f진정한악마의곡괭이'
+    lore:
+    - '&7아직 힘을 이끌어내지 못했습니다.'
+    - '&7우클릭하여 힘을 이끌어내세요.'
+    enchants:
+      unbreaking: 3
+    abilities:
+      0:
+        trigger: consume
+        effect: command
+        values:
+          command: iagive {player} inmc:pick16 1
+          console: '1'
+    consume:
+      uses: 1
+  광물랜덤상자1:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: common
+    display-name: '&f&l최하급 광물상자'
+    lore:
+    - '&7다양한 광물이 나오는'
+    - '&7가장 낮은 등급의 상자'
+    custom-model-data: 10026
+  광물랜덤상자2:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: common
+    display-name: '&f&l하급 광물상자'
+    lore:
+    - '&7다양한 광물이 나오는'
+    - '&7낮은 등급의 상자'
+    custom-model-data: 10026
+    enchants:
+      sharpness: 1
+    flags:
+    - HIDE_ENCHANTS
+  광물랜덤상자3:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: rare
+    display-name: '&f&l중급 광물상자'
+    custom-model-data: 10027
+  광물랜덤상자4:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: epic
+    display-name: '&f&l상급 광물상자'
+    custom-model-data: 10028
+  광물랜덤상자5:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: epic
+    display-name: '&f&l최상급 광물상자'
+    custom-model-data: 10028
+    enchants:
+      sharpness: 1
+    flags:
+    - HIDE_ENCHANTS
+  겜블박스:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: rare
+    display-name: '&6&l겜블박스'
+    lore:
+    - '&7어떤 아이템이 나올지 알 수 없습니다.'
+    - '&7우클릭하여 확인해주세요!'
+    custom-model-data: 10066
+  근원랜덤:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: rare
+    display-name: '&6&l근원 랜덤 꾸러미'
+    lore:
+    - '&7근원이 얼마나 나올지 알 수 없습니다.'
+    - '&7우클릭하여 확인해주세요!'
+    custom-model-data: 10036
+  하급마석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    display-name: '&7하급 마석 상자'
+    lore:
+    - '&7어떤 마석이 나올지 알 수 없습니다.'
+    - '&7우클릭하여 확인해주세요!'
+    custom-model-data: 10043
+  중급마석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    display-name: '&f&l중급 마석 상자'
+    lore:
+    - '&7어떤 마석이 나올지 알 수 없습니다.'
+    - '&7우클릭하여 확인해주세요!'
+    custom-model-data: 10038
+  상급마석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    display-name: '&f&lLv.2 마석상자'
+    lore:
+    - '&7어떤 마석이 나올지 알 수 없습니다.'
+    - '&7우클릭하여 확인해주세요!'
+    custom-model-data: 10016
+  2_3레벨마석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    display-name: '&f2레벨 진화 마석상자'
+    lore:
+    - '&72레벨 마석을 진화시킵니다!'
+    - '&7우클릭시 열립니다.'
+    - '&7'
+    - '&cps. 진화에 실패할 수 있습니다.'
+    custom-model-data: 10038
+  3_4레벨마석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    display-name: '&f3레벨 진화 마석상자'
+    lore:
+    - '&73레벨 마석을 진화시킵니다!'
+    - '&7우클릭시 열립니다.'
+    - '&7'
+    - '&cps. 진화에 실패할 수 있습니다.'
+    custom-model-data: 10016
+  랜덤강화석상자:
+    material: STICK
+    type: consumable
+    category: 랜덤상자
+    tier: common
+    display-name: '&f&l랜덤 강화석 상자'
+    lore:
+    - '&7랜덤한 강화석이 나오는 상자'
+    custom-model-data: 10033
+  이벤트교환권_lv1:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 1강화 상자'
+    lore:
+    - '&7이벤트 아이템을 1강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 0
+        max-level: 0
+  이벤트교환권_lv2:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 2강화 상자'
+    lore:
+    - '&7이벤트 아이템을 2강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 1
+        max-level: 1
+  이벤트교환권_lv3:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 3강화 상자'
+    lore:
+    - '&7이벤트 아이템을 3강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 2
+        max-level: 2
+  이벤트교환권_lv4:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 4강화 상자'
+    lore:
+    - '&7이벤트 아이템을 4강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 3
+        max-level: 3
+  이벤트교환권_lv5:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 5강화 상자'
+    lore:
+    - '&7이벤트 아이템을 5강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 4
+        max-level: 4
+  이벤트교환권_lv6:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 6강화 상자'
+    lore:
+    - '&7이벤트 아이템을 6강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 5
+        max-level: 5
+  이벤트교환권_lv7:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 7강화 상자'
+    lore:
+    - '&7이벤트 아이템을 7강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 6
+        max-level: 6
+  이벤트교환권_lv8:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 8강화 상자'
+    lore:
+    - '&7이벤트 아이템을 8강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 7
+        max-level: 7
+  이벤트교환권_lv9:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 9강화 상자'
+    lore:
+    - '&7이벤트 아이템을 9강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 8
+        max-level: 8
+  이벤트교환권_lv10:
+    material: STICK
+    type: consumable
+    category: 유물강화권
+    display-name: '&f&l이벤트 10강화 상자'
+    lore:
+    - '&7이벤트 아이템을 10강화 시도합니다!'
+    custom-model-data: 10016
+    consume:
+      upgrade-stone:
+        items:
+        - 강화유물
+        min-level: 9
+        max-level: 9
+
+  # --- 부적 (MMOItems 의 ORNAMENT — 가방에서 효과) ---
+  빛나는다이아:
+    material: EMERALD
+    type: talisman
+    tier: rare
+    display-name: '&b&l빛나는 다이아'
+    lore:
+    - '&7밝게 빛나는 다이아몬드다.'
+    - '&7길을 밝혀줄지어다.'
+    custom-model-data: 10047
+    enchants:
+      sharpness: 1
+    flags:
+    - HIDE_ENCHANTS
+    stats:
+      damage-reduction: 2
+    abilities:
+      0:
+        trigger: passive
+        effect: potion
+        interval: 5.0
+        values:
+          effect: NIGHT_VISION
+          seconds: '15'
+          level: '2'
+          target: self
+  고민염소피리:
+    material: GOAT_HORN
+    type: talisman
+    tier: epic
+    display-name: '&6&l고민 많은 염소의 뿔'
+    stats:
+      movement-speed: 0.01
+      pve-damage: 10
+      pvp-damage: 10
+  이벤트장식품:
+    material: EMERALD
+    type: talisman
+    tier: mythic
+    display-name: '&c&l흡혈의 결정'
+    custom-model-data: 10070
+    stats:
+      fall-defense: 30
+      lifesteal: 5
+  이벤트장신구:
+    material: PAPER
+    type: talisman
+    display-name: '&c&l[앵두]&6&l 과부화'
+    custom-model-data: 10237
+    abilities:
+      0:
+        trigger: when-damaged
+        cooldown: 15.0
+        effect: aoe-damage
+        values:
+          radius: '5'
+          damage: '80'
+          players: '1'
+          target: self
+  화염의_조각:
+    material: ENCHANTED_BOOK
+    type: talisman
+    stats:
+      max-health: 2
+  이벤트장신구2:
+    material: PAPER
+    type: talisman
+    display-name: '&9&l[기면] &d&l신비우박'
+    custom-model-data: 10237
+    abilities:
+      0:
+        trigger: on-hit
+        cooldown: 5.0
+        effect: aoe-damage
+        values:
+          radius: '3'
+          damage: '20'
+          players: '1'
+          target: other
+  이벤트장신구3:
+    material: STICK
+    type: talisman
+    display-name: '&a&l[오징] &6&l불타는 손길'
+    custom-model-data: 10086
+    abilities:
+      0:
+        trigger: on-hit
+        cooldown: 10.0
+        effect: aoe-damage
+        values:
+          radius: '3'
+          damage: '35'
+          players: '1'
+          target: other
+      1:
+        trigger: on-hit
+        cooldown: 10.0
+        effect: ignite
+        values:
+          seconds: '3'
+          target: other
+  이벤트장신구4:
+    material: PAPER
+    type: talisman
+    display-name: '&d&l[은먕] &6&l불꽃'
+    custom-model-data: 10235
+    abilities:
+      0:
+        trigger: on-hit
+        cooldown: 1.0
+        effect: aoe-damage
+        values:
+          radius: '3'
+          damage: '15'
+          players: '1'
+          target: other
+  이벤트장신구5:
+    material: PAPER
+    type: talisman
+    display-name: '&d&l[누누] &d&l타락'
+    custom-model-data: 10232
+    abilities:
+      0:
+        trigger: when-damaged
+        cooldown: 5.0
+        effect: aoe-damage
+        values:
+          radius: '3'
+          damage: '35'
+          players: '1'
+          target: other
+      1:
+        trigger: when-damaged
+        cooldown: 5.0
+        effect: aoe-potion
+        values:
+          effect: WITHER
+          seconds: '10'
+          level: '11'
+          radius: '3'
+          players: '1'
+  쿠이몬의손길:
+    material: PAPER
+    type: talisman
+    display-name: '&c&l[잉여] &c&l특별한 pvp 장신구'
+    custom-model-data: 10238
+    stats:
+      crit-chance: 5
+      pve-damage: 10
+      pvp-damage: 10
+  불의의지:
+    material: CAMPFIRE
+    type: talisman
+    tier: rare
+    display-name: '&c&l불의 의지'
+    enchants:
+      sharpness: 1
+    flags:
+    - HIDE_ENCHANTS
+    stats:
+      fire-defense: 100
+    abilities:
+      0:
+        trigger: passive
+        effect: potion
+        interval: 5.0
+        values:
+          effect: FIRE_RESISTANCE
+          seconds: '15'
+          level: '1'
+          target: self
+  초보자의행운:
+    material: ENCHANTED_BOOK
+    type: talisman
+    tier: rare
+    display-name: '&e&l초보자의 행운'
+    stats:
+      max-health: 2
+      damage-reduction: 1
+  테스트:
+    material: WHITE_SHULKER_BOX
+    type: talisman
+    tier: rare
+    display-name: '&f&l배낭'
+    lore:
+    - '&7시프트 + 우클릭'
+    stats:
+      defense: 1
+
+  # --- 유물 (강화유물 0~10강 → 아이템 하나 + 전용 강화표) ---
+  강화유물:
+    material: EMERALD
+    type: relic
+    tier: common
+    display-name: '&f[&cInMc&f]'
+    lore:
+    - '&7InMc 10주년 기념 아이템'
+    custom-model-data: 10075
+    upgrade:
+      own:
+        name: InMc 10주년 유물
+        mode: absolute
+        steps:
+          1:
+            chance: 30.0
+            stats:
+              crit-power: 1
+          2:
+            chance: 25.0
+            stats:
+              crit-power: 1
+              attack-damage: 0.5
+            tier: rare
+            custom-model-data: 10076
+          3:
+            chance: 20.0
+            stats:
+              crit-power: 1
+              crit-chance: 0.5
+              attack-damage: 0.5
+          4:
+            chance: 15.0
+            stats:
+              crit-power: 1
+              crit-chance: 0.5
+              attack-damage: 0.5
+              attack-speed: 0.1
+          5:
+            chance: 10.0
+            stats:
+              crit-power: 1
+              attack-speed: 0.1
+              attack-damage: 0.5
+              crit-chance: 0.5
+              pvp-defense: 1
+            tier: epic
+            custom-model-data: 10085
+          6:
+            chance: 5.0
+            stats:
+              crit-power: 1
+              attack-speed: 0.1
+              crit-chance: 0.5
+              attack-damage: 0.5
+              pvp-defense: 1
+              max-health: 2
+          7:
+            chance: 1.0
+            stats:
+              crit-power: 1
+              max-health: 2
+              pvp-defense: 1
+              attack-damage: 0.5
+              crit-chance: 0.5
+              attack-speed: 0.1
+              defense: 1
+          8:
+            chance: 1.0
+            stats:
+              crit-power: 1
+              attack-damage: 0.5
+              crit-chance: 0.5
+              attack-speed: 0.1
+              pvp-defense: 1
+              defense: 1
+              max-health: 2
+              lifesteal: 0.1
+            tier: legendary
+            custom-model-data: 10058
+          9:
+            chance: 1.0
+            stats:
+              crit-power: 2
+              attack-damage: 1
+              crit-chance: 1
+              attack-speed: 0.2
+              pvp-defense: 2
+              defense: 1.5
+              max-health: 4
+              lifesteal: 0.2
+          10:
+            chance: 0.1
+            stats:
+              crit-power: 3
+              attack-damage: 1.5
+              crit-chance: 2
+              attack-speed: 0.3
+              pvp-defense: 3
+              defense: 2
+              max-health: 6
+              lifesteal: 0.3
+            tier: mythic
+            custom-model-data: 10034
+      stones:
+      - 이벤트교환권_lv1
+      - 이벤트교환권_lv2
+      - 이벤트교환권_lv3
+      - 이벤트교환권_lv4
+      - 이벤트교환권_lv5
+      - 이벤트교환권_lv6
+      - 이벤트교환권_lv7
+      - 이벤트교환권_lv8
+      - 이벤트교환권_lv9
+      - 이벤트교환권_lv10
+
+  # --- 재료 ---
+  items0:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l근원'
+    custom-model-data: 10000
+  items1:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: epic
+    display-name: '&f&l무지개파편'
+    custom-model-data: 10001
+  items2:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f광물의 기운'
+    lore:
+    - '&7모든 광물을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10002
+  items3:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f작물의 기운'
+    lore:
+    - '&7농작물을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10003
+  items4:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f영혼석'
+    lore:
+    - '&7특수 몬스터를 사냥하면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10004
+  items5:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f강철 원석'
+    lore:
+    - '&7철 광석을 캐면'
+    - '&7낮은 확률로 나오는 원석'
+    custom-model-data: 10005
+  items6:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f강철 주괴'
+    custom-model-data: 10006
+  items7:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f강화 다이아몬드'
+    lore:
+    - '&7다이아몬드 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10007
+  items8:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f강화 에메랄드'
+    lore:
+    - '&7에메랄드 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10008
+  items9:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f루비'
+    lore:
+    - '&7레드스톤 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10009
+  items10:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f사파이어'
+    lore:
+    - '&7청금석 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10010
+  items11:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f결정석'
+    lore:
+    - '&7네더 석영 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10011
+  items12:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: common
+    display-name: '&f토파즈'
+    lore:
+    - '&7네더 금 광석을 캐면'
+    - '&7낮은 확률로 나오는 보석'
+    custom-model-data: 10012
+  items13:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l다이아몬드의 기운'
+    custom-model-data: 10013
+  items14:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l에메랄드의 기운'
+    custom-model-data: 10014
+  items15:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l루비의 기운'
+    custom-model-data: 10015
+  items16:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l사파이어의 기운'
+    custom-model-data: 10016
+  items17:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l결정석의 기운'
+    custom-model-data: 10017
+  items18:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: rare
+    display-name: '&f&l토파즈의 기운'
+    custom-model-data: 10018
+  items19:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: legendary
+    display-name: '&6&l진 근원'
+    custom-model-data: 10000
+    enchants:
+      lure: 1
+    flags:
+    - HIDE_ENCHANTS
+  items20:
+    material: RABBIT_HIDE
+    type: material
+    category: 재료
+    tier: legendary
+    display-name: '&6&l티타늄'
+    custom-model-data: 10006
+    enchants:
+      lure: 1
+    flags:
+    - HIDE_ENCHANTS
+  강화석파편:
+    material: PRISMARINE_SHARD
+    type: material
+    category: 재료
+    display-name: '&7&l강화석 파편'
+    lore:
+    - '&7부스러진 강화석 파편입니다.'
+    custom-model-data: 10009
+  타임스톤:
+    material: EMERALD
+    type: material
+    category: 이벤트재료
+    tier: common
+    display-name: '&f&l타임 스톤'
+    lore:
+    - '&7매 시간마다 받는 이상한 돌'
+    custom-model-data: 10045
+  겜블코인:
+    material: RABBIT_HIDE
+    type: material
+    category: 이벤트재료
+    tier: common
+    display-name: '&f겜블코인'
+    lore:
+    - '&7게임에서 승리하면'
+    - '&7얻는 코인'
+    custom-model-data: 10020
+
+  # --- 보석 (마석) ---
+  공격피해1:
+    material: EMERALD
+    type: gem
+    category: 공격피해
+    tier: common
+    display-name: '&fLv.1 피해량 증가'
+    custom-model-data: 10000
+    stats:
+      attack-damage: 1
+    gem:
+      color: any
+      chance: 100
+  공격피해2:
+    material: EMERALD
+    type: gem
+    category: 공격피해
+    tier: common
+    display-name: '&fLv.2 피해량 증가'
+    custom-model-data: 10001
+    stats:
+      attack-damage: 2
+    gem:
+      color: any
+      chance: 100
+  공격피해3:
+    material: EMERALD
+    type: gem
+    category: 공격피해
+    tier: rare
+    display-name: '&fLv.3 피해량 증가'
+    custom-model-data: 10002
+    stats:
+      attack-damage: 3
+    gem:
+      color: any
+      chance: 100
+  공격피해4:
+    material: EMERALD
+    type: gem
+    category: 공격피해
+    tier: rare
+    display-name: '&fLv.4 피해량 증가'
+    custom-model-data: 10003
+    stats:
+      attack-damage: 4
+    gem:
+      color: any
+      chance: 100
+  공격피해5:
+    material: EMERALD
+    type: gem
+    category: 공격피해
+    tier: epic
+    display-name: '&fLv.5 피해량 증가'
+    custom-model-data: 10004
+    stats:
+      attack-damage: 5
+    gem:
+      color: any
+      chance: 100
+  치명타확률1:
+    material: EMERALD
+    type: gem
+    category: 치명타확률
+    tier: common
+    display-name: '&fLv.1 치명타 확률 증가'
+    custom-model-data: 10000
+    stats:
+      crit-chance: 5
+    gem:
+      color: any
+      chance: 100
+  치명타확률2:
+    material: EMERALD
+    type: gem
+    category: 치명타확률
+    tier: common
+    display-name: '&fLv.2 치명타 확률 증가'
+    custom-model-data: 10001
+    stats:
+      crit-chance: 10
+    gem:
+      color: any
+      chance: 100
+  치명타확률3:
+    material: EMERALD
+    type: gem
+    category: 치명타확률
+    tier: rare
+    display-name: '&fLv.3 치명타 확률 증가'
+    custom-model-data: 10002
+    stats:
+      crit-chance: 15
+    gem:
+      color: any
+      chance: 100
+  치명타확률4:
+    material: EMERALD
+    type: gem
+    category: 치명타확률
+    tier: rare
+    display-name: '&fLv.4 치명타 확률 증가'
+    custom-model-data: 10003
+    stats:
+      crit-chance: 20
+    gem:
+      color: any
+      chance: 100
+  치명타확률5:
+    material: EMERALD
+    type: gem
+    category: 치명타확률
+    tier: epic
+    display-name: '&fLv.5 치명타 확률 증가'
+    custom-model-data: 10004
+    stats:
+      crit-chance: 25
+    gem:
+      color: any
+      chance: 100
+  치명타피해1:
+    material: EMERALD
+    type: gem
+    category: 치명타피해
+    tier: common
+    display-name: '&fLv.1 치명타 피해 증가'
+    custom-model-data: 10000
+    stats:
+      crit-power: 10
+    gem:
+      color: any
+      chance: 100
+  치명타피해2:
+    material: EMERALD
+    type: gem
+    category: 치명타피해
+    tier: common
+    display-name: '&fLv.2 치명타 피해 증가'
+    custom-model-data: 10001
+    stats:
+      crit-power: 20
+    gem:
+      color: any
+      chance: 100
+  치명타피해3:
+    material: EMERALD
+    type: gem
+    category: 치명타피해
+    tier: rare
+    display-name: '&fLv.3 치명타 피해 증가'
+    custom-model-data: 10002
+    stats:
+      crit-power: 30
+    gem:
+      color: any
+      chance: 100
+  치명타피해4:
+    material: EMERALD
+    type: gem
+    category: 치명타피해
+    tier: rare
+    display-name: '&fLv.4 치명타 피해 증가'
+    custom-model-data: 10003
+    stats:
+      crit-power: 40
+    gem:
+      color: any
+      chance: 100
+  치명타피해5:
+    material: EMERALD
+    type: gem
+    category: 치명타피해
+    tier: epic
+    display-name: '&fLv.5 치명타 피해 증가'
+    custom-model-data: 10004
+    stats:
+      crit-power: 50
+    gem:
+      color: any
+      chance: 100
+  방어력증가1:
+    material: EMERALD
+    type: gem
+    category: 방어력증가
+    tier: common
+    display-name: '&fLv.1 방어력 증가'
+    custom-model-data: 10015
+    stats:
+      defense: 0.5
+    gem:
+      color: any
+      chance: 100
+  방어력증가2:
+    material: EMERALD
+    type: gem
+    category: 방어력증가
+    tier: common
+    display-name: '&fLv.2 방어력 증가'
+    custom-model-data: 10016
+    stats:
+      defense: 1
+    gem:
+      color: any
+      chance: 100
+  방어력증가3:
+    material: EMERALD
+    type: gem
+    category: 방어력증가
+    tier: rare
+    display-name: '&fLv.3 방어력 증가'
+    custom-model-data: 10017
+    stats:
+      defense: 1.5
+    gem:
+      color: any
+      chance: 100
+  방어력증가4:
+    material: EMERALD
+    type: gem
+    category: 방어력증가
+    tier: rare
+    display-name: '&fLv.4 방어력 증가'
+    custom-model-data: 10018
+    stats:
+      defense: 2
+    gem:
+      color: any
+      chance: 100
+  방어력증가5:
+    material: EMERALD
+    type: gem
+    category: 방어력증가
+    tier: epic
+    display-name: '&fLv.5 방어력 증가'
+    custom-model-data: 10019
+    stats:
+      defense: 2.5
+    gem:
+      color: any
+      chance: 100
+  회피율증가1:
+    material: EMERALD
+    type: gem
+    category: 회피율증가
+    tier: common
+    display-name: '&fLv.1 회피율 증가'
+    custom-model-data: 10015
+    stats:
+      dodge-chance: 1
+    gem:
+      color: any
+      chance: 100
+  회피율증가2:
+    material: EMERALD
+    type: gem
+    category: 회피율증가
+    tier: common
+    display-name: '&fLv.2 회피율 증가'
+    custom-model-data: 10016
+    stats:
+      dodge-chance: 2
+    gem:
+      color: any
+      chance: 100
+  회피율증가3:
+    material: EMERALD
+    type: gem
+    category: 회피율증가
+    tier: rare
+    display-name: '&fLv.3 회피율 증가'
+    custom-model-data: 10017
+    stats:
+      dodge-chance: 3
+    gem:
+      color: any
+      chance: 100
+  회피율증가4:
+    material: EMERALD
+    type: gem
+    category: 회피율증가
+    tier: rare
+    display-name: '&fLv.4 회피율 증가'
+    custom-model-data: 10018
+    stats:
+      dodge-chance: 4
+    gem:
+      color: any
+      chance: 100
+  회피율증가5:
+    material: EMERALD
+    type: gem
+    category: 회피율증가
+    tier: epic
+    display-name: '&fLv.5 회피율 증가'
+    custom-model-data: 10019
+    stats:
+      dodge-chance: 5
+    gem:
+      color: any
+      chance: 100
+  체력증가1:
+    material: EMERALD
+    type: gem
+    category: 체력증가
+    tier: common
+    display-name: '&fLv.1 체력 증가'
+    custom-model-data: 10015
+    stats:
+      max-health: 5
+    gem:
+      color: any
+      chance: 100
+  체력증가2:
+    material: EMERALD
+    type: gem
+    category: 체력증가
+    tier: common
+    display-name: '&fLv.2 체력 증가'
+    custom-model-data: 10016
+    stats:
+      max-health: 10
+    gem:
+      color: any
+      chance: 100
+  체력증가3:
+    material: EMERALD
+    type: gem
+    category: 체력증가
+    tier: rare
+    display-name: '&fLv.3 체력 증가'
+    custom-model-data: 10017
+    stats:
+      max-health: 15
+    gem:
+      color: any
+      chance: 100
+  체력증가4:
+    material: EMERALD
+    type: gem
+    category: 체력증가
+    tier: rare
+    display-name: '&fLv.4 체력 증가'
+    custom-model-data: 10018
+    stats:
+      max-health: 20
+    gem:
+      color: any
+      chance: 100
+  체력증가5:
+    material: EMERALD
+    type: gem
+    category: 체력증가
+    tier: epic
+    display-name: '&fLv.5 체력 증가'
+    custom-model-data: 10019
+    stats:
+      max-health: 25
+    gem:
+      color: any
+      chance: 100
+  복합체력방어1:
+    material: EMERALD
+    type: gem
+    category: 복합체력방어
+    tier: rare
+    display-name: '&l복합: Lv.1 체력 방어력 증가'
+    custom-model-data: 10020
+    stats:
+      max-health: 5
+      defense: 0.5
+    gem:
+      color: any
+      chance: 100
+  복합체력방어2:
+    material: EMERALD
+    type: gem
+    category: 복합체력방어
+    tier: rare
+    display-name: '&l복합: Lv.2 체력 방어력 증가'
+    custom-model-data: 10021
+    stats:
+      max-health: 10
+      defense: 1
+    gem:
+      color: any
+      chance: 100
+  복합체력방어3:
+    material: EMERALD
+    type: gem
+    category: 복합체력방어
+    tier: epic
+    display-name: '&l복합: Lv.3 체력 방어력 증가'
+    custom-model-data: 10022
+    stats:
+      max-health: 15
+      defense: 1.5
+    gem:
+      color: any
+      chance: 100
+  복합체력방어4:
+    material: EMERALD
+    type: gem
+    category: 복합체력방어
+    tier: epic
+    display-name: '&l복합: Lv.4 체력 방어력 증가'
+    custom-model-data: 10023
+    stats:
+      max-health: 20
+      defense: 2
+    gem:
+      color: any
+      chance: 100
+  복합체력방어5:
+    material: EMERALD
+    type: gem
+    category: 복합체력방어
+    tier: legendary
+    display-name: '&l복합: Lv.5 체력 방어력 증가'
+    custom-model-data: 10024
+    stats:
+      max-health: 25
+      defense: 2.5
+    gem:
+      color: any
+      chance: 100

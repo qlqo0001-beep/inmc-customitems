@@ -1,0 +1,108 @@
+# 종류 아래의 소분류. /커스텀아이템 관리 → 종류 → 소분류 에서 GUI 로 만들고 고칩니다.
+# 표시와 걸러보기 전용입니다. 아이템 쪽은 items.yml 의 category 에 이 id 를 적습니다.
+# MMOItems 에서 옮겨 온 아이템을 나눠 둔 것입니다 — 필요 없으면 지우세요(아이템은 "분류 없음"이 됩니다).
+#
+# type  weapon / armor / tool / consumable / accessory / talisman / relic / material / gem / misc
+# name  서랍에 보이는 이름
+# icon  서랍 아이콘(재질 이름)
+
+일반무기:
+  type: weapon
+  name: 일반 무기
+  icon: WOODEN_SWORD
+희귀무기:
+  type: weapon
+  name: 희귀 무기
+  icon: STONE_SWORD
+영웅무기:
+  type: weapon
+  name: 영웅 무기
+  icon: IRON_SWORD
+전설무기:
+  type: weapon
+  name: 전설 무기
+  icon: DIAMOND_SWORD
+신화무기:
+  type: weapon
+  name: 신화 무기
+  icon: NETHERITE_SWORD
+네더리움:
+  type: armor
+  name: 네더리움 세트
+  icon: NETHERITE_HELMET
+철벽:
+  type: armor
+  name: 철벽 세트
+  icon: NETHERITE_HELMET
+맹공:
+  type: armor
+  name: 맹공 세트
+  icon: NETHERITE_HELMET
+평형:
+  type: armor
+  name: 평형 세트
+  icon: NETHERITE_HELMET
+곡괭이:
+  type: tool
+  name: 곡괭이
+  icon: NETHERITE_PICKAXE
+낚싯대:
+  type: tool
+  name: 낚싯대
+  icon: FISHING_ROD
+강화석:
+  type: consumable
+  name: 강화석
+  icon: PRISMARINE_SHARD
+유물강화권:
+  type: consumable
+  name: 유물 강화권
+  icon: STICK
+도구교환권:
+  type: consumable
+  name: 도구 교환권
+  icon: NETHERITE_PICKAXE
+랜덤상자:
+  type: consumable
+  name: 랜덤 상자
+  icon: CHEST
+기타소모품:
+  type: consumable
+  name: 기타 소모품
+  icon: APPLE
+재료:
+  type: material
+  name: 재료
+  icon: RABBIT_HIDE
+이벤트재료:
+  type: material
+  name: 이벤트 재료
+  icon: EMERALD
+공격피해:
+  type: gem
+  name: 공격 피해
+  icon: EMERALD
+치명타확률:
+  type: gem
+  name: 치명타 확률
+  icon: EMERALD
+치명타피해:
+  type: gem
+  name: 치명타 피해
+  icon: EMERALD
+방어력증가:
+  type: gem
+  name: 방어력 증가
+  icon: EMERALD
+회피율증가:
+  type: gem
+  name: 회피율 증가
+  icon: EMERALD
+체력증가:
+  type: gem
+  name: 체력 증가
+  icon: EMERALD
+복합체력방어:
+  type: gem
+  name: '복합: 체력·방어'
+  icon: EMERALD

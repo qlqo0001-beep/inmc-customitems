@@ -1,0 +1,98 @@
+name: inmc-customitems
+version: '${version}'
+main: com.inmc.customitems.CustomItemsPlugin
+api-version: '${apiVersion}'   # build.gradle.kts 의 inmc { paper } 에서 유도됨
+description: 아이템을 직접 만들어 다른 INMC 플러그인 전부에서 쓰게 하는 플러그인
+authors: [ INMC ]
+
+# 연동은 전부 load: OMIT 이다. BEFORE 를 걸면 Paper 가 의존성 순환을 보고 우리 간선을
+# 조용히 끊는다 (가이드 함정 1).
+dependencies:
+  server:
+    # 필수 의존은 이것 하나뿐. core 가 kotlin-stdlib 과 공용 프레임워크를 들고 있다.
+    inmc-core:      { load: BEFORE, required: true,  join-classpath: true }
+
+# commands 절은 paper-plugin.yml 에 없다 - Brigadier 로 등록한다.
+permissions:
+  incustomitems.admin:
+    description: 커스텀아이템 관리 권한 전체
+    default: op
+  incustomitems.craft:
+    description: 제작대 쓰기 (/제작, 연결한 블록 우클릭)
+    default: true
+  # 장착 칸. 칸 수 권한은 기본값보다 클 때만 먹는다. 선언해 두는 것은 OP 가 저절로 8칸을 갖지 않게 하려는 것이다.
+  incustomitems.equipment:
+    description: 장착 칸 쓰기 (/장비)
+    default: true
+  incustomitems.slots.accessory.1:
+    description: 장신구 장착 칸 1개
+    default: false
+  incustomitems.slots.accessory.2:
+    description: 장신구 장착 칸 2개
+    default: false
+  incustomitems.slots.accessory.3:
+    description: 장신구 장착 칸 3개
+    default: false
+  incustomitems.slots.accessory.4:
+    description: 장신구 장착 칸 4개
+    default: false
+  incustomitems.slots.accessory.5:
+    description: 장신구 장착 칸 5개
+    default: false
+  incustomitems.slots.accessory.6:
+    description: 장신구 장착 칸 6개
+    default: false
+  incustomitems.slots.accessory.7:
+    description: 장신구 장착 칸 7개
+    default: false
+  incustomitems.slots.accessory.8:
+    description: 장신구 장착 칸 8개
+    default: false
+  incustomitems.slots.talisman.1:
+    description: 부적 장착 칸 1개
+    default: false
+  incustomitems.slots.talisman.2:
+    description: 부적 장착 칸 2개
+    default: false
+  incustomitems.slots.talisman.3:
+    description: 부적 장착 칸 3개
+    default: false
+  incustomitems.slots.talisman.4:
+    description: 부적 장착 칸 4개
+    default: false
+  incustomitems.slots.talisman.5:
+    description: 부적 장착 칸 5개
+    default: false
+  incustomitems.slots.talisman.6:
+    description: 부적 장착 칸 6개
+    default: false
+  incustomitems.slots.talisman.7:
+    description: 부적 장착 칸 7개
+    default: false
+  incustomitems.slots.talisman.8:
+    description: 부적 장착 칸 8개
+    default: false
+  incustomitems.slots.relic.1:
+    description: 유물 장착 칸 1개
+    default: false
+  incustomitems.slots.relic.2:
+    description: 유물 장착 칸 2개
+    default: false
+  incustomitems.slots.relic.3:
+    description: 유물 장착 칸 3개
+    default: false
+  incustomitems.slots.relic.4:
+    description: 유물 장착 칸 4개
+    default: false
+  incustomitems.slots.relic.5:
+    description: 유물 장착 칸 5개
+    default: false
+  incustomitems.slots.relic.6:
+    description: 유물 장착 칸 6개
+    default: false
+  incustomitems.slots.relic.7:
+    description: 유물 장착 칸 7개
+    default: false
+  incustomitems.slots.relic.8:
+    description: 유물 장착 칸 8개
+    default: false

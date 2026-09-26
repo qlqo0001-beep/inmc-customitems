@@ -1,0 +1,40 @@
+# 아이템 세트. /커스텀아이템 관리 → 세트 에서 GUI 로 고칠 수 있습니다.
+# 2벌·3벌·4벌 효과는 쌓입니다. MMOItems 의 item-sets 에서 옮겨 왔습니다.
+
+netherium:
+  name: '&6네더리움 세트'
+  bonuses:
+    2:
+      movement-speed: 0.02
+    3:
+      knockback-resistance: 0.3
+    4:
+      max-health: 6
+철벽:
+  name: '&6철벽 세트'
+  bonuses:
+    2:
+      max-health: 10
+    3:
+      knockback-resistance: 0.4
+    4:
+      armor-toughness: 4
+맹공:
+  name: '&6맹공 세트'
+  bonuses:
+    2:
+      attack-speed: 0.4
+    3:
+      attack-damage: 3
+    4:
+      crit-chance: 5
+평형:
+  name: '&6평형 세트'
+  bonuses:
+    2:
+      movement-speed: 0.015
+    3:
+      dodge-chance: 5
+    4:
+      attack-damage: 6
+      max-health: 4

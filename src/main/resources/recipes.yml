@@ -1,0 +1,294 @@
+# 바닐라 조합법(작업대·화로·용광로·훈연기·모닥불·대장장이대·석재 절단기).
+# /커스텀아이템 관리 → 제작 → 바닐라 조합법 에서 GUI 로 고치는 것을 권장합니다(칸에 아이템을 넣습니다).
+# MMOItems 아이템의 crafting 에서 옮겨 왔습니다.
+
+items6_furnace:
+  kind: FURNACE
+  result:
+    item: inmc:items6
+    material: minecraft:rabbit_hide
+    name: 강철 주괴
+    amount: 1
+  grid:
+    0:
+      item: inmc:items5
+      material: minecraft:rabbit_hide
+      name: 강철 원석
+  cook-seconds: 10.0
+items6_blast:
+  kind: BLASTING
+  result:
+    item: inmc:items6
+    material: minecraft:rabbit_hide
+    name: 강철 주괴
+    amount: 1
+  grid:
+    0:
+      item: inmc:items5
+      material: minecraft:rabbit_hide
+      name: 강철 원석
+  cook-seconds: 10.0
+items13:
+  kind: SHAPED
+  result:
+    item: inmc:items13
+    material: minecraft:rabbit_hide
+    name: 다이아몬드의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items7
+      material: minecraft:rabbit_hide
+      name: 강화 다이아몬드
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items7
+      material: minecraft:rabbit_hide
+      name: 강화 다이아몬드
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items7
+      material: minecraft:rabbit_hide
+      name: 강화 다이아몬드
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items7
+      material: minecraft:rabbit_hide
+      name: 강화 다이아몬드
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items7
+      material: minecraft:rabbit_hide
+      name: 강화 다이아몬드
+items14:
+  kind: SHAPED
+  result:
+    item: inmc:items14
+    material: minecraft:rabbit_hide
+    name: 에메랄드의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items8
+      material: minecraft:rabbit_hide
+      name: 강화 에메랄드
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items8
+      material: minecraft:rabbit_hide
+      name: 강화 에메랄드
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items8
+      material: minecraft:rabbit_hide
+      name: 강화 에메랄드
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items8
+      material: minecraft:rabbit_hide
+      name: 강화 에메랄드
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items8
+      material: minecraft:rabbit_hide
+      name: 강화 에메랄드
+items15:
+  kind: SHAPED
+  result:
+    item: inmc:items15
+    material: minecraft:rabbit_hide
+    name: 루비의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items9
+      material: minecraft:rabbit_hide
+      name: 루비
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items9
+      material: minecraft:rabbit_hide
+      name: 루비
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items9
+      material: minecraft:rabbit_hide
+      name: 루비
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items9
+      material: minecraft:rabbit_hide
+      name: 루비
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items9
+      material: minecraft:rabbit_hide
+      name: 루비
+items16:
+  kind: SHAPED
+  result:
+    item: inmc:items16
+    material: minecraft:rabbit_hide
+    name: 사파이어의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items10
+      material: minecraft:rabbit_hide
+      name: 사파이어
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items10
+      material: minecraft:rabbit_hide
+      name: 사파이어
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items10
+      material: minecraft:rabbit_hide
+      name: 사파이어
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items10
+      material: minecraft:rabbit_hide
+      name: 사파이어
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items10
+      material: minecraft:rabbit_hide
+      name: 사파이어
+items17:
+  kind: SHAPED
+  result:
+    item: inmc:items17
+    material: minecraft:rabbit_hide
+    name: 결정석의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items11
+      material: minecraft:rabbit_hide
+      name: 결정석
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items11
+      material: minecraft:rabbit_hide
+      name: 결정석
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items11
+      material: minecraft:rabbit_hide
+      name: 결정석
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items11
+      material: minecraft:rabbit_hide
+      name: 결정석
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items11
+      material: minecraft:rabbit_hide
+      name: 결정석
+items18:
+  kind: SHAPED
+  result:
+    item: inmc:items18
+    material: minecraft:rabbit_hide
+    name: 토파즈의 기운
+    amount: 1
+  grid:
+    0:
+      item: inmc:items12
+      material: minecraft:rabbit_hide
+      name: 토파즈
+    1:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    2:
+      item: inmc:items12
+      material: minecraft:rabbit_hide
+      name: 토파즈
+    3:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    4:
+      item: inmc:items12
+      material: minecraft:rabbit_hide
+      name: 토파즈
+    5:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    6:
+      item: inmc:items12
+      material: minecraft:rabbit_hide
+      name: 토파즈
+    7:
+      item: inmc:items6
+      material: minecraft:rabbit_hide
+      name: 강철 주괴
+    8:
+      item: inmc:items12
+      material: minecraft:rabbit_hide
+      name: 토파즈
