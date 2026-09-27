@@ -54,6 +54,18 @@ class ItemEditMenu(
                 mutate { it.copy(texture = "", model = "") }
                 return@set
             }
+            // 좌클릭: 팩의 모델에서 고른다(검색 가능). Shift+좌클릭: 텍스처 파일 이름·모델 이름을 직접 적는다.
+            if (!event.isShiftClick) {
+                ModelListMenu.pick(
+                    custom, viewer,
+                    current = item.model.takeIf { it.isNotBlank() }?.let { PackAssets.modelNameFor(item) },
+                    back = { ItemEditMenu(custom, viewer, id).open(viewer) },
+                ) { model ->
+                    custom.items.get(id)?.let { current -> custom.items.put(current.copy(model = model, texture = "")) }
+                    ItemEditMenu(custom, viewer, id).open(viewer)
+                }
+                return@set
+            }
             Editors.promptText(
                 custom.prompts,
                 viewer,
@@ -272,7 +284,8 @@ class ItemEditMenu(
             }
             add("")
             add("<dark_gray>모델 이름: " + PackAssets.modelNameFor(item) + "</dark_gray>")
-            add("<yellow>▶ 좌클릭: 입력</yellow>")
+            add("<yellow>▶ 좌클릭: 팩의 모델에서 고르기(검색)</yellow>")
+            add("<yellow>▶ Shift+좌클릭: 텍스처·모델 이름 직접 입력</yellow>")
             add("<red>▶ 우클릭: 없애기</red>")
         },
     )

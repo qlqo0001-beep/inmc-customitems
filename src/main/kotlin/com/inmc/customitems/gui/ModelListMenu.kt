@@ -21,18 +21,26 @@ import org.bukkit.inventory.ItemStack
  * 사람 눈에는 실제 모양으로 보인다. 번호 없이(규칙 31) 옛 "번호 모델 목록"이 하던 일을 한다.
  *
  * 좌클릭: 그 모델로 새 아이템(이름을 묻고 설정 화면으로, 재질은 손에 든 것 · 빈손이면 종이) · Shift+클릭: 한 개 받기(보기용).
+ * **고르기 모드**([pick] — 아이템 설정의 겉모습 칸에서 연다)면 좌클릭이 그 모델을 고른다. 이름으로 찾을 수 있다(검색).
  * 목록은 열 때 만든 팩을 읽어 만든다([com.inmc.customitems.pack.PackService.models]).
  */
 class ModelListMenu private constructor(
     custom: CustomItems,
     private val viewer: Player,
     private val models: List<String>,
-) : Menu(custom, 54, Text.renderFlat("<dark_gray>모델 목록</dark_gray>")) {
+    private val current: String? = null,
+    private val back: (() -> Unit)? = null,
+    private val pick: ((String) -> Unit)? = null,
+) : Menu(custom, 54, Text.renderFlat(if (pick != null) "<dark_gray>모델 고르기</dark_gray>" else "<dark_gray>모델 목록</dark_gray>")) {
 
     private enum class Filter(val label: String) { ALL("전부"), UNUSED("안 쓰는 것"), USED("쓰는 것") }
 
-    private var page = 0
+    /** 처음엔 지금 모델이 있는 쪽을 연다. */
+    private var page = current?.let { models.indexOf(it) }?.takeIf { it >= 0 }?.let { it / Paging.PER_PAGE } ?: 0
     private var filter = Filter.ALL
+
+    /** 이름의 일부(소문자). 비면 거르지 않는다. */
+    private var query = ""
 
     /** null = 모든 이름공간. */
     private var namespace: String? = null
@@ -60,7 +68,7 @@ class ModelListMenu private constructor(
         clear()
         val users = users()
         val list = models.filter { model ->
-            (namespace == null || model.substringBefore(':') == namespace) && when (filter) {
+            (namespace == null || model.substringBefore(':') == namespace) && (query.isEmpty() || query in model) && when (filter) {
                 Filter.ALL -> true
                 Filter.UNUSED -> users[model].isNullOrEmpty()
                 Filter.USED -> !users[model].isNullOrEmpty()
@@ -69,16 +77,20 @@ class ModelListMenu private constructor(
         page = Paging.clamp(page, list.size)
         for ((slot, model) in Paging.slice(list, page).withIndex()) {
             val using = users[model].orEmpty()
-            set(slot, Icon.relabel(preview(model), "<white>" + escape(model) + "</white>", buildList {
+            val chosen = model == current
+            val icon = Icon.relabel(preview(model), (if (chosen) "<green>▶ " else "<white>") + escape(model) + (if (chosen) "</green>" else "</white>"), buildList {
+                if (chosen) add("<green>지금 이 모델입니다</green>")
                 add(if (using.isEmpty()) "<dark_gray>쓰는 아이템 없음</dark_gray>" else "<green>쓰는 아이템: <white>" + using.take(5).joinToString(", ") + (if (using.size > 5) " …" else "") + "</white></green>")
                 add("")
-                add("<yellow>▶ 클릭: 이 모델로 새 아이템</yellow>")
+                add(if (pick != null) "<yellow>▶ 클릭: 이 모델로 고르기</yellow>" else "<yellow>▶ 클릭: 이 모델로 새 아이템</yellow>")
                 add("<yellow>▶ Shift+클릭: 한 개 받기</yellow>")
-            })) { event ->
-                if (event.isShiftClick) {
-                    viewer.inventory.addItem(preview(model)).values.forEach { viewer.world.dropItemNaturally(viewer.location, it) }
-                } else {
-                    create(model)
+            })
+            if (chosen) icon.editMeta { it.setEnchantmentGlintOverride(true) }
+            set(slot, icon) { event ->
+                when {
+                    event.isShiftClick -> viewer.inventory.addItem(preview(model)).values.forEach { viewer.world.dropItemNaturally(viewer.location, it) }
+                    pick != null -> pick.invoke(model)
+                    else -> create(model)
                 }
             }
         }
@@ -102,6 +114,21 @@ class ModelListMenu private constructor(
             page = 0
             refresh()
         }
+        set(SLOT_SEARCH, Icon.of(Material.SPYGLASS, "<yellow>이름으로 찾기" + (if (query.isEmpty()) "" else ": <white>" + escape(query) + "</white>") + "</yellow>", listOf(
+            "<gray>모델 이름의 일부로 거릅니다. 예: <white>sword</white>, <white>fishing</white></gray>",
+            "", "<yellow>▶ 좌클릭: 검색어 입력</yellow>", "<red>▶ 우클릭: 검색 지우기</red>",
+        ))) { event ->
+            if (event.isRightClick) {
+                query = ""
+                page = 0
+                refresh()
+                return@set
+            }
+            Editors.promptText(custom.prompts, viewer, "모델 이름으로 찾기", listOf("<gray>모델 이름의 일부를 적으세요.</gray>"), reopen = { open(viewer) }) { raw ->
+                query = raw.trim().lowercase()
+                page = 0
+            }
+        }
         val spaces = listOf<String?>(null) + namespaces
         set(SLOT_NAMESPACE, Icon.of(Material.NAME_TAG, "<yellow>이름공간: <white>" + (namespace ?: "전부") + "</white></yellow>",
             Editors.optionList(spaces, namespace) { it ?: "전부" } + listOf("", "<yellow>▶ 좌클릭: 다음 · 우클릭: 이전</yellow>"))) { event ->
@@ -109,7 +136,7 @@ class ModelListMenu private constructor(
             page = 0
             refresh()
         }
-        set(Paging.SLOT_BACK, Icon.back()) { PackMenu(custom, viewer).open(viewer) }
+        set(Paging.SLOT_BACK, Icon.back()) { back?.invoke() ?: PackMenu(custom, viewer).open(viewer) }
         if (page > 0) set(Paging.SLOT_PREV, Icon.prevPage()) {
             page--
             refresh()
@@ -146,12 +173,23 @@ class ModelListMenu private constructor(
         const val SLOT_FILTER = 48
         const val SLOT_INFO = 49
         const val SLOT_NAMESPACE = 50
+        const val SLOT_SEARCH = 51
 
         /** 만든 팩을 읽은 뒤 연다(워커에서 읽는다). */
         fun open(custom: CustomItems, viewer: Player) {
             viewer.sendMessage(Text.render("<gray>리소스팩의 모델을 읽는 중…</gray>"))
             custom.pack.models { models ->
                 if (viewer.isOnline) ModelListMenu(custom, viewer, models).open(viewer)
+            }
+        }
+
+        /**
+         * 고르기 모드로 연다 — 모델을 누르면 [onPick]. [current] 는 지금 모델(표시하고 그 쪽을 먼저 연다), [back] 은 뒤로.
+         */
+        fun pick(custom: CustomItems, viewer: Player, current: String?, back: () -> Unit, onPick: (String) -> Unit) {
+            viewer.sendMessage(Text.render("<gray>리소스팩의 모델을 읽는 중…</gray>"))
+            custom.pack.models { models ->
+                if (viewer.isOnline) ModelListMenu(custom, viewer, models, current, back, onPick).open(viewer)
             }
         }
     }
