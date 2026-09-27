@@ -31,6 +31,12 @@ class PackMenu(
         set(SLOT_MISSING, missingIcon())
         set(SLOT_NUMBERS, numbersIcon())
         set(SLOT_SEND, sendIcon()) { send() }
+        set(SLOT_MODELS, Icon.of(Material.ITEM_FRAME, "<yellow>모델 목록</yellow>", listOf(
+            "<gray>만든 팩에 들어 있는 모델을 실제 모양으로 봅니다.</gray>",
+            "<gray>쓰는 아이템 · 안 쓰는 것 · 이름공간별로.</gray>",
+            "<gray>클릭하면 그 모델로 새 아이템을 만듭니다.</gray>",
+            "", "<yellow>▶ 클릭</yellow>",
+        ))) { ModelListMenu.open(custom, viewer) }
 
         set(SLOT_BACK, Icon.back()) { ItemTypeMenu(custom, viewer).open(viewer) }
         set(SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
@@ -259,6 +265,7 @@ class PackMenu(
         const val SLOT_MISSING = 16
         const val SLOT_NUMBERS = 20
         const val SLOT_SEND = 22
+        const val SLOT_MODELS = 24
 
         /**
          * 뒤로·닫기.

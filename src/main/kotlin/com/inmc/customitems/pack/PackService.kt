@@ -266,7 +266,11 @@ class PackService(private val custom: CustomItems) {
         val stripped = NumberMigration.strip(merger.entries())
         for ((path, bytes) in stripped.changes) if (bytes == null) merger.remove(path) else merger.replace(NUMBERS, path, bytes)
 
-        // 5. 압축해서 내보낸다.
+        // 5. 모델 목록(관리 화면)의 미리보기 — 팩의 모든 모델에 아이템 정의를 붙여 게임에서 그대로 보이게 한다.
+        val previews = merger.entries().keys.mapNotNull { PackAssets.listedModel(it) }
+        for (model in previews) merger.replace(PREVIEW, PackAssets.previewPath(model), PackAssets.itemJson(model).toByteArray(Charsets.UTF_8))
+
+        // 6. 압축해서 내보낸다.
         val report = merger.result(sources.size)
         outputDir.mkdirs()
         PackZip.write(outputZip, merger.entries())
@@ -368,6 +372,17 @@ class PackService(private val custom: CustomItems) {
         return out to skipped
     }
 
+    /**
+     * 만든 팩(`output/pack.zip`)에 들어 있는 모델 목록 — 미리보기 정의가 붙은 것(빌드 5단계). 워커에서 읽는다(팩이 수십 MB 일 수 있다).
+     * 아직 만든 적이 없으면 빈 목록.
+     */
+    fun models(then: (List<String>) -> Unit) {
+        custom.io.async({
+            if (!outputZip.isFile) return@async emptyList()
+            java.util.zip.ZipFile(outputZip).use { zip -> zip.entries().asSequence().mapNotNull { PackAssets.previewModel(it.name) }.sorted().toList() }
+        }, then)
+    }
+
     /** 옮긴 모양을 팩에 적는다. 조건이 있는 정의(던진 낚싯대 …)는 [itemsDir] 에도 남긴다 — 다음 빌드부터는 그 파일이 모양이다. */
     private fun writeDefinition(merger: PackMerger, id: String, target: NumberMigration.Target) {
         val json = target.definition ?: PackAssets.itemJson(target.model)
@@ -426,6 +441,7 @@ class PackService(private val custom: CustomItems) {
         const val GENERATED = "(자동 생성)"
         const val BASE = "(pack/models/base)"
         const val NUMBERS = "(번호 걷어 내기)"
+        const val PREVIEW = "(모델 목록 미리보기)"
         const val BLOCKS = "(블록 상태)"
 
         /** jar 안의 서버 기본 팩(ItemsAdder 가 만든 것 — 옮겨 온 MMOItems 아이템의 모델 번호가 여기 있다). */
