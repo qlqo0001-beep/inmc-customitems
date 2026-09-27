@@ -142,9 +142,42 @@ class CustomBlocks(private val custom: CustomItems) {
         return unmark(block) or displays.isNotEmpty()
     }
 
-    /** 부서진 우리 블록이 떨굴 것 — 부수면 나오게 해 둔 것만. */
-    fun dropOf(item: CustomItem): ItemStack? =
-        if (item.block?.drop == true) custom.items.create(item.id) else null
+    /**
+     * 부서진 우리 블록이 떨굴 것. [player] 가 있으면 그 손의 도구로 가린다 — 맞는 도구가 아니면 아무것도([Mining.yields]), 섬세한 손길이면
+     * 블록 자신만, 행운이면 드랍 표 개수가 는다. 폭발처럼 사람이 없으면 도구를 보지 않는다.
+     */
+    fun loot(item: CustomItem, player: org.bukkit.entity.Player?): List<ItemStack> {
+        val spec = item.block ?: return emptyList()
+        val hand = player?.inventory?.itemInMainHand
+        if (player != null && !Mining.yields(spec, custom.mining.held(player))) return emptyList()
+        if (hand != null && isSilk(spec, hand)) return listOfNotNull(custom.items.create(item.id))
+        val out = ArrayList<ItemStack>()
+        if (spec.drop) custom.items.create(item.id)?.let(out::add)
+        val fortune = if (spec.fortune && hand != null) enchantLevel(hand, "fortune") else 0
+        for ((drop, count) in Mining.roll(spec.drops, fortune, kotlin.random.Random)) {
+            val stack = custom.crafting.resolver.create(drop.item, 1) ?: continue
+            // 한 칸에 담기는 만큼씩 나눠 떨군다.
+            var left = count
+            while (left > 0) {
+                val part = minOf(left, stack.maxStackSize)
+                out += stack.clone().also { it.amount = part }
+                left -= part
+            }
+        }
+        return out
+    }
+
+    /** 이 사람이 부수면 나올 경험치 — 맞는 도구로, 섬세한 손길이 아닐 때만(바닐라 광석). */
+    fun expFor(spec: BlockSpec, player: org.bukkit.entity.Player): Int {
+        if (spec.expMax <= 0 || !Mining.yields(spec, custom.mining.held(player))) return 0
+        if (isSilk(spec, player.inventory.itemInMainHand)) return 0
+        return Mining.exp(spec, kotlin.random.Random)
+    }
+
+    private fun isSilk(spec: BlockSpec, hand: ItemStack): Boolean = spec.silkTouch && enchantLevel(hand, "silk_touch") > 0
+
+    private fun enchantLevel(hand: ItemStack, key: String): Int =
+        com.inmc.customitems.item.Registries.enchantment(key)?.let { hand.getEnchantmentLevel(it) } ?: 0
 
     // --- 후렴초 표시 (청크 PDC) --------------------------------------------------------
 
@@ -198,7 +231,15 @@ class CustomBlocks(private val custom: CustomItems) {
                                 displayName = found.name,
                                 lore = found.lore,
                                 model = found.model,
-                                block = BlockSpec(found.kind, found.state, found.drop),
+                                block = BlockSpec(
+                                    kind = found.kind,
+                                    state = found.state,
+                                    drop = found.drop,
+                                    hardness = found.hardness ?: BlockSpec.DEFAULT_HARDNESS,
+                                    tool = found.tool,
+                                    toolTier = found.toolTier,
+                                    harvest = if (found.tool != null) Harvest.BREAK else Harvest.DROPS,
+                                ),
                             ),
                         )
                         added += found.id

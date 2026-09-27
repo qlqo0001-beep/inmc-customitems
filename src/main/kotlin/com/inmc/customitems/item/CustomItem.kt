@@ -234,6 +234,12 @@ data class CustomItem(
 
     /** 블록으로 놓이면 그 방식. null 이면 블록이 아니다. */
     val block: BlockSpec? = null,
+
+    /**
+     * 도구의 채굴 등급(커스텀 블록의 광물 등급과 견준다). null 이면 재질의 바닐라 등급(다이아몬드 곡괭이 3 · 네더라이트 4).
+     * 5 부터는 바닐라에 없는 등급이라 "이 커스텀 곡괭이부터 캐지는 광석"을 만든다. 도구 재질이 아니면 뜻이 없다.
+     */
+    val miningTier: Int? = null,
 ) {
 
     fun label(): String = displayName.ifBlank { id }
@@ -334,6 +340,7 @@ data class CustomItem(
             for ((key, value) in data) node.set(key, value)
         }
         block?.save(section.createSection("block"))
+        miningTier?.let { section.set("mining-tier", it) }
     }
 
     companion object {
@@ -414,6 +421,7 @@ data class CustomItem(
                 abilities = abilities,
                 data = readStrings(section.getConfigurationSection("data")),
                 block = BlockSpec.load(section.getConfigurationSection("block")),
+                miningTier = if (section.isInt("mining-tier")) section.getInt("mining-tier").coerceIn(0, com.inmc.customitems.block.ToolGrades.MAX_TIER) else null,
             )
         }
 

@@ -36,15 +36,6 @@ class PackMenu(
             "<gray>모델을 재질·번호·팩별로 봅니다. 겹친 번호도 보입니다.</gray>",
             "", "<yellow>▶ 클릭</yellow>",
         ))) { ModelNumberMenu.open(custom, viewer) }
-        set(SLOT_IA_BLOCKS, Icon.of(Material.NOTE_BLOCK, "<gold>옛 ItemsAdder 블록 옮기기</gold>", listOf(
-            "<gray>plugins/ItemsAdder/contents 의 블록 정의를</gray>",
-            "<gray>커스텀아이템 블록으로 옮깁니다(꽉 찬 · 투명).</gray>",
-            "<gray>상태는 팩(sources/)이 쓰던 그대로라 월드에 놓인</gray>",
-            "<gray>옛 블록이 새 아이템으로 이어집니다.</gray>",
-            "<dark_gray>같은 이름이 있으면 건너뜁니다 — 여러 번 눌러도 됩니다.</dark_gray>",
-            "<dark_gray>단단함·도구 제한·소리·부술 때 명령어·광석 생성은 안 옮깁니다.</dark_gray>",
-            "", "<yellow>▶ 클릭: 옮기기</yellow>",
-        ))) { importItemsAdder() }
 
         set(SLOT_BACK, Icon.back()) { ItemTypeMenu(custom, viewer).open(viewer) }
         set(SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
@@ -266,21 +257,6 @@ class PackMenu(
         }
     }
 
-    private fun importItemsAdder() {
-        viewer.sendMessage(Text.render("<gray>옛 ItemsAdder 블록을 읽는 중…</gray>"))
-        custom.blocks.importItemsAdder { report ->
-            if (!report.contentsFound) {
-                viewer.sendMessage(Text.render("<red>plugins/ItemsAdder/contents 폴더가 없습니다.</red>"))
-                return@importItemsAdder
-            }
-            viewer.sendMessage(Text.render("<green>블록 <white>" + report.added.size + "</white>개를 옮겼습니다.</green> <gray>리소스팩을 다시 만드세요.</gray>"))
-            if (report.skipped.isNotEmpty()) viewer.sendMessage(Text.render("<gray>건너뜀 " + report.skipped.size + "개: <white>" + report.skipped.take(6).joinToString(", ") + (if (report.skipped.size > 6) " …" else "") + "</white></gray>"))
-            if (report.noState.isNotEmpty()) viewer.sendMessage(Text.render("<yellow>팩에서 상태를 못 찾음 " + report.noState.size + "개: <white>" + report.noState.take(6).joinToString(", ") + "</white></yellow>"))
-            if (report.unsupported.isNotEmpty()) viewer.sendMessage(Text.render("<yellow>이 방식은 없음 " + report.unsupported.size + "개: <white>" + report.unsupported.take(6).joinToString(", ") + "</white></yellow>"))
-            refresh()
-        }
-    }
-
     private fun send() {
         val config = custom.packConfig
         if (!config.canSend) return
@@ -307,7 +283,6 @@ class PackMenu(
         const val SLOT_LEGACY = 20
         const val SLOT_SEND = 22
         const val SLOT_MODELS = 24
-        const val SLOT_IA_BLOCKS = 4
 
         /**
          * 뒤로·닫기.

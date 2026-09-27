@@ -11,8 +11,9 @@ import java.io.File
  * (`resource.model_path`, 없으면 IA 가 만든 `<묶음>:item/ia_auto/<id>`)을 [states] 에서 거꾸로 찾아 같은 상태를 준다. 그래야 이미 월드에
  * 놓인 옛 블록이 새 아이템으로 이어진다.
  *
- * 옮기는 것: 방식(REAL_NOTE → 꽉 찬 블록 · REAL_TRANSPARENT → 투명) · 이름 · 설명 · 모델 · `drop_when_mined`.
- * **안 옮기는 것**: 단단함·도구 제한·소리·부술 때 명령어(`events`)·광석 생성(`worlds_populators`) — 이 플러그인에 그 기능이 없다.
+ * 옮기는 것: 방식(REAL_NOTE → 꽉 찬 블록 · REAL_TRANSPARENT → 투명) · 이름 · 설명 · 모델 · `drop_when_mined` · `hardness` ·
+ * `break_tools_whitelist`(한 갈래의 도구만 적혀 있으면 → 맞는 도구 + 가장 낮은 등급 + "맞는 도구여야 부서짐" — IA 의 뜻이 "이것만 부순다"라서).
+ * **안 옮기는 것**: 소리·부술 때 명령어(`events`)·광석 생성(`worlds_populators`)·IA 의 드랍 표(`loots/`) — 이 플러그인에 그 기능이 없거나 파일이 따로다.
  */
 object ItemsAdderBlocks {
 
@@ -24,6 +25,9 @@ object ItemsAdderBlocks {
         val name: String,
         val lore: List<String>,
         val drop: Boolean,
+        val hardness: Double? = null,
+        val tool: ToolKind? = null,
+        val toolTier: Int = 0,
     )
 
     /** @param noState 팩에서 모델의 상태를 못 찾은 것 · [unsupported] 이 플러그인에 없는 방식(REAL·REAL_WIRE·TILE …). */
@@ -56,6 +60,7 @@ object ItemsAdderBlocks {
                 }
                 val model = item.getString("resource.model_path")?.trim()?.takeIf { it.isNotEmpty() }?.let { "$namespace:$it" }
                     ?: "$namespace:item/ia_auto/$key"
+                val whitelist = whitelist(item.getStringList("specific_properties.block.break_tools_whitelist"))
                 val state = byModel[kind]?.get(model)
                 if (state == null) {
                     noState += "$namespace:$id"
@@ -69,9 +74,24 @@ object ItemsAdderBlocks {
                     name = item.getString("display_name").orEmpty(),
                     lore = item.getStringList("lore"),
                     drop = item.getBoolean("specific_properties.block.drop_when_mined", true),
+                    hardness = if (item.isSet("specific_properties.block.hardness")) item.getDouble("specific_properties.block.hardness").coerceAtLeast(0.0) else null,
+                    tool = whitelist?.first,
+                    toolTier = whitelist?.second ?: 0,
                 )
             }
         }
         return Scan(found, noState, unsupported)
+    }
+
+    /**
+     * `[DIAMOND_PICKAXE, NETHERITE_PICKAXE]` → (곡괭이, 3). 도구 갈래가 하나일 때만 — 곡괭이와 도끼가 섞여 있으면 우리 규칙(맞는 도구 하나)으로
+     * 옮길 수 없어 null(도구 제한 없이 옮긴다). 재질 앞말이 없으면(`PICKAXE`) 등급 0.
+     */
+    internal fun whitelist(entries: List<String>): Pair<ToolKind, Int>? {
+        val tools = entries.map { it.trim() }.filter { it.isNotEmpty() }.map { it.substringAfter(':') }
+        if (tools.isEmpty()) return null
+        val kinds = tools.map { ToolKind.ofName(it) ?: return null }.toSet()
+        val kind = kinds.singleOrNull() ?: return null
+        return kind to tools.minOf { ToolGrades.held(it).tier }
     }
 }

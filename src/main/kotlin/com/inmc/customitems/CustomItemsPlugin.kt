@@ -60,6 +60,8 @@ class CustomItemsPlugin : JavaPlugin() {
         ticker.stop()
         passiveTicker.stop()
         metrics.stop()
+        // 캐는 동안 묶어 둔 블록 파괴 속도를 푼다 — 안 풀면 리로드 뒤 그 사람들이 아무것도 못 캔다.
+        custom.mining.shutdown()
         // 우리가 내려가면 우리 아이템도 못 만든다. 남겨두면 다른 플러그인이 죽은 공급처에
         // 계속 묻게 되고, 그쪽 로그에 우리 이름이 안 나와 원인을 찾기 어렵다.
         CustomItemHook.unregister(ItemBuilder.NAMESPACE)

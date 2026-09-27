@@ -62,6 +62,11 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
             "<dark_gray>플레이어는 /장비 로 엽니다.</dark_gray>", "", "<yellow>▶ 클릭: 기본 칸 수</yellow>",
         ))) { EquipmentSettingsMenu(custom, viewer).open(viewer) }
         set(SLOT_PACK, packButton()) { PackMenu(custom, viewer).open(viewer) }
+        set(SLOT_BLOCKS, Icon.of(Material.NOTE_BLOCK, "<gold>커스텀 블록 <white>" + all.count { it.block != null } + "</white>개</gold>", listOf(
+            "<gray>블록으로 놓이는 아이템 · 캐는 시간 · 캘 수 있는 도구 ·</gray>",
+            "<gray>도구 등급 · 드랍 표 · 옛 ItemsAdder 블록 옮기기</gray>",
+            "", "<yellow>▶ 클릭</yellow>",
+        ))) { BlockHubMenu(custom, viewer).open(viewer) }
         set(SLOT_SETS, Icon.of(Material.CHAINMAIL_CHESTPLATE, "<yellow>아이템 세트 <white>" + custom.sets.all().size + "</white>개</yellow>",
             listOf("<gray>여러 벌 입으면 벌 수에 따라 효과가 붙습니다.</gray>", "", "<yellow>▶ 클릭</yellow>"))) { ItemSetListMenu(custom, viewer).open(viewer) }
         set(SLOT_CRAFT, Icon.of(Material.SMITHING_TABLE, "<yellow>제작 <white>" + custom.stations.all().size + "</white>곳</yellow>",
@@ -109,6 +114,7 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
         /** 만든 종류 칸 — 아홉까지. 더 많으면 종류 관리 화면에서 본다. */
         val CUSTOM_SLOTS = (36..44).toList()
         const val SLOT_TYPES = 4
+        const val SLOT_BLOCKS = 8
 
         const val SLOT_REGISTER = 45
         const val SLOT_UPGRADES = 46

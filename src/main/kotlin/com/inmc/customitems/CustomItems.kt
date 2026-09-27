@@ -89,6 +89,9 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     /** 커스텀 블록 — 놓기·알아보기·치우기(블록 상태 방식 둘 + 엔티티 방식). */
     val blocks = com.inmc.customitems.block.CustomBlocks(this)
 
+    /** 커스텀 블록을 시간 들여 캐기 — 단단함·맞는 도구·등급. */
+    val mining = com.inmc.customitems.block.BlockMining(this)
+
     /** 팩 배포 설정. 리로드로 통째 교체된다. */
     @Volatile
     var packConfig: PackConfig = PackConfig()
