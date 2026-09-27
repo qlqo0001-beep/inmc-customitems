@@ -1,8 +1,7 @@
 package com.inmc.customitems.listener
 
 import com.inmc.customitems.CustomItems
-import com.inmc.customitems.item.CustomItem
-import kr.inmc.core.input.Clicks
+import com.inmc.customitems.block.Mining
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.block.Block
@@ -14,6 +13,8 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockDamageAbortEvent
+import org.bukkit.event.block.BlockDamageEvent
 import org.bukkit.event.block.BlockExplodeEvent
 import org.bukkit.event.block.BlockPistonExtendEvent
 import org.bukkit.event.block.BlockPistonRetractEvent
@@ -21,10 +22,12 @@ import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.block.NotePlayEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.util.BoundingBox
 
 /**
- * 커스텀 블록 놓기·부수기와 바닐라가 모양을 바꾸는 길 막기. 판단은 [com.inmc.customitems.block.CustomBlocks] 가 한다.
+ * 커스텀 블록 놓기·캐기·부수기와 바닐라가 모양을 바꾸는 길 막기. 판단은 [com.inmc.customitems.block.CustomBlocks] 가, 캐는 시간은
+ * [com.inmc.customitems.block.BlockMining] 이 한다.
  *
  * **값은 HIGH 에서 고치고, 떨구기·치우기는 MONITOR 에서 한다**(규칙 11). 랜덤박스가 상자를 HIGHEST 에서 지킨다 — 그 전에 우리가
  * 엔티티 모델을 치우거나 아이템을 떨구면 부서지지 않은 상자에서 아이템이 나온다.
@@ -46,7 +49,6 @@ class BlockListener(private val custom: CustomItems) : Listener {
                 if (clickedOurs != null && clicked.type == Material.NOTE_BLOCK) event.setUseInteractedBlock(Event.Result.DENY)
                 place(event, clicked, clickedOurs != null)
             }
-            Action.LEFT_CLICK_BLOCK -> breakEntityBlock(event, clicked)
             else -> Unit
         }
     }
@@ -84,33 +86,46 @@ class BlockListener(private val custom: CustomItems) : Listener {
         player.swingHand(hand)
     }
 
+    // --- 캐기 (시간 들여) ---------------------------------------------------------------
+
     /**
-     * 엔티티 방식(방벽)은 서바이벌에서 부서지지 않는다 — 좌클릭 한 번으로 부순다(ItemsAdder 가구와 같다). 부수기 사건을 먼저 쏴서 땅 보호·
-     * 랜덤박스가 막을 수 있게 하고, 떨구기는 그 사건의 MONITOR([afterBreak])가 한다. 크리에이티브는 바닐라가 방벽을 부순다.
+     * 치기 시작 — 우리 블록이면 [com.inmc.customitems.block.BlockMining] 이 센다. 다른 블록을 치기 시작하면 캐던 것은 끝.
+     * 크리에이티브는 이 사건 전에 바닐라가 한 번에 부순다.
      */
-    private fun breakEntityBlock(event: PlayerInteractEvent, clicked: Block) {
-        if (clicked.type != Material.BARRIER) return
-        val player = event.player
-        if (player.gameMode != GameMode.SURVIVAL) return
-        if (event.useInteractedBlock() == Event.Result.DENY || Clicks.isGhost(event)) return
-        custom.blocks.at(clicked) ?: return
-        event.isCancelled = true
-        val breakEvent = BlockBreakEvent(clicked, player)
-        if (!breakEvent.callEvent()) return
-        val sound = clicked.blockData.soundGroup.breakSound
-        clicked.setType(Material.AIR, false)
-        clicked.world.playSound(clicked.location.add(0.5, 0.5, 0.5), sound, 1f, 0.8f)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    fun onDamage(event: BlockDamageEvent) {
+        if (!custom.items.hasBlocks) return
+        val item = if (!event.isCancelled && event.block.type in HOSTS) custom.blocks.at(event.block) else null
+        if (item == null) {
+            custom.mining.stop(event.player)
+            return
+        }
+        // 효율·성급함이 높으면 바닐라가 한 번에 부수려 한다(소리블록 0.8 · 후렴초 0.4).
+        event.instaBreak = false
+        custom.mining.start(event.player, event.block, item)
     }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onAbort(event: BlockDamageAbortEvent) = custom.mining.stop(event.player)
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onQuit(event: PlayerQuitEvent) = custom.mining.stop(event.player)
 
     // --- 부수기 -----------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onBreak(event: BlockBreakEvent) {
         if (!custom.items.hasBlocks || event.block.type !in HOSTS) return
-        custom.blocks.at(event.block) ?: return
-        // 바닐라 것(소리블록·후렴초 열매)이 안 나오게. 우리 아이템은 부서진 것이 확정된 뒤에.
+        val spec = custom.blocks.at(event.block)?.block ?: return
+        val player = event.player
+        // 다른 플러그인이 대신 부수는 길(여러 칸 캐기 인첸트 …)도 도구 규칙을 지킨다.
+        if (player.gameMode == GameMode.SURVIVAL && !Mining.canBreak(spec, custom.mining.held(player))) {
+            event.isCancelled = true
+            return
+        }
+        // 바닐라 것(소리블록·후렴초 열매)이 안 나오게. 우리 것은 부서진 것이 확정된 뒤에(afterBreak).
         event.isDropItems = false
-        event.expToDrop = 0
+        event.expToDrop = if (player.gameMode == GameMode.CREATIVE) 0 else custom.blocks.expFor(spec, player)
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -118,7 +133,7 @@ class BlockListener(private val custom: CustomItems) : Listener {
         if (!custom.items.hasBlocks || event.block.type !in HOSTS) return
         val item = custom.blocks.at(event.block) ?: return
         custom.blocks.clear(event.block)
-        if (event.player.gameMode != GameMode.CREATIVE) drop(event.block, item)
+        if (event.player.gameMode != GameMode.CREATIVE) drop(event.block, custom.blocks.loot(item, event.player))
     }
 
     /** 폭발 — 남은 목록의 우리 블록을 먼저 비우고 우리 아이템을 떨군다(바닐라가 소리블록·후렴초 열매를 떨구지 않게). */
@@ -135,13 +150,13 @@ class BlockListener(private val custom: CustomItems) : Listener {
             val item = custom.blocks.at(block) ?: continue
             custom.blocks.clear(block)
             block.setType(Material.AIR, false)
-            if (Math.random() < yield) drop(block, item)
+            if (Math.random() < yield) drop(block, custom.blocks.loot(item, null))
         }
     }
 
-    private fun drop(block: Block, item: CustomItem) {
-        val stack = custom.blocks.dropOf(item) ?: return
-        block.world.dropItemNaturally(block.location.add(0.5, 0.5, 0.5), stack)
+    private fun drop(block: Block, stacks: List<org.bukkit.inventory.ItemStack>) {
+        val center = block.location.add(0.5, 0.5, 0.5)
+        for (stack in stacks) block.world.dropItemNaturally(center, stack)
     }
 
     // --- 바닐라가 모양을 바꾸는 길 ----------------------------------------------------------

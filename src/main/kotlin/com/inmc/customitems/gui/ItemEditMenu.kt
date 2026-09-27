@@ -195,6 +195,18 @@ class ItemEditMenu(
             "<gray>랜덤박스 상자 모양으로도 고를 수 있습니다.</gray>",
             "", "<yellow>▶ 클릭: 블록 설정</yellow>",
         ))) { BlockMenu(custom, viewer, id).open(viewer) }
+        com.inmc.customitems.block.ToolGrades.vanillaTier(item.material)?.let { vanilla -> set(SLOT_MINING_TIER, miningTierIcon(item, vanilla)) { event ->
+            when {
+                event.click == org.bukkit.event.inventory.ClickType.DROP -> mutate { it.copy(miningTier = null) }
+                Editors.isPrompt(event) -> Editors.promptInt(custom.prompts, viewer, "채굴 등급", 0, com.inmc.customitems.block.ToolGrades.MAX_TIER, { open(viewer) }) { value ->
+                    mutate(false) { it.copy(miningTier = value.takeIf { tier -> tier != vanilla }) }
+                }
+                else -> {
+                    val next = ((item.miningTier ?: vanilla) + Editors.step(event, 1)).coerceIn(0, com.inmc.customitems.block.ToolGrades.MAX_TIER)
+                    mutate { it.copy(miningTier = next.takeIf { tier -> tier != vanilla }) }
+                }
+            }
+        } }
         set(SLOT_GIVE, giveIcon()) { event -> give(if (event.isShiftClick) 64 else 1) }
         set(Paging.SLOT_BACK, Icon.back()) { backToList(item) }
         set(Paging.SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
@@ -464,6 +476,19 @@ class ItemEditMenu(
         stepLabel = "10",
     )
 
+    /** 도구 재질일 때만. 커스텀 블록의 도구 등급과 견준다 — 5 부터는 바닐라 도구로 못 캐는 광석. */
+    private fun miningTierIcon(item: CustomItem, vanilla: Int) = Editors.intIcon(
+        Material.DIAMOND_PICKAXE,
+        "<aqua>채굴 등급: <white>" + com.inmc.customitems.block.ToolGrades.name(item.miningTier ?: vanilla) + "</white></aqua>",
+        item.miningTier ?: vanilla,
+        extra = listOf(
+            "<gray>재질 기본값: <white>" + com.inmc.customitems.block.ToolGrades.name(vanilla) + " (" + vanilla + ")</white>" + (if (item.miningTier == null) " <green>← 지금</green>" else "") + "</gray>",
+            "<gray>커스텀 블록의 도구 등급 이상이어야 캡니다.</gray>",
+            "<gray>5 부터는 바닐라 도구에 없는 등급입니다.</gray>",
+            "<dark_gray>Q: 재질 기본값으로</dark_gray>",
+        ),
+    )
+
     private fun toggleIcon(material: Material, label: String, value: Boolean, hint: String) = Icon.of(
         if (value) material else Material.GRAY_DYE,
         "<yellow>" + label + ": " + Icon.toggle(value) + "</yellow>",
@@ -590,6 +615,7 @@ class ItemEditMenu(
         const val SLOT_INVENTORY_EFFECT = 35
         const val SLOT_ROLES = 26
         const val SLOT_BLOCK = 28
+        const val SLOT_MINING_TIER = 27
 
         const val SLOT_GIVE = 49
     }

@@ -136,6 +136,23 @@ class MenuLayoutTest {
     }
 
     @Test
+    fun `블록 화면들의 버튼이 겹치지 않고 목록 칸을 덮지 않는다`() {
+        val paging = mapOf(
+            "Paging.SLOT_BACK" to Paging.SLOT_BACK, "Paging.SLOT_PREV" to Paging.SLOT_PREV,
+            "Paging.SLOT_NEXT" to Paging.SLOT_NEXT, "Paging.SLOT_CLOSE" to Paging.SLOT_CLOSE,
+        )
+        for (file in listOf("BlockMenu.kt", "BlockDropMenu.kt", "BlockHubMenu.kt")) {
+            val all = slotsOf(file) + paging
+            assertEquals(all.size, all.values.toSet().size, file + " 슬롯 충돌: " + all.entries.groupBy { it.value }.filterValues { it.size > 1 })
+            for ((name, slot) in all) assertTrue(slot in 0 until 54, "$file $name($slot) 이 창을 벗어납니다")
+        }
+        // 드랍 표·블록 목록은 0 부터 항목을 깐다.
+        for (file in listOf("BlockDropMenu.kt", "BlockHubMenu.kt")) {
+            for ((name, slot) in slotsOf(file)) assertTrue(slot >= Paging.PER_PAGE, "$file 의 $name($slot) 이 항목 칸을 덮습니다")
+        }
+    }
+
+    @Test
     fun `종류 서랍 화면이 모든 종류를 담고 칸이 겹치지 않는다`() {
         val types = listOfInts("ItemTypeMenu.kt", "TYPE_SLOTS")
         assertTrue(types.size >= com.inmc.customitems.item.ItemType.entries.size, "종류 " + com.inmc.customitems.item.ItemType.entries.size + "개 > 칸 " + types.size + "개")

@@ -141,7 +141,7 @@ class BlockStatesTest {
                   ore:
                     display_name: 광석
                     resource: { material: BRICK, generate: true }
-                    specific_properties: { block: { placed_model: { type: REAL_NOTE }, drop_when_mined: false } }
+                    specific_properties: { block: { placed_model: { type: REAL_NOTE }, drop_when_mined: false, hardness: 3, break_tools_whitelist: [IRON_PICKAXE, DIAMOND_PICKAXE] } }
                   wire:
                     resource: { material: PAPER }
                     specific_properties: { block: { placed_model: { type: REAL_WIRE } } }
@@ -166,6 +166,10 @@ class BlockStatesTest {
             assertEquals("inmc:fuben/block/chest/chest", byId.getValue("fb_chest_68").model)
             assertEquals("inmc:item/ia_auto/ore", byId.getValue("ore").model, "model_path 가 없으면 IA 가 만든 모델")
             assertEquals(false, byId.getValue("ore").drop)
+            assertEquals(3.0, byId.getValue("ore").hardness)
+            assertEquals(com.inmc.customitems.block.ToolKind.PICKAXE, byId.getValue("ore").tool)
+            assertEquals(2, byId.getValue("ore").toolTier)
+            assertEquals(null, byId.getValue("fb_chest_68").hardness, "안 적었으면 우리 기본값")
             assertEquals(listOf("inmc:lost"), scan.noState)
             assertEquals(1, scan.unsupported.size)
         } finally {
