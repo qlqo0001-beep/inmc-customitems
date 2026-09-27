@@ -41,6 +41,39 @@ object PackAssets {
     /** `item_model` 컴포넌트가 가리키는 값. */
     fun itemModelKey(id: String): String = "$NAMESPACE:$id"
 
+    private val MODEL_PATH = Regex("^assets/([a-z0-9_.-]+)/models/([a-z0-9_./-]+)\\.json$")
+
+    /**
+     * 모델 목록(관리 화면)에 보일 모델인가 — 팩 경로 `assets/<이름공간>/models/<경로>.json` → `<이름공간>:<경로>`. 바닐라(`minecraft`)와
+     * 밑줄로 시작하는 내부 이름공간(IA 의 `_iainternal`)은 뺀다. 오버레이 안의 것도 뺀다(같은 모델의 판별 사본이다).
+     */
+    fun listedModel(path: String): String? {
+        val match = MODEL_PATH.matchEntire(path) ?: return null
+        val (namespace, model) = match.destructured
+        if (namespace == "minecraft" || namespace.startsWith("_")) return null
+        return "$namespace:$model"
+    }
+
+    /**
+     * 모델 하나를 게임에서 보려고 붙이는 아이템 정의. 1.21.4+ 는 `item_model` 이 모델이 아니라 **아이템 정의**를 가리키므로, 아이템이
+     * 안 쓰는 모델은 이게 있어야 보인다. `<이름공간>:<경로>` → `assets/inmc/items/preview/<이름공간>/<경로>.json`.
+     */
+    fun previewPath(model: String): String = itemPath(PREVIEW + "/" + model.replace(':', '/'))
+
+    /** 미리보기 정의를 가리키는 `item_model` 값. */
+    fun previewKey(model: String): String = itemModelKey(PREVIEW + "/" + model.replace(':', '/'))
+
+    /** 미리보기 정의 경로 → 모델 이름. 미리보기가 아니면 null. */
+    fun previewModel(path: String): String? {
+        val prefix = "assets/$NAMESPACE/items/$PREVIEW/"
+        if (!path.startsWith(prefix) || !path.endsWith(".json")) return null
+        val rest = path.removePrefix(prefix).removeSuffix(".json")
+        val slash = rest.indexOf('/').takeIf { it > 0 } ?: return null
+        return rest.substring(0, slash) + ":" + rest.substring(slash + 1)
+    }
+
+    const val PREVIEW = "preview"
+
     /**
      * 텍스처 하나를 쓰는 평범한 모델.
      *

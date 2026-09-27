@@ -401,6 +401,21 @@ class PackMergeTest {
     }
 
     @Test
+    fun `모델 목록은 남의 모델에 미리보기 정의를 붙이고 바닐라와 IA 내부는 뺀다`() {
+        assertEquals("itemsadder:auto_generated/coin", PackAssets.listedModel("assets/itemsadder/models/auto_generated/coin.json"))
+        assertNull(PackAssets.listedModel("assets/minecraft/models/item/paper.json"), "바닐라 모델은 목록에 없다")
+        assertNull(PackAssets.listedModel("assets/_iainternal/models/entity/player/phead_0.json"), "IA 내부")
+        assertNull(PackAssets.listedModel("ia_overlay_1_21_6_plus/assets/itemsadder/models/x.json"), "오버레이 사본")
+        assertNull(PackAssets.listedModel("assets/itemsadder/textures/x.png"))
+
+        val model = "1_splatus:item/blaze_staff"
+        assertEquals("assets/inmc/items/preview/1_splatus/item/blaze_staff.json", PackAssets.previewPath(model))
+        assertEquals("inmc:preview/1_splatus/item/blaze_staff", PackAssets.previewKey(model))
+        assertEquals(model, PackAssets.previewModel(PackAssets.previewPath(model)), "만든 팩을 읽어 목록을 되살린다")
+        assertNull(PackAssets.previewModel("assets/inmc/items/sword.json"), "우리 아이템 정의는 미리보기가 아니다")
+    }
+
+    @Test
     fun `못 읽는 json 은 null 이다`() {
         assertNull(JsonMerge.parse("{"))
         assertNull(JsonMerge.parse("null"))
