@@ -86,6 +86,13 @@ class PackMerger {
         owner[normalized] = label
     }
 
+    /** 뺀다 — 소스가 준 바닐라 정의를 걷어 낼 때([NumberMigration.strip]). 클라이언트는 제 판의 바닐라 것을 쓴다. */
+    fun remove(path: String) {
+        val normalized = normalize(path) ?: return
+        files.remove(normalized)
+        owner.remove(normalized)
+    }
+
     fun result(sourceCount: Int): Report =
         Report(files.size, sourceCount, conflicts.toList(), mergedJson.size)
 

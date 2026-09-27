@@ -164,11 +164,9 @@ data class CustomItem(
     val model: String = "",
 
     /**
-     * 리소스팩 모델 번호. 0 이면 안 붙인다.
-     *
-     * **낡은 팩과 섞을 때만 쓴다.** 우리가 만드는 팩은 번호 대신 [texture] 와 `item_model`
-     * 을 쓴다 — 번호는 팩 두 개를 합칠 때 겹치는 것이 가장 흔한 사고였고, 그 사고 자체가
-     * 없어지기 때문이다.
+     * 낡은 리소스팩 모델 번호 — **옮기기 전의 값일 뿐 더 쓰지 않는다**(사용자 결정 2026-09-28). 옛 정의나 다른 플러그인에서 옮겨 온
+     * 아이템에 남아 있으면 다음 리소스팩 빌드가 팩이 그리던 모양 그대로 [model]·`item_model` 로 옮기고 0 으로 만든다
+     * ([com.inmc.customitems.pack.NumberMigration]). 화면에서 적을 수 없다.
      */
     val customModelData: Int = 0,
 

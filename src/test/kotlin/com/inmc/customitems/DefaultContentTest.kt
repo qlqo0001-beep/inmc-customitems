@@ -182,4 +182,39 @@ class DefaultContentTest {
         assertTrue(merged.has("overlays"), "오버레이를 잃으면 1.21.4+ 클라이언트가 모델 번호를 못 읽습니다")
         assertTrue(merged.getAsJsonObject("pack").get("pack_format").asInt >= PackAssets.PACK_FORMAT)
     }
+
+    /** 기본 팩을 파일 표로(경로 → 내용). 팩 합치기와 같은 모양. */
+    private val defaultPack: Map<String, ByteArray> by lazy {
+        val files = LinkedHashMap<String, ByteArray>()
+        ZipInputStream(assertNotNull(javaClass.classLoader.getResourceAsStream("pack/default-pack.zip"))).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (!entry.isDirectory) files[entry.name] = zip.readBytes()
+            }
+        }
+        files
+    }
+
+    @Test
+    fun `옮겨 온 아이템의 모델 번호는 전부 기본 팩의 모양으로 옮겨진다`() {
+        // 번호가 남은 아이템이 빌드에서 모양을 잃지 않는다 — 찾으면 모델, 바닐라로 그려지던 번호면 null(번호만 뗀다).
+        val roots = com.inmc.customitems.pack.NumberMigration.activeRoots(defaultPack)
+        val numbered = items.values.filter { it.customModelData > 0 }
+        assertTrue(numbered.size >= 100, "옮겨 온 MMOItems 아이템의 번호가 있어야 한다")
+        val resolved = numbered.associateWith { com.inmc.customitems.pack.NumberMigration.resolve(defaultPack, it.material.name.lowercase(), it.customModelData, roots) }
+        val vanilla = resolved.filterValues { it == null }.keys.map { it.id }.toSet()
+        assertEquals(setOf("2차낚싯대", "3차낚싯대", "4차낚싯대", "5차낚싯대"), vanilla, "기본 팩이 이 번호를 바닐라 낚싯대로 채워 둔 것만 바닐라")
+        for ((item, target) in resolved) {
+            if (target == null) continue
+            assertTrue(':' in target.model && !target.model.startsWith("minecraft:"), item.id + " → " + target.model)
+        }
+    }
+
+    @Test
+    fun `기본 팩의 플레이어 머리 정의는 번호 갈래뿐이라 걷어 낸다`() {
+        val stripped = com.inmc.customitems.pack.NumberMigration.strip(defaultPack)
+        val heads = stripped.changes.filterKeys { it.endsWith("assets/minecraft/items/player_head.json") }
+        assertTrue(heads.isNotEmpty())
+        assertTrue(heads.values.all { it == null }, "머리 정의가 남으면 다른 플러그인 화면의 평범한 머리가 옛 IA 정의로 그려진다")
+    }
 }

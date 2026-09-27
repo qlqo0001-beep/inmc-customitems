@@ -29,13 +29,8 @@ class PackMenu(
         set(SLOT_STATUS, statusIcon())
         set(SLOT_SOURCES, sourcesIcon())
         set(SLOT_MISSING, missingIcon())
-        set(SLOT_LEGACY, legacyIcon())
+        set(SLOT_NUMBERS, numbersIcon())
         set(SLOT_SEND, sendIcon()) { send() }
-        set(SLOT_MODELS, Icon.of(Material.ITEM_FRAME, "<yellow>번호 모델 목록</yellow>", listOf(
-            "<gray>리소스팩이 번호(custom_model_data)로 바꿔 그리는</gray>",
-            "<gray>모델을 재질·번호·팩별로 봅니다. 겹친 번호도 보입니다.</gray>",
-            "", "<yellow>▶ 클릭</yellow>",
-        ))) { ModelNumberMenu.open(custom, viewer) }
 
         set(SLOT_BACK, Icon.back()) { ItemTypeMenu(custom, viewer).open(viewer) }
         set(SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
@@ -74,9 +69,8 @@ class PackMenu(
                 add("<gray>합친 팩 <white>" + last.sourceCount + "</white>개</gray>")
                 add("<gray>섞인 json <white>" + last.mergedJsonCount + "</white>개</gray>")
                 add("<gray>덮인 파일 <white>" + last.replacedCount + "</white>개</gray>")
-                if (last.legacyCount > 0) {
-                    add("<gray>번호 방식 <white>" + last.legacyCount + "</white>개</gray>")
-                }
+                if (last.migrated.isNotEmpty()) add("<gray>번호에서 옮긴 것 <white>" + last.migrated.size + "</white>개</gray>")
+                if (last.strippedDefinitions > 0) add("<gray>걷어 낸 바닐라 번호 정의 <white>" + last.strippedDefinitions + "</white>개</gray>")
                 if (last.blockCount > 0) add("<gray>블록 상태 <white>" + last.blockCount + "</white>개</gray>")
                 if (last.blocksWithoutModel.isNotEmpty()) {
                     add("<red>모양 없는 블록 <white>" + last.blocksWithoutModel.size + "</white>개</red> <dark_gray>(모델·텍스처를 적으세요)</dark_gray>")
@@ -150,45 +144,28 @@ class PackMenu(
     }
 
     /**
-     * 번호 방식 상태.
-     *
-     * 번호를 적었는데 바닐라 모델을 몰라 건너뛴 것이 **가장 알려주기 어려운 실패**다 —
-     * 번호는 아이템에 찍혀 있고 팩도 만들어졌는데 그 아이템만 모양이 안 바뀐다.
+     * 낡은 번호 방식(`custom_model_data`)을 걷어 낸 상태. 번호는 더 쓰지 않는다(사용자 결정 2026-09-28) — 남은 번호는 다음 빌드가
+     * 팩이 그리던 모양 그대로 최신 방식(`item_model`)으로 옮기고, 바닐라 아이템 정의에 남은 번호 갈래는 지운다.
      */
-    private fun legacyIcon(): org.bukkit.inventory.ItemStack {
-        val last = custom.pack.lastReport
-        val numbered = custom.items.all().count { it.customModelData > 0 }
-        val skipped = last?.legacySkipped.orEmpty()
-
+    private fun numbersIcon(): org.bukkit.inventory.ItemStack {
+        val last = custom.pack.lastReport?.takeIf { it.ok }
+        val left = custom.items.all().count { it.customModelData > 0 }
         return Icon.of(
-            if (skipped.isEmpty()) Material.ITEM_FRAME else Material.BARRIER,
-            if (skipped.isEmpty()) {
-                "<yellow>번호 방식 <white>" + numbered + "</white>개</yellow>"
-            } else {
-                "<red>번호를 못 붙인 것 <white>" + skipped.size + "</white>개</red>"
-            },
+            if (left == 0) Material.ITEM_FRAME else Material.CLOCK,
+            if (left == 0) "<green>모델 번호 — 쓰지 않음</green>" else "<yellow>옮길 모델 번호 <white>" + left + "</white>개</yellow>",
             buildList {
-                if (numbered == 0) {
-                    add("<dark_gray>번호를 적은 아이템이 없습니다.</dark_gray>")
+                add("<gray>겉모습은 아이템 id 로 찾습니다(item_model).</gray>")
+                add("<gray>낡은 번호(custom_model_data)는 쓰지 않습니다.</gray>")
+                if (left > 0) {
                     add("")
-                    add("<gray>번호는 <white>낡은 팩과 섞을 때만</white> 씁니다.</gray>")
-                    add("<gray>그 밖에는 텍스처만으로 충분합니다 —</gray>")
-                    add("<gray>번호 없이 아이템 id 로 모델을 찾습니다.</gray>")
-                    return@buildList
+                    add("<yellow>리소스팩을 만들면 팩이 그리던 모양 그대로</yellow>")
+                    add("<yellow>최신 방식으로 옮깁니다.</yellow>")
                 }
-                if (skipped.isEmpty()) {
-                    add("<gray>번호를 적은 아이템이 전부 나갑니다.</gray>")
-                    add("<gray>텍스처 방식과 <white>둘 다</white> 나갑니다.</gray>")
-                } else {
-                    add("<gray>이 아이템들은 번호가 무시됩니다:</gray>")
-                    for (line in skipped.take(8)) add("<dark_gray>" + line + "</dark_gray>")
-                    if (skipped.size > 8) add("<dark_gray>…</dark_gray>")
+                if (last != null) {
                     add("")
-                    add("<gray>그 재질의 바닐라 모델을 모릅니다. 짐작해서 쓰면</gray>")
-                    add("<gray>우리 아이템이 아니라 <white>평범한 그 아이템</white>이 망가집니다.</gray>")
-                    add("")
-                    add("<gray>pack/models/base/ 에 바닐라 모델을 넣거나,</gray>")
-                    add("<gray>sources/ 의 팩이 그 파일을 주면 됩니다.</gray>")
+                    if (last.migrated.isNotEmpty()) add("<gray>지난 빌드에서 옮긴 것 <white>" + last.migrated.size + "</white>개</gray>")
+                    add("<gray>걷어 낸 바닐라 번호 정의 <white>" + last.strippedDefinitions + "</white>개 · 낡은 overrides <white>" + last.strippedOverrides + "</white>개</gray>")
+                    for (line in last.migrationSkipped.take(5)) add("<red>못 옮김: " + line + "</red>")
                 }
             },
         )
@@ -280,9 +257,8 @@ class PackMenu(
         const val SLOT_STATUS = 12
         const val SLOT_SOURCES = 14
         const val SLOT_MISSING = 16
-        const val SLOT_LEGACY = 20
+        const val SLOT_NUMBERS = 20
         const val SLOT_SEND = 22
-        const val SLOT_MODELS = 24
 
         /**
          * 뒤로·닫기.

@@ -56,10 +56,13 @@ class PackService(private val custom: CustomItems) {
         val mergedJsonCount: Int,
         val replacedCount: Int,
         val missingTextures: List<String>,
-        /** 번호 방식으로도 나간 아이템 수. */
-        val legacyCount: Int,
-        /** 번호를 적었지만 붙이지 못한 것들. 바닐라 모델을 모르는 재질이다. */
-        val legacySkipped: List<String>,
+        /** 번호 방식에서 옮긴 것 — 메인 스레드가 정의에 적는다([applyMigration]). */
+        val migrated: List<Migrated>,
+        /** 공용 강화 방식의 번호인데 재질마다 모양이 달라 한 칸에 적을 수 없어 둔 것. */
+        val migrationSkipped: List<String>,
+        /** 바닐라 아이템 정의에서 걷어 낸 번호 갈래 — 정의 수 · 낡은 `overrides` 수. */
+        val strippedDefinitions: Int,
+        val strippedOverrides: Int,
         /** 블록 상태 방식으로 팩에 적은 우리 블록 수. */
         val blockCount: Int,
         /** 블록 상태 방식인데 모델도 텍스처도 없어 그릴 것이 없는 것. */
@@ -72,10 +75,19 @@ class PackService(private val custom: CustomItems) {
         val ok: Boolean get() = error == null
     }
 
+    /**
+     * 번호 하나를 옮긴 것. [level] 이 0 이면 아이템 자신, 아니면 강화 [level] 단계([table] 이 있으면 공용 강화 방식의 단계).
+     * [model] 이 null 이면 바닐라 모양으로 그려지던 번호라 번호만 뗀다.
+     */
+    data class Migrated(val itemId: String, val table: String?, val level: Int, val number: Int, val model: String?)
+
     val root: File get() = custom.io.file("pack")
     val sourcesDir: File get() = File(root, "sources")
     val texturesDir: File get() = File(root, "textures")
     val modelsDir: File get() = File(root, "models")
+
+    /** 직접 만든 아이템 정의(`<이름>.json`) — 있으면 텍스처·모델 칸 대신 그대로 쓴다. 번호에서 옮긴 조건 있는 모양(던진 낚싯대 …)이 여기 적힌다. */
+    val itemsDir: File get() = File(root, "items")
     val outputDir: File get() = File(root, "output")
     val outputZip: File get() = File(outputDir, "pack.zip")
 
@@ -101,32 +113,6 @@ class PackService(private val custom: CustomItems) {
      *
      * @param then 메인 스레드에서 불린다.
      */
-    /**
-     * 번호(custom_model_data)로 그려지는 모델 목록 — `sources/` 의 팩마다 따로 읽어 어느 팩 것인지 적고, 만든 팩(`output`)에만 있는
-     * 것은 [GENERATED](우리가 만든 번호 방식)로. 워커에서 읽는다(팩이 수십 MB 일 수 있다).
-     */
-    fun modelNumbers(then: (List<ModelNumbers.Entry>) -> Unit) {
-        custom.io.async({
-            val found = ArrayList<ModelNumbers.Entry>()
-            val sources = sourcesDir.listFiles()
-                ?.filter { it.isDirectory || it.name.endsWith(".zip", ignoreCase = true) }
-                ?.sortedBy { it.name.lowercase() }
-                .orEmpty()
-            for (source in sources) {
-                val merger = PackMerger()
-                runCatching { merger.add(source.name, source) }.onFailure { custom.logger.warning("팩 '${source.name}' 을(를) 읽지 못했습니다: ${it.message}") }
-                found += ModelNumbers.scan(source.name, merger.entries())
-            }
-            if (outputZip.isFile) {
-                val merger = PackMerger()
-                merger.add(GENERATED, outputZip)
-                val seen = found.map { it.material to it.number }.toSet()
-                found += ModelNumbers.scan(GENERATED, merger.entries()).filter { (it.material to it.number) !in seen }
-            }
-            found.sortedWith(compareBy({ it.material }, { it.number }))
-        }, then)
-    }
-
     fun build(then: (Result) -> Unit) {
         if (building) {
             then(failed("이미 만드는 중입니다"))
@@ -140,11 +126,19 @@ class PackService(private val custom: CustomItems) {
         val tables = custom.items.all().associate { it.id to it.upgrade.table(custom.items.lookup)?.takeIf { table -> table.hasLevelModels } }
         val items = custom.items.all().filter { PackAssets.needsPack(it) || tables[it.id] != null }
         val blockItems = custom.items.all().filter { it.block?.kind?.usesState == true }
+        // 낡은 번호가 남은 것 — 이번 빌드가 최신 방식으로 옮긴다(아이템 자신 · 아이템 전용 강화표 · 공용 강화 방식).
+        val numbered = custom.items.all().filter { item -> item.customModelData > 0 || item.upgrade.own?.steps?.any { it.customModelData > 0 } == true }
+        val shared = custom.upgrades.all().filter { table -> table.steps.any { it.customModelData > 0 } }.associateWith { table ->
+            custom.items.all().filter { it.upgrade.own == null && it.upgrade.template.equals(table.id, ignoreCase = true) }
+        }
 
-        custom.io.async({ runCatching { assemble(items, tables, blockItems) } }) { outcome ->
+        custom.io.async({ runCatching { assemble(items, tables, blockItems, numbered, shared) } }) { outcome ->
             building = false
             val result = outcome.getOrElse { failed(it.message ?: it.javaClass.simpleName) }
-            if (result.ok) sha1 = result.sha1
+            if (result.ok) {
+                sha1 = result.sha1
+                applyMigration(result.migrated)
+            }
             lastReport = result
             then(result)
         }
@@ -177,11 +171,17 @@ class PackService(private val custom: CustomItems) {
                 merger.put(GENERATED, PackAssets.modelPath(id), PackAssets.modelJson(id).toByteArray())
                 PackAssets.NAMESPACE + ":item/" + id
             }
-            merger.put(GENERATED, PackAssets.itemPath(id), PackAssets.itemJson(levelModel).toByteArray())
+            merger.put(GENERATED, PackAssets.itemPath(id), (customDefinition(id) ?: PackAssets.itemJson(levelModel)).toByteArray())
         }
     }
 
-    private fun assemble(items: List<CustomItem>, tables: Map<String, com.inmc.customitems.item.UpgradeTable?>, blockItems: List<CustomItem>): Result {
+    private fun assemble(
+        items: List<CustomItem>,
+        tables: Map<String, com.inmc.customitems.item.UpgradeTable?>,
+        blockItems: List<CustomItem>,
+        numbered: List<CustomItem>,
+        shared: Map<com.inmc.customitems.item.UpgradeTable, List<CustomItem>>,
+    ): Result {
         val started = System.currentTimeMillis()
         prepare()
 
@@ -242,11 +242,11 @@ class PackService(private val custom: CustomItems) {
                 }
             }
 
-            val definition = castModel?.let { PackAssets.rodItemJson(model, it) } ?: PackAssets.itemJson(model)
+            val definition = customDefinition(item.resourceId) ?: castModel?.let { PackAssets.rodItemJson(model, it) } ?: PackAssets.itemJson(model)
             merger.put(GENERATED, PackAssets.itemPath(item.resourceId), definition.toByteArray())
         }
 
-        // 2. 관리자가 넣어둔 바닐라 대체 모델. 번호 방식이 여기에 얹힌다.
+        // 2. 관리자가 넣어둔 바닐라 대체 모델.
         val baseDir = File(modelsDir, "base")
         if (baseDir.isDirectory) merger.add(BASE, baseDir)
 
@@ -260,9 +260,11 @@ class PackService(private val custom: CustomItems) {
         // 3-1. 블록 상태. 소스를 다 읽은 뒤에 **통째로** 쓴다 — 소스가 쓰던 커스텀 상태도 읽어 와 같이 적는다([BlockStates]).
         val blocks = addBlockStates(merger, blockItems)
 
-        // 4. 번호 방식. **소스를 다 읽은 뒤에** 얹는다 — 남의 팩이 준 바닐라 모델 위에
-        //    우리 오버라이드가 얹혀야 하고, 순서가 반대면 우리 것이 덮인다.
-        val legacy = addLegacyOverrides(merger, items)
+        // 4. 낡은 번호 방식 걷어 내기. **소스를 다 읽은 뒤에** — 옮기기는 소스가 그 번호로 무엇을 그리는지 읽어야 하고,
+        //    걷어 내기는 소스가 준 바닐라 정의의 번호 갈래를 지운다([NumberMigration]). 옮기기가 먼저다.
+        val migration = migrate(merger, numbered, shared)
+        val stripped = NumberMigration.strip(merger.entries())
+        for ((path, bytes) in stripped.changes) if (bytes == null) merger.remove(path) else merger.replace(NUMBERS, path, bytes)
 
         // 5. 압축해서 내보낸다.
         val report = merger.result(sources.size)
@@ -279,8 +281,10 @@ class PackService(private val custom: CustomItems) {
             mergedJsonCount = report.mergedJsonCount,
             replacedCount = report.replacedCount,
             missingTextures = missing,
-            legacyCount = legacy.added,
-            legacySkipped = legacy.skipped,
+            migrated = migration.first,
+            migrationSkipped = migration.second,
+            strippedDefinitions = stripped.definitions,
+            strippedOverrides = stripped.overrides,
             blockCount = blocks.first,
             blocksWithoutModel = blocks.second,
             sha1 = hash,
@@ -288,8 +292,6 @@ class PackService(private val custom: CustomItems) {
             millis = System.currentTimeMillis() - started,
         )
     }
-
-    private class LegacyResult(val added: Int, val skipped: List<String>)
 
     /**
      * 소리블록·후렴초의 blockstates 를 새로 쓴다. 커스텀 상태가 하나도 없으면(우리 것도 소스 것도) 손대지 않는다 — 바닐라 파일 그대로.
@@ -316,68 +318,114 @@ class PackService(private val custom: CustomItems) {
     }
 
     /**
-     * 번호(`custom_model_data`)를 적은 아이템에 오버라이드를 붙인다.
+     * 낡은 번호를 최신 방식으로 옮긴다(워커). 번호가 지금 그려지는 모양([NumberMigration.resolve])을 우리 아이템 정의
+     * (`assets/inmc/items/<이름>.json`)로 적고, 무엇을 옮겼는지 돌려준다 — 정의에 적는 것은 메인 스레드([applyMigration]).
+     * 텍스처·모델이 이미 있으면 그것이 모양이라 번호만 뗀다.
      *
-     * **번호를 적는 것 자체가 opt-in 이다.** 번호 방식은 바닐라 아이템의 모델 파일을
-     * 대체하므로 — `models/item/diamond_sword.json` 을 넣으면 서버의 **모든** 다이아몬드
-     * 검이 그 파일대로 그려진다 — 아무도 안 부탁했는데 건드리면 안 된다.
-     *
-     * 바닐라 모델이 필요한데 없으면 **붙이지 않고 보고한다.** 짐작해서 쓰면 우리 아이템이
-     * 아니라 평범한 그 아이템이 망가진다.
+     * @return (옮긴 것, 공용 강화 방식이라 옮기지 못한 것)
      */
-    private fun addLegacyOverrides(merger: PackMerger, items: List<CustomItem>): LegacyResult {
-        var added = 0
+    private fun migrate(
+        merger: PackMerger,
+        numbered: List<CustomItem>,
+        shared: Map<com.inmc.customitems.item.UpgradeTable, List<CustomItem>>,
+    ): Pair<List<Migrated>, List<String>> {
+        val files = merger.entries()
+        val roots = NumberMigration.activeRoots(files)
+        fun resolve(item: CustomItem, number: Int) = NumberMigration.resolve(files, item.material.name.lowercase(), number, roots)
+        val out = ArrayList<Migrated>()
         val skipped = ArrayList<String>()
 
-        for (item in items) {
-            if (item.customModelData <= 0) continue
+        for (item in numbered) {
+            if (item.customModelData > 0) {
+                val target = if (PackAssets.needsPack(item)) null else resolve(item, item.customModelData)
+                target?.let { writeDefinition(merger, item.resourceId, it) }
+                out += Migrated(item.id, null, 0, item.customModelData, target?.model)
+            }
+            for ((index, step) in item.upgrade.own?.steps.orEmpty().withIndex()) {
+                if (step.customModelData <= 0) continue
+                val level = index + 1
+                val target = if (step.texture.isNotBlank() || step.model.isNotBlank()) null else resolve(item, step.customModelData)
+                target?.let { writeDefinition(merger, PackAssets.levelId(item, level), it) }
+                out += Migrated(item.id, null, level, step.customModelData, target?.model)
+            }
+        }
 
-            val basePath = LegacyModels.basePath(item.material)
-            val hasBase = merger.entries().containsKey(basePath)
-
-            // 남이 준 바닐라 모델이 있으면 그 위에 얹는다. 없으면 우리가 아는 재질일 때만 만든다.
-            if (!hasBase) {
-                if (!LegacyModels.isKnown(item.material)) {
-                    skipped += item.id + " (" + item.material.name + ")"
+        // 공용 강화 방식의 단계는 쓰는 아이템 모두에게 한 모양이어야 한 칸(모델)에 적을 수 있다.
+        for ((table, users) in shared) {
+            for ((index, step) in table.steps.withIndex()) {
+                if (step.customModelData <= 0) continue
+                val level = index + 1
+                val targets = if (step.texture.isNotBlank() || step.model.isNotBlank()) emptySet() else users.map { resolve(it, step.customModelData) }.toSet()
+                if (targets.size > 1) {
+                    skipped += table.id + " +" + level + " (재질마다 모양이 다름)"
                     continue
                 }
-                merger.put(LEGACY, basePath, LegacyModels.baseJson(item.material).toByteArray())
+                val target = targets.singleOrNull()
+                if (target != null) for (user in users) writeDefinition(merger, PackAssets.levelId(user, level), target)
+                out += Migrated("", table.id, level, step.customModelData, target?.model)
             }
-
-            merger.put(
-                LEGACY,
-                basePath,
-                LegacyModels.overrideJson(
-                    item.customModelData,
-                    PackAssets.modelNameFor(item),
-                ).toByteArray(),
-            )
-            added++
         }
-        return LegacyResult(added, skipped)
+        return out to skipped
     }
 
+    /** 옮긴 모양을 팩에 적는다. 조건이 있는 정의(던진 낚싯대 …)는 [itemsDir] 에도 남긴다 — 다음 빌드부터는 그 파일이 모양이다. */
+    private fun writeDefinition(merger: PackMerger, id: String, target: NumberMigration.Target) {
+        val json = target.definition ?: PackAssets.itemJson(target.model)
+        merger.replace(GENERATED, PackAssets.itemPath(id), json.toByteArray(Charsets.UTF_8))
+        if (target.definition != null) {
+            itemsDir.mkdirs()
+            File(itemsDir, "$id.json").writeText(target.definition, Charsets.UTF_8)
+        }
+    }
+
+    /** [itemsDir] 의 `<id>.json` — 관리자가 넣었거나 번호에서 옮긴 아이템 정의. */
+    private fun customDefinition(id: String): String? =
+        File(itemsDir, "$id.json").takeIf { it.isFile }?.readText(Charsets.UTF_8)
+
     /**
-     * 그 재질에서 이미 쓰인 번호들. 자동 배정이 피해 가야 하는 것들이다.
-     *
-     * **메인 스레드에서 부른다** — 레지스트리를 훑는다.
+     * 옮긴 것을 정의에 적는다(메인). 빌드하는 사이 관리자가 그 번호를 고쳤으면 건드리지 않는다. 텍스처·모델이 이미 있으면 그대로 두고
+     * 번호만 뗀다. 정의가 바뀌니 이미 나간 아이템도 다음 계기에 번호 없이 다시 그려진다(규칙 6).
      */
-    fun usedNumbers(material: org.bukkit.Material): Set<Int> =
-        custom.items.all()
-            .filter { it.material == material && it.customModelData > 0 }
-            .map { it.customModelData }
-            .toSet()
+    private fun applyMigration(migrated: List<Migrated>) {
+        if (migrated.isEmpty()) return
+        for (m in migrated) {
+            if (m.table != null) {
+                val table = custom.upgrades.get(m.table) ?: continue
+                custom.upgrades.put(table.copy(steps = fixed(table.steps, m)))
+                continue
+            }
+            val item = custom.items.get(m.itemId) ?: continue
+            if (m.level > 0) {
+                val own = item.upgrade.own ?: continue
+                custom.items.put(item.copy(upgrade = item.upgrade.copy(own = own.copy(steps = fixed(own.steps, m)))))
+                continue
+            }
+            if (item.customModelData != m.number) continue
+            val keep = m.model == null || PackAssets.needsPack(item)
+            custom.items.put(item.copy(customModelData = 0, model = if (keep) item.model else m.model!!))
+        }
+        custom.logger.info("낡은 모델 번호 " + migrated.size + "개를 최신 방식(item_model)으로 옮겼습니다 — 새 팩을 올려야 보입니다")
+    }
+
+    private fun fixed(steps: List<com.inmc.customitems.item.UpgradeStep>, m: Migrated) = steps.mapIndexed { index, step ->
+        if (index + 1 != m.level || step.customModelData != m.number) {
+            step
+        } else {
+            val keep = m.model == null || step.texture.isNotBlank() || step.model.isNotBlank()
+            step.copy(customModelData = 0, model = if (keep) step.model else m.model!!)
+        }
+    }
 
     private fun description(): String =
         custom.packConfig.description.ifBlank { "INMC 커스텀 아이템" }
 
     private fun failed(message: String) =
-        Result(0, 0, 0, 0, 0, emptyList(), 0, emptyList(), 0, emptyList(), "", 0L, 0L, error = message)
+        Result(0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList(), 0, 0, 0, emptyList(), "", 0L, 0L, error = message)
 
     private companion object {
         const val GENERATED = "(자동 생성)"
         const val BASE = "(pack/models/base)"
-        const val LEGACY = "(번호 방식)"
+        const val NUMBERS = "(번호 걷어 내기)"
         const val BLOCKS = "(블록 상태)"
 
         /** jar 안의 서버 기본 팩(ItemsAdder 가 만든 것 — 옮겨 온 MMOItems 아이템의 모델 번호가 여기 있다). */
@@ -411,11 +459,17 @@ class PackService(private val custom: CustomItems) {
               평면 아이콘이 아니라 손에 든 모양이 따로 있어야 할 때 씁니다.
 
             [models/base/]
-              번호 방식(custom_model_data)을 쓸 때만 필요합니다.
-              번호는 바닐라 아이템의 모델 파일을 대체하므로, 그 바닐라 모델을
-              우리가 모르는 재질이면 여기에 넣어 주세요.
+              바닐라 모델을 바꿔 그리고 싶을 때만(선택). 팩 안의 경로 그대로 넣습니다.
                 assets/minecraft/models/item/<재질>.json
-              sources/ 의 팩이 그 파일을 준다면 안 넣어도 됩니다.
+
+            [items/]
+              아이템 정의 json(<이름>.json)을 넣으면 텍스처·모델 칸 대신 그대로 씁니다.
+              낡은 모델 번호를 옮길 때 조건이 있는 모양(던진 낚싯대 …)이 여기 적힙니다.
+              지우면 텍스처·모델 칸대로 돌아갑니다.
+
+            [모델 번호(custom_model_data)는 쓰지 않습니다]
+              번호가 남은 아이템은 팩을 만들 때 팩이 그리던 모양 그대로 최신 방식(item_model)으로
+              옮기고, sources/ 의 팩이 바닐라 아이템에 걸어 둔 번호 갈래는 지웁니다.
 
             [output/]
               만들어진 pack.zip 과 pack.sha1 이 여기 생깁니다. 손대지 마세요.

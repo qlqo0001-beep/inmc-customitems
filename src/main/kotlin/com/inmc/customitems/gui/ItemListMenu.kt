@@ -42,7 +42,11 @@ class ItemListMenu(
 
         for ((index, item) in Paging.slice(shown, page).withIndex()) {
             set(index, tile(item)) { event ->
-                if (event.isRightClick) confirmDelete(item) else ItemEditMenu(custom, viewer, item.id).open(viewer)
+                when {
+                    event.isRightClick -> confirmDelete(item)
+                    event.isShiftClick -> give(item)
+                    else -> ItemEditMenu(custom, viewer, item.id).open(viewer)
+                }
             }
         }
 
@@ -122,9 +126,16 @@ class ItemListMenu(
             add("")
             add("<dark_gray>참조: inmc:" + item.id + "</dark_gray>")
             add("<yellow>▶ 좌클릭: 설정</yellow>")
+            add("<green>▶ Shift+좌클릭: 1개 받기</green>")
             add("<red>▶ 우클릭: 삭제</red>")
         }
         return Icon.annotate(preview, null, lore)
+    }
+
+    /** 목록에서 바로 한 개 — 설정 화면까지 들어가지 않고 확인하려고. 가방이 차면 발밑에. */
+    private fun give(item: CustomItem) {
+        val stack = custom.items.create(item.id) ?: return
+        for (left in viewer.inventory.addItem(stack).values) viewer.world.dropItem(viewer.location, left)
     }
 
     private fun searchButton(shown: Int) = Icon.of(
