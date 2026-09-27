@@ -197,7 +197,10 @@ class PackService(private val custom: CustomItems) {
             if (!PackAssets.needsPack(item)) continue
             // 텍스처만 적은 블록은 평면 아이콘이 아니라 정육면체 — 놓인 모습과 가방 속 모습이 같다.
             val cube = PackAssets.isCube(item)
+            val rod = PackAssets.isRod(item)
             val model = if (cube) PackAssets.blockModelFor(item)!! else PackAssets.modelNameFor(item)
+            // 낚싯대의 던진 모양. 텍스처 옆에 `_cast.png` 가 있을 때만 — 없으면 던져도 같은 모양이다.
+            var castModel: String? = null
 
             if (item.texture.isNotBlank()) {
                 val png = File(texturesDir, item.texture)
@@ -206,6 +209,15 @@ class PackService(private val custom: CustomItems) {
                     // 모델을 직접 적었으면 우리가 만들지 않는다.
                     if (cube) {
                         merger.put(GENERATED, PackAssets.blockModelPath(item.resourceId), PackAssets.blockModelJson(item.resourceId).toByteArray())
+                    } else if (rod) {
+                        merger.put(GENERATED, PackAssets.modelPath(item.resourceId), PackAssets.rodModelJson(item.resourceId).toByteArray())
+                        val castPng = File(texturesDir, PackAssets.castTexture(item.texture))
+                        if (castPng.isFile) {
+                            val castId = item.resourceId + "_cast"
+                            merger.put(GENERATED, PackAssets.texturePath(castId), castPng.readBytes())
+                            merger.put(GENERATED, PackAssets.modelPath(castId), PackAssets.rodModelJson(castId).toByteArray())
+                            castModel = PackAssets.NAMESPACE + ":item/" + castId
+                        }
                     } else if (item.model.isBlank()) {
                         merger.put(
                             GENERATED,
@@ -230,7 +242,8 @@ class PackService(private val custom: CustomItems) {
                 }
             }
 
-            merger.put(GENERATED, PackAssets.itemPath(item.resourceId), PackAssets.itemJson(model).toByteArray())
+            val definition = castModel?.let { PackAssets.rodItemJson(model, it) } ?: PackAssets.itemJson(model)
+            merger.put(GENERATED, PackAssets.itemPath(item.resourceId), definition.toByteArray())
         }
 
         // 2. 관리자가 넣어둔 바닐라 대체 모델. 번호 방식이 여기에 얹힌다.

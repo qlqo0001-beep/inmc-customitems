@@ -110,6 +110,34 @@ object PackAssets {
     }
 
     /**
+     * 텍스처만 적은 낚싯대. 평면 아이콘(`item/generated`)으로 그리면 손에 든 모양이 막대가 아니라 아이콘이 되고,
+     * 던져도 모양이 안 바뀐다 — 바닐라처럼 `handheld_rod` 로 그리고, 옆에 `<이름>_cast.png` 가 있으면 던졌을 때 그것으로 바꾼다.
+     */
+    fun isRod(item: CustomItem): Boolean = item.material.name == "FISHING_ROD" && item.block == null && item.model.isBlank() && item.texture.isNotBlank()
+
+    /** 낚싯대 텍스처의 던진 모양 파일 이름. `rod/basic.png` → `rod/basic_cast.png`. */
+    fun castTexture(texture: String): String = texture.removeSuffix(".png") + "_cast.png"
+
+    fun rodModelJson(id: String): String = """
+        {
+          "parent": "minecraft:item/handheld_rod",
+          "textures": { "layer0": "$NAMESPACE:item/$id" }
+        }
+    """.trimIndent()
+
+    /** 던졌는지(`fishing_rod/cast`)에 따라 두 모델 중 하나 — 바닐라 `items/fishing_rod.json` 과 같은 모양. */
+    fun rodItemJson(model: String, castModel: String): String = """
+        {
+          "model": {
+            "type": "minecraft:condition",
+            "property": "minecraft:fishing_rod/cast",
+            "on_false": { "type": "minecraft:model", "model": "$model" },
+            "on_true": { "type": "minecraft:model", "model": "$castModel" }
+          }
+        }
+    """.trimIndent()
+
+    /**
      * 이 아이템이 팩에 들어가야 하는지.
      *
      * 텍스처도 모델도 없으면 만들 것이 없다 — 바닐라 모양 그대로 쓰는 아이템이고, 그런

@@ -1,0 +1,796 @@
+# ============================================================
+#  역할 아이템의 기본 겉모습
+# ============================================================
+#  다른 플러그인이 역할을 붙인 아이템(낚시의 물고기·생선살·미끼·낚싯대)에
+#  입히는 그림과 등급입니다. 이 파일은 플러그인 안에 들어 있고 서버 폴더로
+#  복사되지 않습니다 — 그림(png)만 plugins/inmc-customitems/pack/textures/ 에 깔립니다.
+#
+#  - 겉모습(텍스처·모델·모델 번호)이 **없는** 아이템에만 입힙니다.
+#    관리자가 한 번 바꾼 것은 다시 덮지 않습니다.
+#  - png 는 없을 때만 깝니다. 같은 이름으로 바꿔 넣으면 그 그림이 쓰입니다.
+#  - 입힌 뒤 /커스텀아이템 리팩 빌드 로 팩을 다시 만들어 올려야 보입니다.
+#
+#  role   역할 열쇠   match  역할 값 중 같아야 하는 것
+#  tier   common / uncommon / rare / epic / legendary / mythic    glow  반짝임
+#
+#  물고기·생선살 등급: F 일반 · E 고급 · D 희귀 · C 영웅 · B 영웅(반짝임) · A 전설(반짝임) · S 신화(반짝임)
+# ============================================================
+entries:
+
+  # ─── 물고기 (등급은 fish.yml 의 grade) ───
+  fish-cod:
+    role: fishing.fish
+    match:
+      fish: cod
+    texture: "fishing/fish/cod.png"
+    tier: common
+    glow: false
+  fish-salmon:
+    role: fishing.fish
+    match:
+      fish: salmon
+    texture: "fishing/fish/salmon.png"
+    tier: common
+    glow: false
+  fish-tropical_fish:
+    role: fishing.fish
+    match:
+      fish: tropical_fish
+    texture: "fishing/fish/tropical_fish.png"
+    tier: common
+    glow: false
+  fish-mackerel:
+    role: fishing.fish
+    match:
+      fish: mackerel
+    texture: "fishing/fish/mackerel.png"
+    tier: common
+    glow: false
+  fish-carp:
+    role: fishing.fish
+    match:
+      fish: carp
+    texture: "fishing/fish/carp.png"
+    tier: common
+    glow: false
+  fish-catfish:
+    role: fishing.fish
+    match:
+      fish: catfish
+    texture: "fishing/fish/catfish.png"
+    tier: common
+    glow: false
+  fish-bass:
+    role: fishing.fish
+    match:
+      fish: bass
+    texture: "fishing/fish/bass.png"
+    tier: common
+    glow: false
+  fish-old_boot:
+    role: fishing.fish
+    match:
+      fish: old_boot
+    texture: "fishing/fish/old_boot.png"
+    tier: common
+    glow: false
+  fish-pufferfish:
+    role: fishing.fish
+    match:
+      fish: pufferfish
+    texture: "fishing/fish/pufferfish.png"
+    tier: uncommon
+    glow: false
+  fish-cod_rare:
+    role: fishing.fish
+    match:
+      fish: cod_rare
+    texture: "fishing/fish/cod_rare.png"
+    tier: uncommon
+    glow: false
+  fish-salmon_rare:
+    role: fishing.fish
+    match:
+      fish: salmon_rare
+    texture: "fishing/fish/salmon_rare.png"
+    tier: uncommon
+    glow: false
+  fish-bluefish:
+    role: fishing.fish
+    match:
+      fish: bluefish
+    texture: "fishing/fish/bluefish.png"
+    tier: uncommon
+    glow: false
+  fish-halibut:
+    role: fishing.fish
+    match:
+      fish: halibut
+    texture: "fishing/fish/halibut.png"
+    tier: uncommon
+    glow: false
+  fish-squid:
+    role: fishing.fish
+    match:
+      fish: squid
+    texture: "fishing/fish/squid.png"
+    tier: uncommon
+    glow: false
+  fish-octopus:
+    role: fishing.fish
+    match:
+      fish: octopus
+    texture: "fishing/fish/octopus.png"
+    tier: uncommon
+    glow: false
+  fish-sea_bream:
+    role: fishing.fish
+    match:
+      fish: sea_bream
+    texture: "fishing/fish/sea_bream.png"
+    tier: uncommon
+    glow: false
+  fish-yellowtail:
+    role: fishing.fish
+    match:
+      fish: yellowtail
+    texture: "fishing/fish/yellowtail.png"
+    tier: uncommon
+    glow: false
+  fish-phantom_eel:
+    role: fishing.fish
+    match:
+      fish: phantom_eel
+    texture: "fishing/fish/phantom_eel.png"
+    tier: uncommon
+    glow: false
+  fish-swordfish:
+    role: fishing.fish
+    match:
+      fish: swordfish
+    texture: "fishing/fish/swordfish.png"
+    tier: rare
+    glow: false
+  fish-tuna:
+    role: fishing.fish
+    match:
+      fish: tuna
+    texture: "fishing/fish/tuna.png"
+    tier: rare
+    glow: false
+  fish-shark_small:
+    role: fishing.fish
+    match:
+      fish: shark_small
+    texture: "fishing/fish/shark_small.png"
+    tier: rare
+    glow: false
+  fish-sturgeon:
+    role: fishing.fish
+    match:
+      fish: sturgeon
+    texture: "fishing/fish/sturgeon.png"
+    tier: rare
+    glow: false
+  fish-giant_catfish:
+    role: fishing.fish
+    match:
+      fish: giant_catfish
+    texture: "fishing/fish/giant_catfish.png"
+    tier: rare
+    glow: false
+  fish-marlin:
+    role: fishing.fish
+    match:
+      fish: marlin
+    texture: "fishing/fish/marlin.png"
+    tier: rare
+    glow: false
+  fish-grouper:
+    role: fishing.fish
+    match:
+      fish: grouper
+    texture: "fishing/fish/grouper.png"
+    tier: rare
+    glow: false
+  fish-barracuda:
+    role: fishing.fish
+    match:
+      fish: barracuda
+    texture: "fishing/fish/barracuda.png"
+    tier: rare
+    glow: false
+  fish-arapaima:
+    role: fishing.fish
+    match:
+      fish: arapaima
+    texture: "fishing/fish/arapaima.png"
+    tier: rare
+    glow: false
+  fish-crystal_koi:
+    role: fishing.fish
+    match:
+      fish: crystal_koi
+    texture: "fishing/fish/crystal_koi.png"
+    tier: rare
+    glow: false
+  fish-whale_small:
+    role: fishing.fish
+    match:
+      fish: whale_small
+    texture: "fishing/fish/whale_small.png"
+    tier: epic
+    glow: false
+  fish-giant_squid:
+    role: fishing.fish
+    match:
+      fish: giant_squid
+    texture: "fishing/fish/giant_squid.png"
+    tier: epic
+    glow: false
+  fish-manta_ray:
+    role: fishing.fish
+    match:
+      fish: manta_ray
+    texture: "fishing/fish/manta_ray.png"
+    tier: epic
+    glow: false
+  fish-electric_eel:
+    role: fishing.fish
+    match:
+      fish: electric_eel
+    texture: "fishing/fish/electric_eel.png"
+    tier: epic
+    glow: false
+  fish-piranha_king:
+    role: fishing.fish
+    match:
+      fish: piranha_king
+    texture: "fishing/fish/piranha_king.png"
+    tier: epic
+    glow: false
+  fish-anglerfish:
+    role: fishing.fish
+    match:
+      fish: anglerfish
+    texture: "fishing/fish/anglerfish.png"
+    tier: epic
+    glow: false
+  fish-coelacanth:
+    role: fishing.fish
+    match:
+      fish: coelacanth
+    texture: "fishing/fish/coelacanth.png"
+    tier: epic
+    glow: false
+  fish-oarfish:
+    role: fishing.fish
+    match:
+      fish: oarfish
+    texture: "fishing/fish/oarfish.png"
+    tier: epic
+    glow: false
+  fish-sunfish:
+    role: fishing.fish
+    match:
+      fish: sunfish
+    texture: "fishing/fish/sunfish.png"
+    tier: epic
+    glow: false
+  fish-jade_koi:
+    role: fishing.fish
+    match:
+      fish: jade_koi
+    texture: "fishing/fish/jade_koi.png"
+    tier: epic
+    glow: false
+  fish-megalodon:
+    role: fishing.fish
+    match:
+      fish: megalodon
+    texture: "fishing/fish/megalodon.png"
+    tier: epic
+    glow: true
+  fish-kraken_tentacle:
+    role: fishing.fish
+    match:
+      fish: kraken_tentacle
+    texture: "fishing/fish/kraken_tentacle.png"
+    tier: epic
+    glow: true
+  fish-leviathan:
+    role: fishing.fish
+    match:
+      fish: leviathan
+    texture: "fishing/fish/leviathan.png"
+    tier: epic
+    glow: true
+  fish-ghost_whale:
+    role: fishing.fish
+    match:
+      fish: ghost_whale
+    texture: "fishing/fish/ghost_whale.png"
+    tier: epic
+    glow: true
+  fish-dragon_fish:
+    role: fishing.fish
+    match:
+      fish: dragon_fish
+    texture: "fishing/fish/dragon_fish.png"
+    tier: epic
+    glow: true
+  fish-abyssal_shark:
+    role: fishing.fish
+    match:
+      fish: abyssal_shark
+    texture: "fishing/fish/abyssal_shark.png"
+    tier: epic
+    glow: true
+  fish-titan_grouper:
+    role: fishing.fish
+    match:
+      fish: titan_grouper
+    texture: "fishing/fish/titan_grouper.png"
+    tier: epic
+    glow: true
+  fish-void_eel:
+    role: fishing.fish
+    match:
+      fish: void_eel
+    texture: "fishing/fish/void_eel.png"
+    tier: epic
+    glow: true
+  fish-ancient_sturgeon:
+    role: fishing.fish
+    match:
+      fish: ancient_sturgeon
+    texture: "fishing/fish/ancient_sturgeon.png"
+    tier: epic
+    glow: true
+  fish-ruby_koi:
+    role: fishing.fish
+    match:
+      fish: ruby_koi
+    texture: "fishing/fish/ruby_koi.png"
+    tier: epic
+    glow: true
+  fish-world_serpent:
+    role: fishing.fish
+    match:
+      fish: world_serpent
+    texture: "fishing/fish/world_serpent.png"
+    tier: legendary
+    glow: true
+  fish-celestial_whale:
+    role: fishing.fish
+    match:
+      fish: celestial_whale
+    texture: "fishing/fish/celestial_whale.png"
+    tier: legendary
+    glow: true
+  fish-phoenix_fish:
+    role: fishing.fish
+    match:
+      fish: phoenix_fish
+    texture: "fishing/fish/phoenix_fish.png"
+    tier: legendary
+    glow: true
+  fish-time_eel:
+    role: fishing.fish
+    match:
+      fish: time_eel
+    texture: "fishing/fish/time_eel.png"
+    tier: legendary
+    glow: true
+  fish-storm_ray:
+    role: fishing.fish
+    match:
+      fish: storm_ray
+    texture: "fishing/fish/storm_ray.png"
+    tier: legendary
+    glow: true
+  fish-crystal_leviathan:
+    role: fishing.fish
+    match:
+      fish: crystal_leviathan
+    texture: "fishing/fish/crystal_leviathan.png"
+    tier: legendary
+    glow: true
+  fish-shadow_shark:
+    role: fishing.fish
+    match:
+      fish: shadow_shark
+    texture: "fishing/fish/shadow_shark.png"
+    tier: legendary
+    glow: true
+  fish-spirit_koi:
+    role: fishing.fish
+    match:
+      fish: spirit_koi
+    texture: "fishing/fish/spirit_koi.png"
+    tier: legendary
+    glow: true
+  fish-void_serpent:
+    role: fishing.fish
+    match:
+      fish: void_serpent
+    texture: "fishing/fish/void_serpent.png"
+    tier: legendary
+    glow: true
+  fish-diamond_koi:
+    role: fishing.fish
+    match:
+      fish: diamond_koi
+    texture: "fishing/fish/diamond_koi.png"
+    tier: legendary
+    glow: true
+  fish-cosmic_serpent:
+    role: fishing.fish
+    match:
+      fish: cosmic_serpent
+    texture: "fishing/fish/cosmic_serpent.png"
+    tier: mythic
+    glow: true
+  fish-god_whale:
+    role: fishing.fish
+    match:
+      fish: god_whale
+    texture: "fishing/fish/god_whale.png"
+    tier: mythic
+    glow: true
+  fish-eternal_dragon:
+    role: fishing.fish
+    match:
+      fish: eternal_dragon
+    texture: "fishing/fish/eternal_dragon.png"
+    tier: mythic
+    glow: true
+  fish-dimension_fish:
+    role: fishing.fish
+    match:
+      fish: dimension_fish
+    texture: "fishing/fish/dimension_fish.png"
+    tier: mythic
+    glow: true
+  fish-chaos_leviathan:
+    role: fishing.fish
+    match:
+      fish: chaos_leviathan
+    texture: "fishing/fish/chaos_leviathan.png"
+    tier: mythic
+    glow: true
+  fish-infinity_eel:
+    role: fishing.fish
+    match:
+      fish: infinity_eel
+    texture: "fishing/fish/infinity_eel.png"
+    tier: mythic
+    glow: true
+  fish-primordial_shark:
+    role: fishing.fish
+    match:
+      fish: primordial_shark
+    texture: "fishing/fish/primordial_shark.png"
+    tier: mythic
+    glow: true
+  fish-astral_ray:
+    role: fishing.fish
+    match:
+      fish: astral_ray
+    texture: "fishing/fish/astral_ray.png"
+    tier: mythic
+    glow: true
+  fish-omega_koi:
+    role: fishing.fish
+    match:
+      fish: omega_koi
+    texture: "fishing/fish/omega_koi.png"
+    tier: mythic
+    glow: true
+  fish-genesis_fish:
+    role: fishing.fish
+    match:
+      fish: genesis_fish
+    texture: "fishing/fish/genesis_fish.png"
+    tier: mythic
+    glow: true
+
+  # ─── 생선살 (등급 × 보통/트로피/레어 트로피 — 트로피는 은별, 레어는 금별) ───
+  fillet-f_none:
+    role: fishing.fillet
+    match:
+      id: f_none
+    texture: "fishing/fillet/f_none.png"
+    tier: common
+    glow: false
+  fillet-f_trophy:
+    role: fishing.fillet
+    match:
+      id: f_trophy
+    texture: "fishing/fillet/f_trophy.png"
+    tier: common
+    glow: false
+  fillet-f_rare:
+    role: fishing.fillet
+    match:
+      id: f_rare
+    texture: "fishing/fillet/f_rare.png"
+    tier: common
+    glow: true
+  fillet-e_none:
+    role: fishing.fillet
+    match:
+      id: e_none
+    texture: "fishing/fillet/e_none.png"
+    tier: uncommon
+    glow: false
+  fillet-e_trophy:
+    role: fishing.fillet
+    match:
+      id: e_trophy
+    texture: "fishing/fillet/e_trophy.png"
+    tier: uncommon
+    glow: false
+  fillet-e_rare:
+    role: fishing.fillet
+    match:
+      id: e_rare
+    texture: "fishing/fillet/e_rare.png"
+    tier: uncommon
+    glow: true
+  fillet-d_none:
+    role: fishing.fillet
+    match:
+      id: d_none
+    texture: "fishing/fillet/d_none.png"
+    tier: rare
+    glow: false
+  fillet-d_trophy:
+    role: fishing.fillet
+    match:
+      id: d_trophy
+    texture: "fishing/fillet/d_trophy.png"
+    tier: rare
+    glow: false
+  fillet-d_rare:
+    role: fishing.fillet
+    match:
+      id: d_rare
+    texture: "fishing/fillet/d_rare.png"
+    tier: rare
+    glow: true
+  fillet-c_none:
+    role: fishing.fillet
+    match:
+      id: c_none
+    texture: "fishing/fillet/c_none.png"
+    tier: epic
+    glow: false
+  fillet-c_trophy:
+    role: fishing.fillet
+    match:
+      id: c_trophy
+    texture: "fishing/fillet/c_trophy.png"
+    tier: epic
+    glow: false
+  fillet-c_rare:
+    role: fishing.fillet
+    match:
+      id: c_rare
+    texture: "fishing/fillet/c_rare.png"
+    tier: epic
+    glow: true
+  fillet-b_none:
+    role: fishing.fillet
+    match:
+      id: b_none
+    texture: "fishing/fillet/b_none.png"
+    tier: epic
+    glow: true
+  fillet-b_trophy:
+    role: fishing.fillet
+    match:
+      id: b_trophy
+    texture: "fishing/fillet/b_trophy.png"
+    tier: epic
+    glow: true
+  fillet-b_rare:
+    role: fishing.fillet
+    match:
+      id: b_rare
+    texture: "fishing/fillet/b_rare.png"
+    tier: epic
+    glow: true
+  fillet-a_none:
+    role: fishing.fillet
+    match:
+      id: a_none
+    texture: "fishing/fillet/a_none.png"
+    tier: legendary
+    glow: true
+  fillet-a_trophy:
+    role: fishing.fillet
+    match:
+      id: a_trophy
+    texture: "fishing/fillet/a_trophy.png"
+    tier: legendary
+    glow: true
+  fillet-a_rare:
+    role: fishing.fillet
+    match:
+      id: a_rare
+    texture: "fishing/fillet/a_rare.png"
+    tier: legendary
+    glow: true
+  fillet-s_none:
+    role: fishing.fillet
+    match:
+      id: s_none
+    texture: "fishing/fillet/s_none.png"
+    tier: mythic
+    glow: true
+  fillet-s_trophy:
+    role: fishing.fillet
+    match:
+      id: s_trophy
+    texture: "fishing/fillet/s_trophy.png"
+    tier: mythic
+    glow: true
+  fillet-s_rare:
+    role: fishing.fillet
+    match:
+      id: s_rare
+    texture: "fishing/fillet/s_rare.png"
+    tier: mythic
+    glow: true
+
+  # ─── 미끼 (효과 크기 순) ───
+  bait-basic_bait:
+    role: fishing.bait
+    match:
+      id: basic_bait
+    texture: "fishing/bait/basic_bait.png"
+    tier: common
+    glow: false
+  bait-worm_bait:
+    role: fishing.bait
+    match:
+      id: worm_bait
+    texture: "fishing/bait/worm_bait.png"
+    tier: common
+    glow: false
+  bait-dough_bait:
+    role: fishing.bait
+    match:
+      id: dough_bait
+    texture: "fishing/bait/dough_bait.png"
+    tier: uncommon
+    glow: false
+  bait-frozen_shrimp_bait:
+    role: fishing.bait
+    match:
+      id: frozen_shrimp_bait
+    texture: "fishing/bait/frozen_shrimp_bait.png"
+    tier: uncommon
+    glow: false
+  bait-silver_bait:
+    role: fishing.bait
+    match:
+      id: silver_bait
+    texture: "fishing/bait/silver_bait.png"
+    tier: uncommon
+    glow: false
+  bait-golden_worm_bait:
+    role: fishing.bait
+    match:
+      id: golden_worm_bait
+    texture: "fishing/bait/golden_worm_bait.png"
+    tier: rare
+    glow: false
+  bait-premium_bait:
+    role: fishing.bait
+    match:
+      id: premium_bait
+    texture: "fishing/bait/premium_bait.png"
+    tier: rare
+    glow: false
+  bait-big_fish_lure:
+    role: fishing.bait
+    match:
+      id: big_fish_lure
+    texture: "fishing/bait/big_fish_lure.png"
+    tier: epic
+    glow: false
+  bait-deep_sea_bait:
+    role: fishing.bait
+    match:
+      id: deep_sea_bait
+    texture: "fishing/bait/deep_sea_bait.png"
+    tier: epic
+    glow: false
+  bait-master_fisher_bait:
+    role: fishing.bait
+    match:
+      id: master_fisher_bait
+    texture: "fishing/bait/master_fisher_bait.png"
+    tier: legendary
+    glow: true
+  bait-legendary_bait:
+    role: fishing.bait
+    match:
+      id: legendary_bait
+    texture: "fishing/bait/legendary_bait.png"
+    tier: legendary
+    glow: true
+
+  # ─── 낚싯대 (이름과 같은 등급 — 옆의 _cast.png 가 던졌을 때 모양) ───
+  rod-weathered_rod:
+    role: fishing.rod
+    match:
+      id: weathered_rod
+    texture: "fishing/rod/weathered_rod.png"
+    tier: common
+    glow: false
+  rod-basic_rod:
+    role: fishing.rod
+    match:
+      id: basic_rod
+    texture: "fishing/rod/basic_rod.png"
+    tier: common
+    glow: false
+  rod-bamboo_rod:
+    role: fishing.rod
+    match:
+      id: bamboo_rod
+    texture: "fishing/rod/bamboo_rod.png"
+    tier: uncommon
+    glow: false
+  rod-iron_rod:
+    role: fishing.rod
+    match:
+      id: iron_rod
+    texture: "fishing/rod/iron_rod.png"
+    tier: uncommon
+    glow: false
+  rod-gold_rod:
+    role: fishing.rod
+    match:
+      id: gold_rod
+    texture: "fishing/rod/gold_rod.png"
+    tier: rare
+    glow: false
+  rod-obsidian_rod:
+    role: fishing.rod
+    match:
+      id: obsidian_rod
+    texture: "fishing/rod/obsidian_rod.png"
+    tier: rare
+    glow: false
+  rod-advanced_rod:
+    role: fishing.rod
+    match:
+      id: advanced_rod
+    texture: "fishing/rod/advanced_rod.png"
+    tier: epic
+    glow: false
+  rod-master_rod:
+    role: fishing.rod
+    match:
+      id: master_rod
+    texture: "fishing/rod/master_rod.png"
+    tier: epic
+    glow: false
+  rod-legendary_rod:
+    role: fishing.rod
+    match:
+      id: legendary_rod
+    texture: "fishing/rod/legendary_rod.png"
+    tier: legendary
+    glow: true
+  rod-mythic_rod:
+    role: fishing.rod
+    match:
+      id: mythic_rod
+    texture: "fishing/rod/mythic_rod.png"
+    tier: mythic
+    glow: true

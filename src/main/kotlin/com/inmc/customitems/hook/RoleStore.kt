@@ -41,7 +41,9 @@ class RoleStore(private val custom: CustomItems) : ItemRoles.Store {
         val item = custom.items.get(ref.id) ?: return false
         val roles = LinkedHashMap(item.roles)
         if (values == null) roles.remove(role) else roles[role] = LinkedHashMap(values)
-        custom.items.put(item.copy(roles = roles))
+        val updated = item.copy(roles = roles)
+        // 옮겨 온 아이템이면 기본 겉모습(물고기 그림 …)을 입힌다 — 겉모습이 이미 있으면 그대로.
+        custom.items.put(custom.roleAppearance.decorate(updated) ?: updated)
         return true
     }
 

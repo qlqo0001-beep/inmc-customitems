@@ -58,6 +58,8 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     val types = com.inmc.customitems.item.TypeRegistry(this)
     /** core `ItemRoles` 의 정의하는 쪽 — 다른 플러그인의 아이템 역할이 여기(items.yml)에 적힌다. */
     val roleStore = com.inmc.customitems.hook.RoleStore(this)
+    /** 역할 아이템의 기본 겉모습(`role-appearance.yml`) — 낚시의 물고기·생선살·미끼·낚싯대 그림. */
+    val roleAppearance = com.inmc.customitems.hook.RoleAppearance(this)
 
     /** 장착 칸 — 장신구·부적·유물. 바꿀 때마다 즉시 저장한다. */
     val equipment = com.inmc.customitems.player.EquipmentStore(this)

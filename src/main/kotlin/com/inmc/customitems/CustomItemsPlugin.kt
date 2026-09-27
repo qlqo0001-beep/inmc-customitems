@@ -36,6 +36,7 @@ class CustomItemsPlugin : JavaPlugin() {
         custom.customItems.setup()
         custom.mmoItems.setup()
         custom.pack.prepare()
+        custom.roleAppearance.installTextures()
         custom.pack.loadSha1()
 
         // 목록보다 먼저 꽂는다. 위 KDoc 참조.
@@ -129,6 +130,8 @@ class CustomItemsPlugin : JavaPlugin() {
                                 custom.recipeService.apply()
                                 // 아이템을 다 읽은 뒤 역할 창구를 꽂는다 — 꽂는 순간 인벤키퍼·낚시 … 가 다시 읽고(처음이면 옮긴다).
                                 kr.inmc.core.integration.ItemRoles.attach(custom.roleStore)
+                                // 예전에 옮겨 온 역할 아이템에도 기본 겉모습을(지금 옮겨 오는 것은 assign 이 입힌다).
+                                custom.roleAppearance.sweep()
                                 // 팩이 이미 쓰는 블록 상태(새 블록이 피해 간다)와 서버의 갱신 끄기 확인 — 아이템을 다 읽은 뒤에.
                                 custom.blocks.load()
                                 then()
