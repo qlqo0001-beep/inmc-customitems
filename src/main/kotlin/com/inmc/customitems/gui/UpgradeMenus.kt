@@ -239,15 +239,6 @@ class UpgradeStepMenu(
             change { it.copy(tier = Editors.cycle(event, tiers, it.tier)) }
             refresh()
         }
-        set(SLOT_CMD, Editors.intIcon(Material.ITEM_FRAME, "<yellow>이 단계부터 모델 번호</yellow>", step.customModelData,
-            extra = listOf("<gray>0 이면 안 바꿉니다. 낡은 팩의 번호 방식.</gray>"))) { event ->
-            if (Editors.isPrompt(event)) {
-                Editors.promptInt(custom.prompts, viewer, "모델 번호", 0, 9_999_999, reopen = { open(viewer) }) { v -> change { it.copy(customModelData = v) } }
-                return@set
-            }
-            change { it.copy(customModelData = (it.customModelData + Editors.step(event, 1)).coerceAtLeast(0)) }
-            refresh()
-        }
         set(SLOT_TEXTURE, Icon.of(Material.PAINTING, "<yellow>이 단계부터 텍스처: <white>" + step.texture.ifBlank { step.model.ifBlank { "그대로" } } + "</white></yellow>", listOf(
             "<gray>pack/textures/ 의 png 이름. 직접 만든 모델이면 <white>model:이름</white></gray>",
             "<gray>팩을 다시 빌드해야 보입니다.</gray>", "", "<yellow>▶ 좌클릭: 적기 · 우클릭: 비우기</yellow>",
@@ -312,7 +303,6 @@ class UpgradeStepMenu(
         const val SLOT_CHANCE = 10
         const val SLOT_FAIL = 11
         const val SLOT_TIER = 14
-        const val SLOT_CMD = 15
         const val SLOT_TEXTURE = 16
         const val FIRST_STAT = 18
         const val STATS = 27

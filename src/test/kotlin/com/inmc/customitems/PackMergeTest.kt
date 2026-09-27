@@ -4,7 +4,6 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.inmc.customitems.item.CustomItem
 import com.inmc.customitems.pack.JsonMerge
-import com.inmc.customitems.pack.LegacyModels
 import com.inmc.customitems.pack.PackAssets
 import com.inmc.customitems.pack.PackMerger
 import org.bukkit.Material
@@ -179,11 +178,10 @@ class PackMergeTest {
 
     @Test
     fun `오버라이드 조각이 바닐라 모델을 지우지 않는다`() {
-        // 우리가 만드는 번호 방식이 정확히 이 모양이다 — parent 도 textures 도 없는 조각.
-        // 그걸 그대로 쓰면 그 아이템이 통째로 안 보인다. **우리 아이템만이 아니라
-        // 평범한 그 아이템까지.**
+        // 남의 팩이 이 모양의 조각을 준다 — parent 도 textures 도 없는 overrides 만. 그걸 그대로 쓰면 그 아이템이
+        // 통째로 안 보인다. **우리 아이템만이 아니라 평범한 그 아이템까지.**
         val base = """{"parent":"item/handheld","textures":{"layer0":"minecraft:item/paper"}}"""
-        val fragment = LegacyModels.overrideJson(1000, "inmc:item/a")
+        val fragment = """{"overrides":[{"predicate":{"custom_model_data":1000},"model":"inmc:item/a"}]}"""
 
         val merged = obj(JsonMerge.merge("assets/minecraft/models/item/paper.json", base, fragment))
 
@@ -400,127 +398,6 @@ class PackMergeTest {
         assertEquals("assets/inmc/models/item/sword.json", PackAssets.modelPath("sword"))
         // 1.21.4 부터 item_model 이 가리키는 정의는 `items/` 아래에 있다.
         assertEquals("assets/inmc/items/sword.json", PackAssets.itemPath("sword"))
-    }
-
-    // --- 번호 방식 (custom_model_data) ------------------------------------------------
-
-    @Test
-    fun `손에 드는 도구는 handheld 로 안다`() {
-        // 접미사로 확실하다. 바닐라가 실제로 그렇게 돼 있다.
-        for (name in listOf("DIAMOND_SWORD", "NETHERITE_AXE", "IRON_PICKAXE", "GOLDEN_SHOVEL", "STONE_HOE")) {
-            val material = Material.valueOf(name)
-            assertTrue(LegacyModels.isHandheld(material), name)
-            assertTrue(LegacyModels.isKnown(material), name)
-        }
-    }
-
-    @Test
-    fun `평면 아이템은 generated 로 안다`() {
-        for (name in listOf("PAPER", "STICK", "DIAMOND", "NETHER_STAR", "IRON_INGOT")) {
-            val material = Material.valueOf(name)
-            assertTrue(!LegacyModels.isHandheld(material), name)
-            assertTrue(LegacyModels.isKnown(material), name)
-        }
-    }
-
-    @Test
-    fun `바닐라 모델이 복잡한 것은 모른다고 한다`() {
-        // 이것들은 자기 overrides 나 덧씌우는 층이 있다. 우리가 지어낸 바닐라 모델로 덮으면
-        // 우리 아이템이 아니라 **평범한 그 아이템**이 망가진다 —
-        // 활은 당기는 모양을 잃고, 낚싯대는 던진 모양을 잃고, 가죽 갑옷은 염색을 잃는다.
-        for (name in listOf(
-            "BOW", "CROSSBOW", "FISHING_ROD", "TRIDENT", "SHIELD", "ELYTRA",
-            "COMPASS", "CLOCK", "POTION", "LEATHER_CHESTPLATE", "FILLED_MAP",
-        )) {
-            assertTrue(
-                !LegacyModels.isKnown(Material.valueOf(name)),
-                name + " 은 바닐라 모델이 단순하지 않으므로 모른다고 해야 한다",
-            )
-        }
-    }
-
-    @Test
-    fun `블록은 모른다고 한다`() {
-        // 블록 아이템은 블록 모델을 쓴다. `item/generated` 로 덮으면 텍스처가 없어
-        // 보라-검정 네모가 된다. 이름으로 가려낼 방법이 없어서 **목록에 안 넣는 것**으로 막는다.
-        for (name in listOf("STONE", "DIRT", "OAK_PLANKS", "CHEST", "WHITE_WOOL")) {
-            assertTrue(!LegacyModels.isKnown(Material.valueOf(name)), name)
-        }
-    }
-
-    @Test
-    fun `바닐라 대체 모델이 바닐라와 같은 모양이다`() {
-        // 다르면 우리 아이템이 아니라 평범한 그 아이템이 이상해진다.
-        val sword = obj(LegacyModels.baseJson(Material.DIAMOND_SWORD))
-        assertEquals("minecraft:item/handheld", sword.get("parent").asString)
-        assertEquals(
-            "minecraft:item/diamond_sword",
-            sword.getAsJsonObject("textures").get("layer0").asString,
-        )
-
-        val paper = obj(LegacyModels.baseJson(Material.PAPER))
-        assertEquals("minecraft:item/generated", paper.get("parent").asString)
-        assertEquals("minecraft:item/paper", paper.getAsJsonObject("textures").get("layer0").asString)
-    }
-
-    @Test
-    fun `번호 오버라이드가 바닐라 모델 위에 얹힌다`() {
-        // 이게 번호 방식의 전부다 — 바닐라 모델을 **대체하되** 우리 항목을 더한다.
-        val base = LegacyModels.baseJson(Material.DIAMOND_SWORD)
-        val override = LegacyModels.overrideJson(1000, "inmc:item/blade")
-
-        val merged = obj(
-            JsonMerge.merge("assets/minecraft/models/item/diamond_sword.json", base, override),
-        )
-
-        // 바닐라 모양이 남아 있어야 평범한 검이 안 망가진다.
-        assertEquals("minecraft:item/handheld", merged.get("parent").asString)
-        assertNotNull(merged.get("textures"))
-
-        val overrides = merged.getAsJsonArray("overrides")
-        assertEquals(1, overrides.size())
-        assertEquals(
-            1000,
-            overrides[0].asJsonObject.getAsJsonObject("predicate").get("custom_model_data").asInt,
-        )
-    }
-
-    @Test
-    fun `같은 재질의 아이템 여럿이 번호를 나눠 갖는다`() {
-        var base = LegacyModels.baseJson(Material.PAPER)
-        for ((index, id) in listOf("a", "b", "c").withIndex()) {
-            base = JsonMerge.merge(
-                "assets/minecraft/models/item/paper.json",
-                base,
-                LegacyModels.overrideJson(1000 + index, "inmc:item/$id"),
-            )
-        }
-
-        val overrides = obj(base).getAsJsonArray("overrides")
-        assertEquals(3, overrides.size(), "덮이면 앞의 아이템이 사라진다")
-    }
-
-    @Test
-    fun `자동 번호가 이미 쓰인 것을 피한다`() {
-        assertEquals(1000, LegacyModels.nextNumber(emptySet()))
-        assertEquals(1001, LegacyModels.nextNumber(setOf(1000)))
-        assertEquals(1003, LegacyModels.nextNumber(setOf(1000, 1001, 1002)))
-        // 남의 팩이 쓰고 있을 만한 낮은 구간은 비워 두고 시작한다.
-        assertTrue(LegacyModels.FIRST >= 1000)
-    }
-
-    @Test
-    fun `번호 오버라이드 경로가 그 재질의 바닐라 모델이다`() {
-        assertEquals(
-            "assets/minecraft/models/item/diamond_sword.json",
-            LegacyModels.basePath(Material.DIAMOND_SWORD),
-        )
-    }
-
-    @Test
-    fun `번호 방식 json 이 읽히는 json 이다`() {
-        assertNotNull(JsonMerge.parse(LegacyModels.baseJson(Material.PAPER)))
-        assertNotNull(JsonMerge.parse(LegacyModels.overrideJson(1000, "inmc:item/a")))
     }
 
     @Test

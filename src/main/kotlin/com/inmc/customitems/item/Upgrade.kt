@@ -42,7 +42,7 @@ enum class UpgradeMode(val id: String, val display: String) {
  * 등급·모양은 "이 단계부터"다. 안 적은 단계는 앞 단계의 것을 이어 쓴다.
  *
  * @param percents [UpgradeMode.ADD] 에서만 — 능력치마다 기본(굴린 값)의 이만큼(%)을 더한다. 누적된다(MMOItems 의 `공격력: 2%`).
- * @param customModelData 0 이면 안 바꾼다. 낡은 팩의 번호 방식.
+ * @param customModelData 낡은 번호 — 옮기기 전의 값일 뿐(다음 리소스팩 빌드가 [model] 로 옮긴다, [CustomItem.customModelData] 와 같다).
  * @param texture 팩 `textures/` 의 png. 적으면 이 단계부터 그 텍스처(모델은 빌드할 때 만든다).
  * @param model 직접 만든 모델 이름. 적으면 [texture] 대신 이것.
  */

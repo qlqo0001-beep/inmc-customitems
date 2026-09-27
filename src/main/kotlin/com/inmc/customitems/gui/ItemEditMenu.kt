@@ -6,7 +6,6 @@ import com.inmc.customitems.item.CustomItem
 import com.inmc.customitems.item.ItemType
 import com.inmc.customitems.item.Tier
 import com.inmc.customitems.pack.PackAssets
-import com.inmc.customitems.pack.LegacyModels
 import kr.inmc.core.gui.Editors
 import kr.inmc.core.gui.Icon
 import kr.inmc.core.gui.Paging
@@ -48,23 +47,6 @@ class ItemEditMenu(
         set(SLOT_MATERIAL, materialIcon(item)) { event -> if (event.isRightClick) promptMaterial() else materialFromHand() }
         set(SLOT_NAME, nameIcon(item)) { promptName() }
         set(SLOT_LORE, loreIcon(item)) { LoreMenu(custom, viewer, id).open(viewer) }
-        set(SLOT_MODEL, modelIcon(item)) { event ->
-            if (Editors.isPrompt(event)) {
-                Editors.promptInt(custom.prompts, viewer, "모델 번호", 0, 9_999_999, { open(viewer) }) {
-                    mutate(false) { current -> current.copy(customModelData = it) }
-                }
-                return@set
-            }
-            // 우클릭으로 0 까지 내려가는 대신, 비어 있을 때 우클릭하면 빈 번호를 찾아 준다.
-            // 번호를 직접 고르는 것은 낡은 팩과 맞출 때뿐이고, 그 밖에는 아무 번호나 되면 된다.
-            if (event.isRightClick && item.customModelData <= 0) {
-                val next = LegacyModels.nextNumber(custom.pack.usedNumbers(item.material))
-                mutate { it.copy(customModelData = next) }
-                return@set
-            }
-            val next = (item.customModelData + Editors.step(event, 1)).coerceAtLeast(0)
-            mutate { it.copy(customModelData = next) }
-        }
 
         // --- 분류 ---
         set(SLOT_TEXTURE, textureIcon(item)) { event ->
@@ -257,43 +239,6 @@ class ItemEditMenu(
     )
 
     /**
-     * 번호 방식.
-     *
-     * **번호를 적는 것 자체가 opt-in 이다.** 번호는 바닐라 아이템의 모델 파일을 대체하므로
-     * — `models/item/diamond_sword.json` 을 팩에 넣으면 서버의 **모든** 다이아몬드 검이
-     * 그 파일대로 그려진다 — 아무도 안 부탁했는데 건드리면 안 된다.
-     *
-     * 그래서 이 칸은 **지금 어떤 상태인지를 분명히 말한다.** 예전에는 "리소스팩 모델" 이라고만
-     * 적혀 있어서, 번호를 넣으면 뭔가 되는 줄 알기 딱 좋았다. 실제로는 아무 일도 없었다.
-     */
-    private fun modelIcon(item: CustomItem) = Editors.intIcon(
-        Material.ITEM_FRAME,
-        "<yellow>모델 번호 (낡은 방식)</yellow>",
-        item.customModelData,
-        extra = buildList {
-            if (item.customModelData <= 0) {
-                add("<dark_gray>0 = 안 씁니다.</dark_gray>")
-                add("")
-                add("<gray>겉모습은 위의 <white>텍스처</white> 칸만으로 나옵니다 —</gray>")
-                add("<gray>번호 없이 아이템 id 로 모델을 찾습니다.</gray>")
-                add("")
-                add("<gray>번호로 돌아가는 <white>낡은 팩과 섞을 때만</white> 적으세요.</gray>")
-            } else {
-                add("<gray>이 번호로 <white>" + item.material.name + "</white> 의 모델을 덮습니다.</gray>")
-                if (LegacyModels.isKnown(item.material)) {
-                    add("<green>이 재질의 바닐라 모델을 압니다 — 그대로 나갑니다.</green>")
-                } else {
-                    add("<red>이 재질의 바닐라 모델을 모릅니다!</red>")
-                    add("<gray>pack/models/base/ 에 넣거나 sources/ 의 팩이</gray>")
-                    add("<gray>줘야 합니다. 없으면 번호는 무시됩니다.</gray>")
-                }
-                add("")
-                add("<gray>텍스처 방식과 <white>둘 다</white> 나갑니다.</gray>")
-            }
-        },
-    )
-
-    /**
      * 겉모습.
      *
      * **여기가 리소스팩과 이어지는 자리다.** 파일 이름을 적으면 빌드할 때 모델까지 만들어
@@ -306,8 +251,8 @@ class ItemEditMenu(
         buildList {
             when {
                 item.model.isNotBlank() -> {
-                    add("<gray>직접 만든 모델: <white>" + item.model + "</white></gray>")
-                    add("<dark_gray>pack/models/ 에 json 이 있어야 합니다</dark_gray>")
+                    add("<gray>모델: <white>" + item.model + "</white></gray>")
+                    add("<dark_gray>pack/models/ 나 sources/ 의 팩에 그 모델이 있어야 합니다</dark_gray>")
                 }
 
                 item.texture.isNotBlank() -> {
@@ -583,7 +528,6 @@ class ItemEditMenu(
         const val SLOT_MATERIAL = 10
         const val SLOT_NAME = 11
         const val SLOT_LORE = 12
-        const val SLOT_MODEL = 13
         const val SLOT_TEXTURE = 14
 
         const val SLOT_TYPE = 15
