@@ -112,12 +112,12 @@ object NumberMigration {
     // --- 걷어 내기 --------------------------------------------------------------------
 
     /**
-     * 바닐라 아이템 정의(`assets/minecraft/items/*.json`, 오버레이 안의 것도)의 **맨 위 번호 갈래**를 걷어 낸다.
+     * 바닐라 아이템 정의(`assets/minecraft/items/<재질>.json`, 오버레이 안의 것도)의 **맨 위 번호 갈래**를 걷어 낸다.
      * - 번호가 아닐 때의 모양(`fallback`)이 바닐라 것뿐이면 **파일을 지운다** — 클라이언트가 제 판의 바닐라 정의를 쓴다(판마다 다른
      *   특수 모델까지 늘 맞다). 옛 IA 팩의 `player_head` 가 이 경우다
      * - `fallback` 이 남의 모델이면(바닐라 아이템을 새로 그린 팩) 그것만 남긴다 — 그 팩의 뜻은 살린다
      *
-     * 낡은 `models/item/*.json` 은 번호 조건의 `overrides` 만 뺀다(나머지 — `parent`·`textures` — 는 그대로).
+     * 낡은 `models/item/<재질>.json` 은 번호 조건의 `overrides` 만 뺀다(나머지 — `parent`·`textures` — 는 그대로).
      */
     fun strip(files: Map<String, ByteArray>): Stripped {
         val changes = LinkedHashMap<String, ByteArray?>()
