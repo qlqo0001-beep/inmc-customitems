@@ -12,7 +12,7 @@ def fish(body, fin=None, belly=None, top=None,
          u0=-3.8, u1=9.8, ht=4.4, hb=3.9, peak=0.58, nose=1.0, camber=0.0,
          tail='fork', tail_len=4.4, tail_w=3.6, notch=0.3,
          dorsal=None, anal=None, pectoral=True,
-         stripes=None, spots=None, eye_at=None, eye_col=(18, 18, 22), glint=None,
+         stripes=None, spots=None, eye_at=None, eye_col=(250, 214, 64), glint=None, gill=True,
          extra_back=(), extra_front=(), post=(), rot=45.0, tailw=0.9):
     pal = ramp(body, belly, top)
     fp = fin_pal(fin or adjust_hex(body, 0.85, 1.1))
@@ -21,7 +21,7 @@ def fish(body, fin=None, belly=None, top=None,
     # things behind body
     if tail == 'fork':
         s.add(tail_fork(u0 + 0.8, u0 - tail_len, 0.9, tail_w, notch=notch), fp,
-              lambda u, v, x, y: 'dark' if abs(v) > tail_w * 0.55 else 'base')
+              lambda u, v, x, y: 'dark' if abs(v) > tail_w * 0.55 or (x - y) % 3 == 0 else 'base')
     elif tail == 'round':
         s.add(tail_round(u0 + 0.8, u0 - tail_len, 1.0, tail_w), fp,
               lambda u, v, x, y: 'dark' if abs(v) > tail_w * 0.6 else 'base')
@@ -36,7 +36,7 @@ def fish(body, fin=None, belly=None, top=None,
             return abs(v) <= w and u >= back
         s.add(cres, fp, lambda u, v, x, y: 'dark' if abs(v) > tail_w * 0.5 else 'base')
     for d in (dorsal or []):
-        s.add(tri(*d), fp, lambda u, v, x, y: 'dark' if v > ht + 0.8 else 'base')
+        s.add(tri(*d), fp, lambda u, v, x, y: 'dark' if v > ht + 0.8 or (x + y) % 2 == 0 else 'base')
     for a in (anal or []):
         s.add(tri(*a), fp, lambda u, v, x, y: 'base')
     for p in extra_back:
@@ -48,6 +48,14 @@ def fish(body, fin=None, belly=None, top=None,
     for p in extra_front:
         s.add(*p)
     eu, ev = eye_at if eye_at else (u1 - 2.0, 0.6)
+    if gill:
+        # 아가미 선 — 눈 뒤로 몸을 가로지르는 짙은 호
+        def gills(px, owner, eu=eu):
+            for vv in (-1.6, -0.8, 0.0, 0.8, 1.6):
+                put(px, *local_to_px(eu - 1.8 + 0.18 * vv * vv, vv), pal['dark'], owner, only_filled=True)
+        s.post.append(gills)
+    # 입
+    s.post.append(lambda px, owner: put(px, *local_to_px(u1 - 0.7, -0.5), pal['out'], owner, only_filled=True))
     s.post.append(eye(eu, ev, eye_col, glint))
     s.post.extend(post)
     return s
@@ -59,7 +67,7 @@ def adjust_hex(h, v=1.0, s=1.0, hshift=0.0):
 
 
 def eel(body, fin=None, belly=None, amp=1.6, waves=1.2, width=1.7, u0=-9.4, u1=9.6, head=1.25,
-        crest=None, stripes=None, eye_col=(18, 18, 22), glint=None, post=(), extra=(), phase=0.0, tailfin=True):
+        crest=None, stripes=None, eye_col=(250, 214, 64), glint=None, post=(), extra=(), phase=0.0, tailfin=True):
     """Sinuous body along the diagonal."""
     pal = ramp(body, belly)
     fp = fin_pal(fin or adjust_hex(body, 0.8, 1.1))
@@ -149,7 +157,7 @@ def puffer(body, belly, spike, post=()):
             return 'dark'
         return 'base'
     s.add(body_p, pal, sh)
-    s.post.append(eye(cu + 3.2, 1.4, (18, 18, 22), (255, 255, 255)))
+    s.post.append(eye(cu + 3.2, 1.4, (250, 250, 250)))
     s.post.extend(post)
     return s
 
@@ -163,8 +171,8 @@ def flatfish(body, spot, belly=None, post=()):
     s.add(tail_fork(-6.0, -9.2, 1.2, 2.8, notch=0.15), fp, lambda u, v, x, y: 'base')
     s.add(ellipse(1.0, 0.0, 7.0, 4.3), pal,
           lambda u, v, x, y: spot if noise(x, y, 7) < 0.22 else ('light' if v > 1.5 and u > 0 else 'base'))
-    s.post.append(eye(5.4, 1.6, (20, 20, 20), (240, 240, 200)))
-    s.post.append(eye(6.2, -0.4, (20, 20, 20), (240, 240, 200)))
+    s.post.append(eye(5.4, 1.6, (240, 230, 170)))
+    s.post.append(eye(6.2, -0.4, (240, 230, 170)))
     s.post.extend(post)
     return s
 
@@ -183,7 +191,7 @@ def squid(body, arm=None, spots=None, big=False, post=()):
     s.add(tri((8.8, 0), (5.0, 3.6), (5.0, -3.6)), pal, lambda u, v, x, y: 'dark')
     pred, geo = body_profile(-1.8, 10.8, 3.1, 3.1, peak=0.35, nose=0.6, tailw=2.6)
     s.add(pred, pal, body_shader(geo, pal, spots=spots))
-    s.post.append(eye(-0.6, 1.3, (15, 15, 25), (255, 255, 255)))
+    s.post.append(eye(-0.6, 1.3, (250, 250, 250)))
     s.post.extend(post)
     return s
 
@@ -262,7 +270,7 @@ def whale(body, belly, fluke=None, pattern=None, post=(), mouth=True):
     s.add(tri((4.6, -1.6), (1.2, -4.6), (2.8, -5.2)), fp, lambda u, v, x, y: 'dark')
     if mouth:
         s.post.append(lambda px, owner: [put(px, *local_to_px(u_, -1.0 - 0.15 * (10 - u_)), pal['out'], owner, only_filled=True) for u_ in (5.6, 6.6, 7.6, 8.6, 9.5)])
-    s.post.append(eye(5.0, -0.2, (15, 15, 20)))
+    s.post.append(eye(5.0, -0.2, (210, 214, 220)))
     s.post.extend(post)
     return s
 
@@ -276,7 +284,7 @@ def sunfish(body, belly, post=()):
     s.add(lambda u, v: -4.4 <= u <= -2.5 and abs(v) <= 4.8 - (abs(-3.4 - u)), fp, lambda u, v, x, y: 'dark')
     pred, geo = body_profile(-3.4, 8.8, 5.6, 5.6, peak=0.45, nose=1.6, tailw=4.5)
     s.add(pred, pal, body_shader(geo, pal, spots=lambda u, v, t, n, x, y: 'light' if noise(x, y, 11) < 0.12 else None))
-    s.post.append(eye(5.5, 0.9, (20, 20, 25), (255, 255, 255)))
+    s.post.append(eye(5.5, 0.9, (240, 240, 240)))
     s.post.extend(post)
     return s
 

@@ -31,7 +31,7 @@ def ramp(base, belly=None, top=None):
     """outline, dark, base, light, belly"""
     b = hexrgb(base)
     return {
-        'out': adjust(b, 0.38, 1.15, -0.01),
+        'out': adjust(b, 0.3, 1.2, -0.01),
         'dark': hexrgb(top) if top else adjust(b, 0.72, 1.08),
         'base': b,
         'light': adjust(b, 1.18, 0.8),
@@ -144,6 +144,8 @@ def body_shader(geo, pal, stripes=None, spots=None, belly_line=-0.25, top_line=0
             col = pal['belly']
         elif highlight and 0.05 < n <= top_line and 0.35 < t < 0.8:
             col = pal['light']
+        elif -0.2 < n <= 0.05 and (x * 2 + y) % 4 == 0:
+            col = pal['light']  # 비늘 반짝임
         if stripes:
             r = stripes(u, v, t, n, x, y)
             if r is not None:
@@ -296,14 +298,21 @@ def local_to_px(u, v, rot=45.0):
     return int(math.floor(x)), int(math.floor(y))
 
 
-def eye(u, v, iris=(20, 20, 24), glint=None, rot=45.0, big=False):
+def eye(u, v, iris=(250, 214, 64), glint=None, rot=45.0, big=False, pupil=(16, 16, 20)):
+    """Two-pixel eye: iris behind, pupil toward the nose (+u). A dark iris makes a plain dark eye."""
     def fn(px, owner):
         x, y = local_to_px(u, v, rot)
+        fx, fy = local_to_px(u + 1.0, v, rot)
+        if (fx, fy) == (x, y):
+            fx = x + 1
+        # 눈두덩 — 눈 뒤 한 칸을 어둡게 해 밝은 몸에서도 눈이 보이게
+        bx, by = 2 * x - fx, 2 * y - fy
+        if 0 <= bx < N and 0 <= by < N and px[bx, by][3] == 255:
+            put(px, bx, by, adjust(px[bx, by][:3], 0.55))
         put(px, x, y, iris)
-        if big:
-            put(px, x + 1, y, iris)
+        put(px, fx, fy, pupil, owner, only_filled=True)
         if glint:
-            put(px, x - 1 if big else x, y - 1 if big else y - 1, glint, owner, only_filled=True)
+            put(px, x, y - 1, glint, owner, only_filled=True)
     return fn
 
 

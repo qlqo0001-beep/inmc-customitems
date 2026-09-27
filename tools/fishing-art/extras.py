@@ -211,51 +211,60 @@ BAITS = {
 # ------------------------------------------------------------------ rods
 
 def rod(shaft, handle, reel, tip=None, grip_band=None, line=(232, 232, 232), extra=None, cast=False, glow_col=None):
-    """Vanilla-style diagonal rod: handle bottom-left, tip top-right, line hanging from the tip."""
+    """Vanilla-layout rod: handle bottom-left, tip top-right (where the game attaches the real line).
+
+    Thick shaft with a dark outline so it reads in hand. Uncast: line hangs from the tip with a hook.
+    Cast: the same rod without line — the game draws the real line to the bobber (vanilla fishing_rod_cast does the same).
+    """
     img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
     px = img.load()
     S = hexrgb(shaft)
-    Sd = adjust(S, 0.62, 1.1)
-    Sl = adjust(S, 1.25, 0.8)
+    Sd = adjust(S, 0.7, 1.1)
+    Sl = adjust(S, 1.25, 0.75)
     H = hexrgb(handle)
-    Hd = adjust(H, 0.6, 1.1)
+    Hl = adjust(H, 1.3, 0.9)
     R = hexrgb(reel)
     T = hexrgb(tip) if tip else Sl
-    # shaft: pixels along x+y=15 from (1,14) to (13,2), two px thick on the lower half
+    out = adjust(H, 0.35, 1.1)
+
+    # shaft cells: i = 0 (butt, bottom-left) .. 12 (tip, top-right); two cells wide up to i=9, then one.
+    body = {}
     for i in range(0, 13):
         x, y = 1 + i, 14 - i
-        body = H if i < 4 else S
-        dark = Hd if i < 4 else Sd
-        put(px, x, y, body)
-        if i < 9:
-            put(px, x + 1, y, dark)  # thickness (lower-right side = shade)
-        if grip_band and i in (1, 3):
-            put(px, x, y, hexrgb(grip_band))
-        if i >= 11:
-            put(px, x, y, T)
-    put(px, 1, 14, Hd)
-    put(px, 0, 15, Hd)
-    # highlight line on upper-left side of the mid shaft
-    for i in range(5, 10):
-        put(px, 1 + i - 1, 14 - i, Sl)
-    # reel
-    for x, y, c in ((4, 12, R), (5, 12, adjust(R, 0.6)), (4, 13, adjust(R, 0.7)), (5, 13, adjust(R, 0.45)), (3, 12, adjust(R, 1.2, 0.7))):
+        if i < 4:
+            body[(x, y)] = Hl
+            body[(x + 1, y)] = H
+        elif i < 10:
+            body[(x, y)] = Sl
+            body[(x + 1, y)] = Sd
+        else:
+            body[(x, y)] = T if i >= 11 else S
+    if grip_band:
+        for i in (1, 3):
+            body[(1 + i, 14 - i)] = hexrgb(grip_band)
+            body[(2 + i, 14 - i)] = adjust(hexrgb(grip_band), 0.7)
+    # reel under the shaft, just above the handle
+    reel_cells = {(6, 11): R, (7, 11): adjust(R, 0.75), (6, 12): adjust(R, 0.75), (7, 12): adjust(R, 0.5)}
+    body.update(reel_cells)
+    # outline: 4-neighbours of the body
+    for (x, y) in list(body):
+        for ox, oy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + ox, y + oy)
+            if n not in body and 0 <= n[0] < 16 and 0 <= n[1] < 16:
+                put(px, n[0], n[1], out)
+    for (x, y), c in body.items():
         put(px, x, y, c)
-    if not cast:
-        # line from tip hanging down with a hook
-        for y in range(2, 11):
-            put(px, 14, y, line)
-        put(px, 14, 11, (150, 150, 160))
-        put(px, 13, 12, (150, 150, 160))
-        put(px, 12, 11, (150, 150, 160))
-    else:
-        # taut line leaving to the top-right
-        put(px, 14, 1, line)
-        put(px, 15, 0, line)
     if extra:
         extra(px, cast)
+    # 빛 테두리는 막대에만 — 줄까지 두르면 줄이 굵어 보인다
     if glow_col:
         glow(glow_col, 80)(px, None)
+    if not cast:
+        for y in range(3, 12):
+            put(px, 14, y, line)
+        hook = (150, 154, 166)
+        for x, y in ((14, 12), (13, 13), (12, 12), (12, 11)):
+            put(px, x, y, hook)
     return img
 
 
@@ -267,17 +276,17 @@ def gem(x, y, col):
 
 
 RODS = {
-    'weathered_rod': lambda cast: rod('#8a7058', '#5a4636', '#6a6a6a', extra=lambda px, c: [put(px, 7, 8, (60, 46, 34)), put(px, 10, 5, (60, 46, 34))], cast=cast),
+    'weathered_rod': lambda cast: rod('#8a7058', '#5a4636', '#6a6a6a', extra=lambda px, c: [put(px, 8, 7, (60, 46, 34)), put(px, 10, 5, (60, 46, 34))], cast=cast),
     'basic_rod': lambda cast: rod('#b08850', '#6a4a2a', '#8a8a8a', cast=cast),
-    'bamboo_rod': lambda cast: rod('#9ac048', '#5a7a28', '#c8b060', extra=lambda px, c: [put(px, 1 + i, 14 - i, (70, 100, 30)) for i in (5, 8, 11)], cast=cast),
+    'bamboo_rod': lambda cast: rod('#9ac048', '#5a7a28', '#c8b060', extra=lambda px, c: [put(px, 1 + i + k, 14 - i, (70, 100, 30)) for i in (5, 8) for k in (0, 1)], cast=cast),
     'iron_rod': lambda cast: rod('#d0d4dc', '#4a4a52', '#9aa0aa', grip_band='#2a2a30', cast=cast),
     'gold_rod': lambda cast: rod('#f2c83a', '#8a5a1a', '#fff0a0', grip_band='#5a3a10', cast=cast),
     'obsidian_rod': lambda cast: rod('#3a2a5a', '#1a1426', '#8a5ad8', tip='#b080ff', cast=cast),
     'advanced_rod': lambda cast: rod('#3aa06a', '#2a2a2a', '#d0d8e0', tip='#8af0b8', grip_band='#e8e8e8', cast=cast),
     'master_rod': lambda cast: rod('#2a5ab8', '#2a1a10', '#f2c83a', tip='#f2e090', grip_band='#f2c83a',
-                                   extra=gem(8, 7, (255, 220, 90)), cast=cast),
+                                   extra=gem(9, 6, (255, 220, 90)), cast=cast),
     'mythic_rod': lambda cast: rod('#b048e0', '#2a1040', '#f0d0ff', tip='#ffffff', grip_band='#f2c83a',
-                                   extra=gem(8, 7, (120, 255, 255)), cast=cast, glow_col=(200, 120, 255)),
+                                   extra=gem(9, 6, (120, 255, 255)), cast=cast, glow_col=(200, 120, 255)),
     'legendary_rod': lambda cast: rod('#e8a020', '#5a1010', '#ff4a2a', tip='#ffffff', grip_band='#ff4a2a',
-                                      extra=gem(8, 7, (255, 80, 60)), cast=cast, glow_col=(255, 170, 60)),
+                                      extra=gem(9, 6, (255, 80, 60)), cast=cast, glow_col=(255, 170, 60)),
 }
