@@ -10,6 +10,9 @@ import com.inmc.customitems.gui.EnchantMenu
 import com.inmc.customitems.gui.EquipmentMenu
 import com.inmc.customitems.gui.FlagMenu
 import com.inmc.customitems.gui.GemMenu
+import com.inmc.customitems.gui.EditButton
+import com.inmc.customitems.gui.EditTab
+import com.inmc.customitems.gui.ItemEditLayout
 import com.inmc.customitems.gui.ItemEditMenu
 import com.inmc.customitems.gui.CategoryMenu
 import com.inmc.customitems.gui.ChoiceMenu
@@ -53,7 +56,15 @@ object MenuChecks {
 
     private fun Sandbox.current(): CustomItem = custom.items.get(ID) ?: error("검사용 아이템이 사라졌다")
 
-    private fun Sandbox.hub() = ItemEditMenu(custom, player, ID).open(player)
+    private fun Sandbox.hub(tab: EditTab = EditTab.BASIC) = ItemEditMenu(custom, player, ID, tab).open(player)
+
+    /** 설정 화면에서 [button] 이 있는 탭을 열고 그 버튼을 누른다. 그 아이템에서 숨은 버튼이면 그렇다고 돌려준다. */
+    private fun Sandbox.press(button: EditButton): String? {
+        val slot = ItemEditLayout.slotOf(current(), button) ?: return "$button 이 ${current().type} 에서 숨어 있다"
+        hub(button.tab)
+        click(slot)
+        return null
+    }
 
     /** [slot] 을 누르면 [kind] 가 열린다. */
     private fun Sandbox.goes(slot: Int, kind: KClass<*>): String? {
@@ -62,31 +73,44 @@ object MenuChecks {
     }
 
     val ALL: List<Check> = listOf(
-        Check("편집 허브 → 세부 화면 → 뒤로") { s ->
+        Check("편집 허브 → 세부 화면 → 뒤로(보던 탭으로)") { s ->
             s.scratch()
             val targets = listOf(
-                ItemEditMenu.SLOT_LORE to LoreMenu::class, ItemEditMenu.SLOT_STATS to StatsMenu::class,
-                ItemEditMenu.SLOT_ABILITIES to AbilityListMenu::class, ItemEditMenu.SLOT_ENCHANTS to EnchantMenu::class,
-                ItemEditMenu.SLOT_DATA to DataMenu::class, ItemEditMenu.SLOT_CUSTOM_ENCHANTS to CustomEnchantMenu::class,
-                ItemEditMenu.SLOT_MODIFIERS to ModifierListMenu::class, ItemEditMenu.SLOT_SET to SetChooseMenu::class,
-                ItemEditMenu.SLOT_FLAGS to FlagMenu::class, ItemEditMenu.SLOT_SOCKETS to SocketMenu::class,
-                ItemEditMenu.SLOT_GEM to GemMenu::class, ItemEditMenu.SLOT_CONSUME to ConsumeMenu::class,
-                ItemEditMenu.SLOT_REQUIREMENT to RequirementMenu::class, ItemEditMenu.SLOT_SALVAGE to PartGridMenu::class,
-                ItemEditMenu.SLOT_COMPONENTS to ComponentMenu::class,
+                EditButton.LORE to LoreMenu::class, EditButton.STATS to StatsMenu::class,
+                EditButton.ABILITIES to AbilityListMenu::class, EditButton.ENCHANTS to EnchantMenu::class,
+                EditButton.DATA to DataMenu::class, EditButton.CUSTOM_ENCHANTS to CustomEnchantMenu::class,
+                EditButton.MODIFIERS to ModifierListMenu::class, EditButton.SET to SetChooseMenu::class,
+                EditButton.FLAGS to FlagMenu::class, EditButton.SOCKETS to SocketMenu::class,
+                EditButton.GEM to GemMenu::class, EditButton.CONSUME to ConsumeMenu::class,
+                EditButton.REQUIREMENT to RequirementMenu::class, EditButton.SALVAGE to PartGridMenu::class,
+                EditButton.COMPONENTS to ComponentMenu::class,
             )
-            targets.firstNotNullOfOrNull { (slot, kind) ->
-                s.hub()
-                s.goes(slot, kind) ?: s.goes(Paging.SLOT_BACK, ItemEditMenu::class)
+            targets.firstNotNullOfOrNull { (button, kind) ->
+                s.press(button)
+                    ?: ok(kind.isInstance(s.top()), "$button → ${kind.simpleName} 대신 ${s.topName()}")
+                    ?: s.goes(Paging.SLOT_BACK, ItemEditMenu::class)
+                    ?: ok((s.top() as ItemEditMenu).tab == button.tab, "$button 에서 뒤로 왔는데 ${(s.top() as ItemEditMenu).tab} 탭")
             }
         },
         Check("허브의 전환 버튼이 정의를 바꾼다") { s ->
             s.scratch()
-            s.hub()
-            s.click(ItemEditMenu.SLOT_GLOW)
-            s.click(ItemEditMenu.SLOT_STYLE)
-            s.click(ItemEditMenu.SLOT_UNIDENTIFIED)
-            val item = s.current()
-            ok(item.glow, "빛나게가 안 켜졌다") ?: ok(item.style != AttackStyle.NONE, "공격 방식이 안 바뀌었다") ?: ok(item.unidentified, "미확인이 안 켜졌다")
+            s.press(EditButton.GLOW) ?: s.press(EditButton.STYLE) ?: s.press(EditButton.UNIDENTIFIED) ?: run {
+                val item = s.current()
+                ok(item.glow, "빛나게가 안 켜졌다") ?: ok(item.style != AttackStyle.NONE, "공격 방식이 안 바뀌었다") ?: ok(item.unidentified, "미확인이 안 켜졌다")
+            }
+        },
+        Check("설정 화면 탭: 누르면 바뀌고, 뜻이 없는 버튼은 숨는다") { s ->
+            s.scratch()
+            s.hub(EditTab.BASIC)
+            s.click(ItemEditLayout.TAB_SLOTS[EditTab.entries.indexOf(EditTab.USE)])
+            val menu = s.top() as? ItemEditMenu
+            ok(menu?.tab == EditTab.USE, "용도 탭을 눌렀는데 ${menu?.tab ?: s.topName()}")
+                ?: ok(ItemEditLayout.slotOf(s.current(), EditButton.BACKPACK) == null, "칼에 배낭 버튼이 있다")
+                ?: run {
+                    // 부적으로 바꾸면 배낭 칸이 생긴다 — 누르면 한 줄(9칸) 는다.
+                    s.item(s.current().copy(type = ItemType.TALISMAN))
+                    s.press(EditButton.BACKPACK) ?: ok(s.current().backpack == 9, "배낭 칸을 눌렀는데 크기 " + s.current().backpack)
+                }
         },
         Check("장식 칸 클릭은 막히고 닫기는 닫는다") { s ->
             s.scratch()
@@ -152,8 +176,7 @@ object MenuChecks {
         Check("소분류: 고른 서랍에만 보이고, 종류를 바꾸면 빠진다") { s ->
             s.scratch()
             val category = s.category(Category("zz_verify_cat", ItemType.WEAPON.id, "검사용"))
-            s.hub()
-            s.goes(ItemEditMenu.SLOT_CATEGORY, ChoiceMenu::class) ?: run {
+            s.press(EditButton.CATEGORY) ?: ok(s.top() is ChoiceMenu, "소분류 칸 → ChoiceMenu 대신 ${s.topName()}") ?: run {
                 // 0 번은 "분류 없음", 그 뒤로 무기의 소분류가 파일 순서대로.
                 s.click(1 + s.custom.categories.of(s.custom.types.builtin(ItemType.WEAPON)).indexOfFirst { it.id == category.id })
                 ok(s.current().category == category.id, "고른 소분류가 안 들어갔다: '" + s.current().category + "'")
@@ -164,9 +187,12 @@ object MenuChecks {
                     .mapNotNull { s.custom.items.identify(it)?.id }
                 ok(shown == listOf(ID), "소분류 서랍에 다른 것이 보인다: $shown")
             } ?: run {
-                s.hub()
-                s.click(ItemEditMenu.SLOT_TYPE)
-                ok(s.current().type != ItemType.WEAPON && s.current().category.isEmpty(), "종류를 바꿨는데 소분류가 남았다: " + s.current().type + "/" + s.current().category)
+                // 종류 칸은 고르는 화면을 연다(2026-09-30) — 거기서 도구를 고른다.
+                val tool = s.custom.types.all().indexOfFirst { it.builtin && it.base == ItemType.TOOL }
+                s.press(EditButton.TYPE) ?: ok(s.top() is ChoiceMenu && tool >= 0, "종류 칸 → ${s.topName()}") ?: run {
+                    s.click(tool)
+                    ok(s.current().type == ItemType.TOOL && s.current().category.isEmpty(), "종류를 바꿨는데: " + s.current().type + "/" + s.current().category)
+                }
             }
         },
         Check("한글 id 아이템에 능력치를 넣고 능력치 창에서 뒤로 간다") { s ->

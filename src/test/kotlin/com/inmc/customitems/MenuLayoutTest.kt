@@ -1,9 +1,16 @@
 package com.inmc.customitems
 
+import com.inmc.customitems.gui.EditButton
+import com.inmc.customitems.gui.EditTab
+import com.inmc.customitems.gui.ItemEditLayout
+import com.inmc.customitems.item.CustomItem
+import com.inmc.customitems.item.ItemType
 import kr.inmc.core.gui.Paging
+import org.bukkit.Material
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -33,19 +40,70 @@ class MenuLayoutTest {
             .orEmpty()
 
     @Test
-    fun `아이템 설정 화면의 슬롯이 겹치지 않는다`() {
-        val slots = slotsOf("ItemEditMenu.kt") + mapOf(
-            "Paging.SLOT_BACK" to Paging.SLOT_BACK,
-            "Paging.SLOT_CLOSE" to Paging.SLOT_CLOSE,
-        )
+    fun `아이템 설정 화면 — 모든 버튼이 한 탭에 한 번씩 있다`() {
+        // 탭으로 나누다 빠진 버튼은 화면 어디에도 안 그려진다 — 오류 없이 그 설정만 못 고치게 된다.
+        val placed = EditTab.entries.flatMap { it.rows.flatten() }
+        assertEquals(EditButton.entries.toSet(), placed.toSet(), "탭에 없는 버튼: " + (EditButton.entries - placed.toSet()))
+        assertEquals(placed.size, placed.toSet().size, "두 번 놓인 버튼: " + placed.groupBy { it }.filterValues { it.size > 1 }.keys)
+    }
 
-        assertTrue(slots.isNotEmpty(), "슬롯 상수를 하나도 못 읽었습니다")
-        assertEquals(
-            slots.size,
-            slots.values.toSet().size,
-            "슬롯 충돌: " + slots.entries.groupBy { it.value }.filterValues { it.size > 1 },
-        )
-        for ((name, slot) in slots) assertTrue(slot in 0 until 54, "$name($slot) 이 창을 벗어납니다")
+    @Test
+    fun `아이템 설정 화면 — 어떤 버튼이 숨든 칸이 겹치지 않고 내용 줄 안에 있다`() {
+        val fixed = listOf(ItemEditLayout.SLOT_PREVIEW, ItemEditLayout.SLOT_GIVE, Paging.SLOT_BACK, Paging.SLOT_CLOSE) + ItemEditLayout.TAB_SLOTS
+        assertEquals(fixed.size, fixed.toSet().size, "고정 칸 충돌: $fixed")
+        for (slot in fixed) assertTrue(slot in 0 until ItemEditLayout.SIZE, "$slot 이 창을 벗어납니다")
+        assertTrue(ItemEditLayout.TAB_SLOTS.size >= EditTab.entries.size, "탭 칸이 모자랍니다")
+
+        for (tab in EditTab.entries) {
+            assertTrue(tab.rows.size <= ItemEditLayout.ROW_STARTS.size, tab.name + " 의 줄이 너무 많습니다")
+            for (row in tab.rows) assertTrue(row.size <= ItemEditLayout.PER_ROW, tab.name + " 의 한 줄에 " + row.size + "개")
+            // 숨을 수 있는 모든 조합 — 숨은 버튼이 있으면 그 줄이 다시 가운데로 모이는데, 그때도 겹치면 안 된다.
+            val buttons = tab.rows.flatten()
+            for (mask in 0 until (1 shl buttons.size)) {
+                val shown = buttons.filterIndexed { index, _ -> mask and (1 shl index) != 0 }.toSet()
+                val slots = ItemEditLayout.place(tab) { it in shown }
+                assertEquals(shown, slots.keys, "$tab: 보여야 할 버튼이 안 놓였습니다")
+                assertEquals(slots.size, slots.values.toSet().size, "$tab $shown 에서 칸이 겹칩니다: $slots")
+                for ((button, slot) in slots) {
+                    assertTrue(slot in 18..44, "$tab 의 $button($slot) 이 내용 줄(탭 아래 세 줄)을 벗어납니다")
+                    assertTrue(slot !in fixed, "$tab 의 $button($slot) 이 고정 칸을 덮습니다")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `아이템 설정 화면 — 한 줄의 버튼은 한 칸씩 띄워 가운데 맞춘다`() {
+        assertEquals(listOf(4), ItemEditLayout.columns(1))
+        assertEquals(listOf(2, 4, 6), ItemEditLayout.columns(3))
+        assertEquals(listOf(1, 3, 5, 7), ItemEditLayout.columns(4))
+        assertEquals(listOf(0, 2, 4, 6, 8), ItemEditLayout.columns(5))
+    }
+
+    @Test
+    fun `아이템 설정 화면 — 그 아이템에 뜻이 없는 버튼은 숨는다`() {
+        val sword = CustomItem("sword", Material.IRON_SWORD, type = ItemType.WEAPON)
+        val pickaxe = CustomItem("pick", Material.IRON_PICKAXE, type = ItemType.TOOL)
+        val talisman = CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN)
+        val relic = CustomItem("relic", Material.PAPER, type = ItemType.RELIC)
+        val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
+
+        for (item in listOf(sword, pickaxe)) {
+            assertFalse(EditButton.BACKPACK.shownFor(item), item.id + " 에 배낭")
+            assertFalse(EditButton.INVENTORY_EFFECT.shownFor(item), item.id + " 에 효과가 나는 곳")
+            assertFalse(EditButton.NO_DUPLICATE.shownFor(item), item.id + " 에 중복 안 함")
+        }
+        for (item in listOf(talisman, relic, ring)) {
+            assertTrue(EditButton.BACKPACK.shownFor(item), item.id + " 에 배낭이 없다")
+            assertTrue(EditButton.INVENTORY_EFFECT.shownFor(item), item.id + " 에 효과가 나는 곳이 없다")
+        }
+        assertTrue(EditButton.NO_DUPLICATE.shownFor(talisman))
+        assertFalse(EditButton.NO_DUPLICATE.shownFor(relic), "중복 안 함은 부적만 쓴다(Carried)")
+        assertTrue(EditButton.MINING_TIER.shownFor(pickaxe))
+        assertFalse(EditButton.MINING_TIER.shownFor(talisman), "도구가 아닌데 채굴 등급")
+        // 숨은 버튼은 칸이 없다 — 검증기가 그 칸을 누르지 않게.
+        assertEquals(null, ItemEditLayout.slotOf(sword, EditButton.BACKPACK))
+        assertTrue(ItemEditLayout.slotOf(talisman, EditButton.BACKPACK) != null)
     }
 
     @Test
