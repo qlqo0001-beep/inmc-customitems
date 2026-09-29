@@ -34,7 +34,7 @@ class BackpackMenu(
 ) : Menu(
     custom,
     BackpackLayout.rows(BackpackLayout.capacity(size, contents.keys.maxOrNull())) * 9,
-    Text.renderFlat("<dark_gray>배낭 — </dark_gray>" + label),
+    Text.renderFlat(label),
 ) {
 
     private val capacity = BackpackLayout.capacity(size, contents.keys.maxOrNull())

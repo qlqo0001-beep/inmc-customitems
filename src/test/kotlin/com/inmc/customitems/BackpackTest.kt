@@ -67,10 +67,9 @@ class BackpackTest {
     }
 
     @Test
-    fun `로어에 배낭 표찰이 붙는다`() {
+    fun `로어에 배낭 안내 줄을 붙이지 않는다`() {
+        // 사용자 요청 2026-09-30 — "배낭 — 우클릭으로 열기 …" 줄은 지운다.
         val lines = ItemBuilder.buildLore(CustomItem("bag", Material.PAPER, type = ItemType.TALISMAN, backpack = 54), emptyMap())
-        assertTrue(lines.any { "배낭" in it && "54칸" in it && "/배낭" in it }, lines.toString())
-        val weapon = ItemBuilder.buildLore(CustomItem("sword", Material.IRON_SWORD, type = ItemType.WEAPON, backpack = 54), emptyMap())
-        assertTrue(weapon.none { "우클릭으로 열기" in it }, "배낭이 아닌 종류에 표찰: $weapon")
+        assertTrue(lines.none { "우클릭으로 열기" in it || "/배낭" in it }, lines.toString())
     }
 }

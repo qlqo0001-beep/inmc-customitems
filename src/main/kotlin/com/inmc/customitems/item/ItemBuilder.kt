@@ -430,7 +430,6 @@ object ItemBuilder {
         }
         if (definition.type == ItemType.TALISMAN && definition.noDuplicate) add(tag(LIMIT, "중복 불가", "같은 부적은 가장 높은 강화 하나만"))
         if (definition.type == ItemType.RELIC) add(tag(LIMIT, "단 하나", "여러 유물 중 가장 높은 등급 하나만"))
-        if (definition.isBackpack) add(tag(WHERE, "배낭", "우클릭으로 열기 · " + definition.backpack + "칸 · 장착하면 /배낭"))
     }
 
     /** 표찰 한 줄 — 그라데이션 이름표 · 옅은 설명. */
