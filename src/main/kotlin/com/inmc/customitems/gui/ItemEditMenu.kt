@@ -88,17 +88,7 @@ class ItemEditMenu(
             }
         }
 
-        set(SLOT_TYPE, typeIcon(item)) { event ->
-            mutate {
-                val next = Editors.cycle(event, custom.types.all(), custom.types.of(it))
-                // 소분류는 종류에 딸려 있다 — 다른 종류로 옮기면 뗀다. 동작은 그 종류의 기준(base)을 따른다.
-                it.copy(
-                    type = next.base,
-                    customType = if (next.builtin) "" else next.id,
-                    category = if (custom.categories.get(it.category)?.type == next.id) it.category else "",
-                )
-            }
-        }
+        set(SLOT_TYPE, typeIcon(item)) { chooseType() }
         set(SLOT_CATEGORY, categoryIcon(item)) { chooseCategory(custom.types.of(item)) }
         set(SLOT_TIER, tierIcon(item)) { event ->
             mutate { it.copy(tier = Editors.cycle(event, Tier.entries.toList(), it.tier)) }
@@ -141,6 +131,16 @@ class ItemEditMenu(
             listOf("<gray>이 아이템을 다른 아이템의 소켓에 박는 보석으로.</gray>", "", "<yellow>▶ 클릭: 보석 설정</yellow>"))) { GemMenu(custom, viewer, id).open(viewer) }
         set(SLOT_CONSUME, Icon.of(Material.HONEY_BOTTLE, "<green>소모품: <white>" + (if (item.consume != null) "켜짐" else "아님") + "</white></green>",
             listOf("<gray>우클릭으로 쓰는 회복·효과, 보석 빼기·수리.</gray>", "", "<yellow>▶ 클릭: 소모품 설정</yellow>"))) { ConsumeMenu(custom, viewer, id).open(viewer) }
+        set(SLOT_VANILLA_USE, Icon.of(
+            if (item.preventVanillaUse) Material.BARRIER else Material.GRAY_DYE,
+            "<yellow>바닐라 설치·소모 막기: " + Icon.toggle(item.preventVanillaUse) + "</yellow>",
+            listOf(
+                "<gray>재질이 블록이어도 놓이지 않고,</gray>",
+                "<gray>먹거나 마실 수 있는 재질이어도 먹히지 않습니다.</gray>",
+                "<dark_gray>우클릭 기능·소모품·커스텀 블록은 그대로 동작합니다.</dark_gray>",
+                "", "<yellow>▶ 클릭: 전환</yellow>",
+            ),
+        )) { mutate { it.copy(preventVanillaUse = !it.preventVanillaUse) } }
         set(SLOT_REQUIREMENT, Icon.of(Material.IRON_BARS, "<red>요구 조건</red>", listOf(
             "<gray>레벨 <white>" + item.requirement.level + "</white> · 권한 <white>" + item.requirement.permission.ifBlank { "없음" } + "</white></gray>",
             "", "<yellow>▶ 클릭: 요구 조건 설정</yellow>"))) { RequirementMenu(custom, viewer, id).open(viewer) }
@@ -295,8 +295,14 @@ class ItemEditMenu(
         return Icon.of(
             current.icon,
             "<yellow>종류: <white>" + current.name + "</white></yellow>",
-            Editors.optionList(custom.types.all(), current) { it.name + if (it.builtin) "" else " <dark_gray>(" + it.base.display + "처럼)</dark_gray>" } +
-                listOf("", "<gray>만든 종류는 고른 기본 종류처럼 동작합니다.</gray>", "<dark_gray>종류 만들기·이름 바꾸기: 관리 → 종류 관리</dark_gray>") + Editors.cycleHint,
+            listOf(
+                if (current.builtin) "<gray>기본 종류</gray>" else "<gray>" + current.base.display + "처럼 동작합니다.</gray>",
+                "",
+                "<gray>만든 종류는 고른 기본 종류처럼 동작합니다.</gray>",
+                "<dark_gray>종류 만들기·이름 바꾸기: 관리 → 종류 관리</dark_gray>",
+                "",
+                "<yellow>▶ 클릭: 종류 고르기</yellow>",
+            ),
         )
     }
 
@@ -319,6 +325,38 @@ class ItemEditMenu(
                 add("<yellow>▶ 클릭: 고르기</yellow>")
             },
         )
+    }
+
+    /**
+     * 종류 고르기 화면(사용자 요청 2026-09-30 — 좌/우클릭으로 돌리는 대신 들어가서 고른다). 종류가 늘수록 돌려서 찾기 어렵다.
+     * 소분류는 종류에 딸려 있어 다른 종류로 옮기면 뗀다. 동작은 그 종류의 기준(base)을 따른다.
+     */
+    private fun chooseType() {
+        ChoiceMenu(
+            custom, viewer, "종류 — $id",
+            options = {
+                val items = custom.items.all()
+                custom.types.all().map { type ->
+                    val count = items.count { custom.types.of(it).id == type.id }
+                    type.id to iconOf(type.icon, type.iconItem, "<dark_gray>" + type.symbol + "</dark_gray> <yellow>" + type.name + "</yellow>", listOf(
+                        if (type.builtin) "<gray>기본 종류</gray>" else "<gray>" + type.base.display + "처럼 동작하는 종류</gray>",
+                        "<dark_gray>이 종류의 아이템 " + count + "개</dark_gray>",
+                    ))
+                }
+            },
+            selected = { setOf(item()?.let { custom.types.of(it).id }.orEmpty()) },
+            back = { open(viewer) },
+        ) { picked ->
+            val next = custom.types.get(picked)
+            if (next != null) item()?.let {
+                custom.items.put(it.copy(
+                    type = next.base,
+                    customType = if (next.builtin) "" else next.id,
+                    category = if (custom.categories.get(it.category)?.type == next.id) it.category else "",
+                ))
+            }
+            open(viewer)
+        }.open(viewer)
     }
 
     private fun chooseCategory(type: com.inmc.customitems.item.TypeDef) {
@@ -562,6 +600,7 @@ class ItemEditMenu(
         const val SLOT_SOCKETS = 33
         const val SLOT_GEM = 34
         const val SLOT_CONSUME = 37
+        const val SLOT_VANILLA_USE = 36
         const val SLOT_REQUIREMENT = 38
         const val SLOT_STYLE = 39
         const val SLOT_UNIDENTIFIED = 40

@@ -77,4 +77,59 @@ class LoreOrderTest {
         assertTrue(lines.any { "6 공격력" in it }, lines.toString())
         assertTrue(lines.any { "1.2 공격 속도" in it }, lines.toString())
     }
+
+    // --- 부적·유물 표찰 (사용자 요청 2026-09-30: 더 세련되게) -----------------------------------
+
+    @Test
+    fun `부적의 표찰은 종류 바로 밑에 한 줄씩 온다`() {
+        val charm = CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN, noDuplicate = true)
+        val lines = ItemBuilder.buildLore(charm, emptyMap())
+        assertTrue("소지 효과" in lines[1] && "가방에 지니기만 해도" in lines[1], lines.toString())
+        assertTrue("중복 불가" in lines[2] && "가장 높은 강화 하나만" in lines[2], lines.toString())
+        assertTrue(lines.none { " · 같은 부적" in it || "가방에 있으면" in it }, "옛 한 줄 문구가 남았다: $lines")
+        assertTrue(ItemBuilder.buildLore(charm.copy(noDuplicate = false), emptyMap()).none { "중복 불가" in it }, "중복을 허락한 부적에 중복 불가")
+    }
+
+    @Test
+    fun `유물은 단 하나 표찰, 손에서도 되는 장신구는 표찰이 없다`() {
+        val relic = ItemBuilder.buildLore(CustomItem("relic", Material.HEART_OF_THE_SEA, type = ItemType.RELIC), emptyMap())
+        assertTrue("소지 효과" in relic[1] && "단 하나" in relic[2], relic.toString())
+        val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
+        // 등급 배지도 그라데이션이라 표찰은 이름으로 찾는다.
+        assertTrue(ItemBuilder.buildLore(ring, emptyMap()).none { line -> listOf("소지 효과", "장착 효과", "중복 불가", "단 하나").any { it in line } }, "손에서도 되는 장신구에 표찰이 생겼다")
+        val slotOnly = ItemBuilder.buildLore(ring, emptyMap(), lookup = Lookup(inventoryEffects = { false }))
+        assertTrue("장착 효과" in slotOnly[1] && "장착 칸(/장비)" in slotOnly[1], slotOnly.toString())
+    }
+
+    // --- 물약 기능 줄 (사용자 요청 2026-09-30: "지속효과 : 야간투시") ------------------------------
+
+    private fun potion(trigger: com.inmc.customitems.ability.Trigger, vararg values: Pair<String, String>, effect: com.inmc.customitems.ability.EffectType = com.inmc.customitems.ability.EffectType.POTION) =
+        com.inmc.customitems.ability.Ability.of(trigger, effect).copy(values = values.toMap()).line()
+
+    @Test
+    fun `지속 물약은 어떤 효과인지 적고 시간은 적지 않는다`() {
+        val line = potion(com.inmc.customitems.ability.Trigger.PASSIVE, "effect" to "NIGHT_VISION", "seconds" to "15")
+        assertTrue("지속 효과" in line, line)
+        assertTrue("<lang:effect.minecraft.night_vision>" in line, line)
+        assertTrue("물약 효과" !in line && "초" !in line, line)
+    }
+
+    @Test
+    fun `다른 발동 물약은 레벨과 시간과 대상까지 적는다`() {
+        val self = potion(com.inmc.customitems.ability.Trigger.RIGHT_CLICK, "effect" to "minecraft:speed", "level" to "2", "seconds" to "5")
+        assertTrue("<lang:effect.minecraft.speed> <lang:enchantment.level.2> 5초" in self, self)
+        assertTrue("지속 효과" !in self, self)
+        val other = potion(com.inmc.customitems.ability.Trigger.ON_HIT, "effect" to "SLOWNESS", "seconds" to "3", "target" to "other")
+        assertTrue("대상에게 <lang:effect.minecraft.slowness> 3초" in other, other)
+        val area = potion(com.inmc.customitems.ability.Trigger.ON_HIT, "effect" to "POISON", effect = com.inmc.customitems.ability.EffectType.AOE_POTION)
+        assertTrue("주변에 <lang:effect.minecraft.poison>" in area, area)
+    }
+
+    @Test
+    fun `물약이 아닌 기능과 비어 있는 효과는 종류 이름 그대로다`() {
+        val bolt = com.inmc.customitems.ability.Ability.of(com.inmc.customitems.ability.Trigger.ON_HIT, com.inmc.customitems.ability.EffectType.LIGHTNING).line()
+        assertTrue(com.inmc.customitems.ability.EffectType.LIGHTNING.display in bolt, bolt)
+        assertEquals(null, com.inmc.customitems.ability.Ability.potionKey("  "))
+        assertEquals("effect.minecraft.night_vision", com.inmc.customitems.ability.Ability.potionKey("minecraft:NIGHT_VISION"))
+    }
 }

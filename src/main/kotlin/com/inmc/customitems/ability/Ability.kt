@@ -339,13 +339,39 @@ data class Ability(
 
     /** 로어 한 줄. 관리자가 아니라 **플레이어가 읽는다.** */
     fun line(): String = buildString {
+        val potion = potionText()
         append("<dark_gray>▸ </dark_gray><yellow>")
         append(trigger.display)
+        // 지속 물약은 "지속 효과: 야간 투시"(사용자 요청 2026-09-30) — 어떤 효과인지가 곧 이 기능의 전부다.
+        if (potion != null && trigger == Trigger.PASSIVE) append(" 효과")
         append("</yellow><gray>: ")
-        append(effect.display)
+        append(potion ?: effect.display)
         if (chance < 100.0) append(" (" + trim(chance) + "%)")
         if (cooldownSeconds > 0.0) append(" <dark_gray>[" + trim(cooldownSeconds) + "s]</dark_gray>")
         append("</gray>")
+    }
+
+    /**
+     * 물약 기능이면 **어떤 효과인지** — `야간 투시` · `신속 II 5초` · `대상에게 구속 II 3초` · `주변에 독 5초`. 이름은 클라이언트의 번역
+     * 열쇠(`effect.minecraft.night_vision`)라 보는 사람의 말로 나오고, 레지스트리를 타지 않아 서버 없이 정해진다. 지속 기능은 계속 다시
+     * 걸리므로 시간을 적지 않는다. 물약이 아니거나 효과 값을 못 읽으면 null — 효과 종류 이름(물약 효과)을 쓴다.
+     */
+    private fun potionText(): String? {
+        if (effect != EffectType.POTION && effect != EffectType.AOE_POTION) return null
+        val key = potionKey(value("effect")) ?: return null
+        val level = int("level").coerceAtLeast(1)
+        val name = "<lang:" + key + ">" + when {
+            level in 2..10 -> " <lang:enchantment.level.$level>"
+            level > 10 -> " $level"
+            else -> ""
+        }
+        val seconds = number("seconds")
+        val duration = if (trigger == Trigger.PASSIVE || seconds <= 0.0) "" else " " + trim(seconds) + "초"
+        return when {
+            effect == EffectType.AOE_POTION -> "주변에 " + name + duration
+            target() == Target.OTHER -> "대상에게 " + name + duration
+            else -> name + duration
+        }
     }
 
     fun save(section: ConfigurationSection) {
@@ -364,6 +390,18 @@ data class Ability(
         if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
 
     companion object {
+
+        /**
+         * 적힌 물약 효과(`NIGHT_VISION` · `minecraft:night_vision`)의 번역 열쇠(`effect.minecraft.night_vision`). 엔진이 효과를 찾는 규칙
+         * ([com.inmc.customitems.item.Registries.potionEffect] — 소문자, 이름공간이 없으면 `minecraft`, 점은 밑줄)과 같게 푼다. 비었으면 null.
+         */
+        fun potionKey(raw: String): String? {
+            val text = raw.trim().lowercase().takeIf { it.isNotEmpty() } ?: return null
+            val namespace = if (':' in text) text.substringBefore(':') else "minecraft"
+            val path = if (':' in text) text.substringAfter(':') else text.replace('.', '_')
+            if (namespace.isEmpty() || path.isEmpty()) return null
+            return "effect.$namespace.$path"
+        }
 
         /** 읽는다. 효과를 못 알아보면 null — 모르는 효과를 조용히 무시하면 안 터지는 이유를 못 찾는다. */
         fun load(section: ConfigurationSection): Ability? {

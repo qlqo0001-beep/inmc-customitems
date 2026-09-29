@@ -202,6 +202,12 @@ data class CustomItem(
     val gem: GemSpec? = null,
     /** 소모품이면 그 설정. */
     val consume: ConsumeSpec? = null,
+    /**
+     * 재질의 바닐라 **설치·먹기·마시기**를 막는다(사용자 요청 2026-09-30) — 돌로 만든 재료가 놓이거나 빵으로 만든 증표가 먹히지 않게.
+     * 먹는 것은 아이템에서 먹는 부품(`consumable`)을 떼어 먹기가 시작조차 안 되고([ItemBuilder.render]), 놓는 것은 `BlockPlaceEvent` 를
+     * 막는다. 우리 것(우클릭 기능 · 소모품 · 커스텀 블록)은 그대로 돈다.
+     */
+    val preventVanillaUse: Boolean = false,
     val requirement: Requirement = Requirement(),
     /** 만들 때 미확인으로 나온다. 감정서로 밝힐 때까지 능력치·기능이 돌지 않는다. */
     val unidentified: Boolean = false,
@@ -307,6 +313,7 @@ data class CustomItem(
             node.set("chance", it.chance)
         }
         consume?.save(section.createSection("consume"))
+        if (preventVanillaUse) section.set("prevent-vanilla-use", true)
         if (!requirement.isEmpty) requirement.save(section.createSection("requirement"))
         if (unidentified) section.set("unidentified", true)
         saveParts(section, "salvage", salvage)
@@ -403,6 +410,7 @@ data class CustomItem(
                     GemSpec(it.getString("color", GemSpec.ANY)!!.lowercase(), it.getDouble("chance", 100.0).coerceIn(0.0, 100.0))
                 },
                 consume = section.getConfigurationSection("consume")?.let(ConsumeSpec::load),
+                preventVanillaUse = section.getBoolean("prevent-vanilla-use", false),
                 requirement = Requirement.load(section.getConfigurationSection("requirement")),
                 unidentified = section.getBoolean("unidentified", false),
                 salvage = loadParts(section, "salvage"),

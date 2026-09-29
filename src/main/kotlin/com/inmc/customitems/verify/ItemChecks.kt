@@ -40,7 +40,9 @@ import org.bukkit.NamespacedKey
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.BlockFace
 import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerItemConsumeEvent
 import org.bukkit.event.player.PlayerToggleSneakEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
@@ -229,6 +231,23 @@ object ItemChecks {
             s.player.health = 10.0
             val left = s.custom.consumes.use(s.player, s.stack(potion), potion)
             ok(s.player.health == 14.0, "체력이 ${s.player.health} (10+4)") ?: ok(left != null && ItemInstance.read(left).usesLeft == 1, "남은 횟수가 ${left?.let { ItemInstance.read(it).usesLeft }}")
+        },
+        Check("바닐라 설치·소모 막기: 블록 재질은 안 놓이고 먹을 것은 먹는 부품이 빠진다") { s ->
+            val stone = s.item(CustomItem("zz_verify_lock_stone", Material.STONE, preventVanillaUse = true))
+            val bread = s.item(CustomItem("zz_verify_lock_bread", Material.BREAD, preventVanillaUse = true))
+            val free = s.item(CustomItem("zz_verify_free_bread", Material.BREAD))
+            val block = s.player.location.block
+            val place = BlockPlaceEvent(block, block.state, block.getRelative(BlockFace.DOWN), s.stack(stone), s.player, true, EquipmentSlot.HAND)
+            Bukkit.getPluginManager().callEvent(place)
+            val locked = s.stack(bread)
+            val eat = PlayerItemConsumeEvent(s.player, locked, EquipmentSlot.HAND)
+            Bukkit.getPluginManager().callEvent(eat)
+            @Suppress("UnstableApiUsage")
+            val consumable = io.papermc.paper.datacomponent.DataComponentTypes.CONSUMABLE
+            ok(place.isCancelled, "돌 재질 아이템이 놓였다")
+                ?: ok(eat.isCancelled, "빵 재질 아이템이 먹혔다")
+                ?: ok(!locked.hasData(consumable), "먹는 부품이 남아 있다 — 먹기가 시작된다")
+                ?: ok(s.stack(free).hasData(consumable), "막지 않은 빵에서 먹는 부품이 빠졌다")
         },
         Check("요구 조건이 모자라면 능력치가 안 돈다") { s ->
             val def = s.item(CustomItem("zz_verify_req", Material.IRON_SWORD, stats = mapOf(Stat.CRIT_CHANCE to 10.0), requirement = Requirement(level = 100_000)))

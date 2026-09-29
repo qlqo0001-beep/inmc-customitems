@@ -8,7 +8,9 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerItemConsumeEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.EquipmentSlot
 
@@ -16,8 +18,8 @@ import org.bukkit.inventory.EquipmentSlot
  * 좌/우클릭 기능과 소모품. 요구 조건이 모자라면 둘 다 안 돈다.
  *
  * **기능은 이벤트를 취소하지 않는다.** (소모품은 바닐라 사용을 막는다 — 물약을 쓰는데 마시기도 하면 안 된다.) 검을 우클릭해 기능을 쓰면서 방패도 들 수 있어야 하고,
- * 곡괭이에 기능을 붙였다고 블록을 못 캐면 안 된다. 취소가 필요한 아이템은 그 재질의
- * 바닐라 동작을 막는 것이 목적일 텐데, 그건 기능이 아니라 별개의 요구다.
+ * 곡괭이에 기능을 붙였다고 블록을 못 캐면 안 된다. 재질의 바닐라 동작(설치·먹기)을 막는 것은 기능이 아니라 별개의 설정이다
+ * ([com.inmc.customitems.item.CustomItem.preventVanillaUse] — [onPlace]·[onConsume]).
  */
 class InteractListener(private val custom: CustomItems) : Listener {
 
@@ -61,6 +63,25 @@ class InteractListener(private val custom: CustomItems) : Listener {
             return
         }
         custom.abilities.fire(player, item, trigger)
+    }
+
+    /**
+     * 바닐라 설치 막기([com.inmc.customitems.item.CustomItem.preventVanillaUse]) — 재질이 블록인 아이템이 그 블록으로 놓이지 않게.
+     * 커스텀 블록(블록 설정)은 빼고 — 그건 우리가 놓으며 땅 보호를 묻는 이 사건을 직접 쏜다(`BlockListener`).
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onPlace(event: BlockPlaceEvent) {
+        val item = custom.items.identify(event.itemInHand) ?: return
+        if (item.preventVanillaUse && item.block == null) event.isCancelled = true
+    }
+
+    /**
+     * 바닐라 먹기·마시기 막기. 막은 아이템은 먹는 부품을 떼어 두어 보통은 여기까지 오지 않는다(`ItemBuilder.render`) — 설정을 켜기 전에
+     * 나가 아직 다시 그려지지 않은 아이템을 위한 것이다.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onConsume(event: PlayerItemConsumeEvent) {
+        if (custom.items.identify(event.item)?.preventVanillaUse == true) event.isCancelled = true
     }
 
     /** 나간 사람의 쿨다운은 들고 있을 이유가 없다. */

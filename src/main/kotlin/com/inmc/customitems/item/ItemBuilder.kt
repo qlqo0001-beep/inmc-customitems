@@ -167,6 +167,22 @@ object ItemBuilder {
         meta.persistentDataContainer.set(ENCHANT_SIGNATURE, org.bukkit.persistence.PersistentDataType.STRING, enchantSignature(meta.enchants, CustomEnchantHook.levels(stack)))
 
         stack.itemMeta = meta
+        // 메타를 다 쓴 **뒤에** — 메타를 쓰면서 부품이 덮이지 않게.
+        vanillaUse(stack, definition)
+    }
+
+    /**
+     * 바닐라 먹기·마시기 막기([CustomItem.preventVanillaUse]) — 먹는 부품(`consumable`)을 떼면 바닐라가 먹기를 **시작조차** 못 한다.
+     * 먹는 모습만 나오고 끝에 안 먹히는 것(사건 취소)보다 낫다. 끄면 재질 기본값으로 되돌린다 — 떼어 둔 것만(우리가 붙인 적 없는 부품은 그대로).
+     * 놓기는 부품으로 못 막아 `InteractListener` 가 `BlockPlaceEvent` 를 막는다.
+     */
+    @Suppress("UnstableApiUsage")
+    private fun vanillaUse(stack: ItemStack, definition: CustomItem) {
+        runCatching {
+            val consumable = io.papermc.paper.datacomponent.DataComponentTypes.CONSUMABLE
+            if (definition.preventVanillaUse) stack.unsetData(consumable)
+            else if (stack.isDataOverridden(consumable)) stack.resetData(consumable)
+        }
     }
 
     /** 바닐라 인챈트 줄 — 이름·레벨은 번역 열쇠로(서버 말이 아니라 보는 사람의 말로). 저주는 빨갛게. */
@@ -286,14 +302,7 @@ object ItemBuilder {
         handHeld: Boolean = false,
     ): List<String> = buildList {
         add((lookup.type(definition) ?: TypeDef.of(definition.type)).header())
-        val outside = definition.worksOutsideSlots(lookup.inventoryEffects())
-        val where = if (outside) "가방에 있으면 효과가 납니다" else "장착 칸(/장비)에 끼워야 효과가 납니다"
-        when (definition.type) {
-            ItemType.TALISMAN -> add("<dark_aqua>" + where + (if (definition.noDuplicate) " · 같은 부적은 하나만" else "") + "</dark_aqua>")
-            ItemType.RELIC -> add("<dark_aqua>" + where + " · 유물은 하나만(가장 높은 등급)</dark_aqua>")
-            ItemType.ACCESSORY -> if (!outside) add("<dark_aqua>" + where + "</dark_aqua>")
-            else -> Unit
-        }
+        addAll(carryLines(definition, definition.worksOutsideSlots(lookup.inventoryEffects())))
         addAll(enchantLines)
 
         // 능력치는 목록 순서가 아니라 enum 순서로. 칼마다 공격력이 다른 줄에 있으면 읽기 어렵다.
@@ -409,6 +418,27 @@ object ItemBuilder {
             addAll(definition.lore)
         }
     }
+
+    /**
+     * 부적·유물·장신구가 **어디서 효과가 나는지**와 **겹치는 규칙** — 종류 바로 밑에 표찰 한 줄씩(사용자 요청 2026-09-30: 더 세련되게).
+     * 손에서도 되는 장신구는 적을 것이 없다.
+     */
+    private fun carryLines(definition: CustomItem, outside: Boolean): List<String> = buildList {
+        val carried = definition.type == ItemType.TALISMAN || definition.type == ItemType.RELIC
+        if (carried || (definition.type == ItemType.ACCESSORY && !outside)) {
+            add(if (outside) tag(WHERE, "소지 효과", "가방에 지니기만 해도 발휘") else tag(WHERE, "장착 효과", "장착 칸(/장비)에 끼워야 발휘"))
+        }
+        if (definition.type == ItemType.TALISMAN && definition.noDuplicate) add(tag(LIMIT, "중복 불가", "같은 부적은 가장 높은 강화 하나만"))
+        if (definition.type == ItemType.RELIC) add(tag(LIMIT, "단 하나", "여러 유물 중 가장 높은 등급 하나만"))
+    }
+
+    /** 표찰 한 줄 — 그라데이션 이름표 · 옅은 설명. */
+    private fun tag(colors: String, label: String, detail: String): String =
+        "<gradient:" + colors + ">" + label + "</gradient> <dark_gray>—</dark_gray> <gray>" + detail + "</gray>"
+
+    /** 효과가 나는 곳(물빛) · 겹치는 규칙(노을빛). */
+    private const val WHERE = "#7ee0f0:#9d9bff"
+    private const val LIMIT = "#ffc46b:#ff8a8a"
 
     /** 공격력·공격 속도는 바닐라처럼 맨손 기준값(1 · 4)을 더해 보인다 — 곡괭이의 "6 공격 피해" 가 그대로 옮겨 오게. */
     private val ABSOLUTE = mapOf(Stat.ATTACK_DAMAGE to 1.0, Stat.ATTACK_SPEED to 4.0)

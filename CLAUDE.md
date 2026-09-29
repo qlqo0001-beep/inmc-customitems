@@ -336,6 +336,19 @@
 
 ---
 
+## 바닐라 동작 · 로어의 이름
+
+74. **바닐라 먹기 막기는 사건 취소가 아니라 부품 떼기다**([CustomItem.preventVanillaUse], [ItemBuilder.render]). 사건만 취소하면 먹는
+    모습이 끝까지 나온 뒤에야 안 먹힌다. `consumable` 부품을 떼면 먹기가 시작조차 안 된다. **메타를 쓴 뒤에** 뗀다(`stack.itemMeta = meta`
+    가 부품을 덮는다). 끌 때는 떼어 둔 것만 되돌린다(`isDataOverridden`). 놓기는 막을 부품이 없어 `BlockPlaceEvent` 로 막고, 커스텀 블록은
+    뺀다 — 우리가 놓으며 땅 보호를 묻는 그 사건을 직접 쏜다.
+
+75. **로어에 적는 바닐라 이름은 번역 열쇠다**(`<lang:effect.minecraft.night_vision>` — 인챈트 줄과 같다). 레지스트리를 타면 서버 없이
+    테스트할 수 없고, 한국어 표를 따로 두면 판마다 낡는다. 효과 값은 엔진이 찾는 규칙([Registries.potionEffect] — 소문자, 이름공간이 없으면
+    `minecraft`, 점은 밑줄)과 같게 풀어야 로어와 실제 효과가 어긋나지 않는다([Ability.potionKey]).
+
+---
+
 ## 검증
 
 53. **`/커스텀아이템 검증` 은 검사용 정의(`zz_verify_…`)를 같은 틱에 넣고 지운다.** 저장 틱커는 다른 틱에

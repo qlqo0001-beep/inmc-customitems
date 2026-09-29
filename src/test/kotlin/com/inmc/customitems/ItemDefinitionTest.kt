@@ -73,6 +73,7 @@ class ItemDefinitionTest {
                 Ability.of(Trigger.ON_HIT, EffectType.LIGHTNING).copy(chance = 30.0),
             ),
             data = mapOf("fishing.rod" to "1", "fishing.reel-power" to "15"),
+            preventVanillaUse = true,
             block = com.inmc.customitems.item.BlockSpec(com.inmc.customitems.item.BlockKind.TRANSPARENT, "down=false,east=false,north=false,south=false,up=false,west=true", drop = false),
         )
 
@@ -356,9 +357,9 @@ class ItemDefinitionTest {
             com.inmc.customitems.item.ItemBuilder.buildLore(item, emptyMap(), lookup = lookup).joinToString(" ")
         val charm = CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN)
         val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
-        assertTrue("가방에 있으면" in lore(charm, com.inmc.customitems.item.Lookup.NONE))
+        assertTrue("소지 효과" in lore(charm, com.inmc.customitems.item.Lookup.NONE))
         assertTrue("장착 칸(/장비)에 끼워야" in lore(charm, off))
-        assertTrue("가방에 있으면" in lore(charm.copy(inventoryEffect = true), off))
+        assertTrue("소지 효과" in lore(charm.copy(inventoryEffect = true), off))
         assertTrue("장착 칸" !in lore(ring, com.inmc.customitems.item.Lookup.NONE), "손에서도 되는 장신구에 없던 줄이 생겼다")
         assertTrue("장착 칸(/장비)에 끼워야" in lore(ring, off))
     }
