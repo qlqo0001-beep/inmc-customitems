@@ -249,6 +249,29 @@ object ItemChecks {
                 ?: ok(!locked.hasData(consumable), "먹는 부품이 남아 있다 — 먹기가 시작된다")
                 ?: ok(s.stack(free).hasData(consumable), "막지 않은 빵에서 먹는 부품이 빠졌다")
         },
+        Check("배낭: 우클릭·장착 칸으로 같은 창고가 열리고, 넣은 것이 남고, 배낭 안에 배낭은 못 넣는다") { s ->
+            val bag = s.item(CustomItem("zz_verify_bag", Material.PAPER, type = ItemType.TALISMAN, backpack = 50))
+            s.player.inventory.setItemInMainHand(s.stack(bag))
+            s.interact(Action.RIGHT_CLICK_AIR)
+            val menu = s.top() as? com.inmc.customitems.gui.BackpackMenu ?: return@Check "우클릭해도 배낭이 안 열렸다(" + s.topName() + ")"
+            val id = s.custom.backpacks.idOf(s.player.inventory.itemInMainHand) ?: return@Check "배낭 번호가 안 찍혔다"
+            menu.inventory.setItem(0, ItemStack(Material.DIAMOND, 3))
+            s.player.setItemOnCursor(s.stack(bag))
+            val nested = s.click(1)
+            s.player.setItemOnCursor(null)
+            s.player.closeInventory()
+            val kept = s.custom.backpacks.load(id)
+            // 장착 칸 길 — 같은 배낭을 끼우고 /배낭 · G 와 같은 자리로 연다.
+            s.equip(com.inmc.customitems.player.EquipmentStore.Group.TALISMAN, 0, s.player.inventory.itemInMainHand.clone())
+            s.player.inventory.setItemInMainHand(null)
+            s.custom.backpacks.openEquipped(s.player, com.inmc.customitems.player.EquipmentStore.Group.TALISMAN, 0)
+            val again = s.top() as? com.inmc.customitems.gui.BackpackMenu
+            s.player.closeInventory()
+            s.custom.backpacks.save(id, emptyMap()) // 검사가 만든 창고 파일을 지운다(빈 창고는 파일을 지운다)
+            ok(nested, "배낭 안에 배낭이 들어갔다")
+                ?: ok(kept[0]?.type == Material.DIAMOND && kept[0]?.amount == 3, "넣은 다이아몬드가 저장되지 않았다: " + kept[0])
+                ?: ok(again?.id == id, "장착 칸의 배낭이 같은 창고로 안 열렸다")
+        },
         Check("요구 조건이 모자라면 능력치가 안 돈다") { s ->
             val def = s.item(CustomItem("zz_verify_req", Material.IRON_SWORD, stats = mapOf(Stat.CRIT_CHANCE to 10.0), requirement = Requirement(level = 100_000)))
             s.player.inventory.setItemInMainHand(s.stack(def))

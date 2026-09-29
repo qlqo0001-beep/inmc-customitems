@@ -33,6 +33,7 @@ class CustomItemsCommand(private val custom: CustomItems) {
             event.registrar().register(tree().build(), "INMC 커스텀아이템", listOf("customitems", "ci", "아이템"))
             event.registrar().register(craftTree().build(), "제작대 열기", listOf("craft"))
             event.registrar().register(equipmentTree().build(), "장착 칸(장신구·부적·유물)", listOf("장신구", "equipment", "acc"))
+            event.registrar().register(backpackTree().build(), "장착 칸에 끼운 배낭 열기", listOf("backpack"))
         }
     }
 
@@ -87,6 +88,18 @@ class CustomItemsCommand(private val custom: CustomItems) {
                     ?: return@executes 0.also { custom.messages.send(ctx.source.sender, "player-only") }
                 if (!custom.ready) return@executes 0.also { custom.messages.send(player, "not-ready") }
                 com.inmc.customitems.gui.EquipmentMenu(custom, player).open(player)
+                1
+            }
+
+    /** `/배낭` — 장착 칸에 끼운 배낭. 하나면 곧바로, 여럿이면 고르는 화면. 손에 든 배낭은 우클릭으로 연다. */
+    private fun backpackTree(): LiteralArgumentBuilder<CommandSourceStack> =
+        Commands.literal("배낭")
+            .requires { it.sender.hasPermission(BACKPACK) }
+            .executes { ctx ->
+                val player = ctx.source.executor as? Player ?: ctx.source.sender as? Player
+                    ?: return@executes 0.also { custom.messages.send(ctx.source.sender, "player-only") }
+                if (!custom.ready) return@executes 0.also { custom.messages.send(player, "not-ready") }
+                custom.backpacks.openEquippedAny(player)
                 1
             }
 
@@ -330,5 +343,6 @@ class CustomItemsCommand(private val custom: CustomItems) {
         /** 제작대를 쓰는 권한. 누구나. */
         const val CRAFT = "incustomitems.craft"
         const val EQUIPMENT = "incustomitems.equipment"
+        const val BACKPACK = "incustomitems.backpack"
     }
 }

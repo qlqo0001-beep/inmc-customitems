@@ -121,6 +121,8 @@ class ApplyListener(private val custom: CustomItems) : Listener {
         if (definition.salvage.isEmpty()) return
         event.isCancelled = true
         val gems = ItemInstance.read(target).gems.filter { it.isNotEmpty() }
+        // 배낭이면 안의 것도 보석처럼 돌려준다.
+        custom.backpacks.spill(player, target)
         player.setItemOnCursor(custom.consumes.spend(cursor, tool))
         target.amount -= 1
         event.currentItem = target.takeIf { it.amount > 0 }

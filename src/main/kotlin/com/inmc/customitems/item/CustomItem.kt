@@ -208,6 +208,12 @@ data class CustomItem(
      * 막는다. 우리 것(우클릭 기능 · 소모품 · 커스텀 블록)은 그대로 돈다.
      */
     val preventVanillaUse: Boolean = false,
+    /**
+     * 배낭 크기(칸 수, 0 = 배낭 아님) — 장신구·부적·유물([isBackpack])을 우클릭하면 **이 아이템 한 개만의** 창고가 열린다(사용자 결정
+     * 2026-09-30: 셜커 상자처럼 아이템에 붙는다, 크기는 자유 — 45칸씩 페이지). 내용물은 아이템이 아니라 서버 파일에 있고 아이템에는
+     * 배낭 번호만 찍힌다([com.inmc.customitems.player.Backpacks]). 장착 칸에 끼우면 `/배낭` 으로 연다.
+     */
+    val backpack: Int = 0,
     val requirement: Requirement = Requirement(),
     /** 만들 때 미확인으로 나온다. 감정서로 밝힐 때까지 능력치·기능이 돌지 않는다. */
     val unidentified: Boolean = false,
@@ -247,6 +253,9 @@ data class CustomItem(
 ) {
 
     fun label(): String = displayName.ifBlank { id }
+
+    /** 배낭으로 열리는가 — 크기가 있고 장신구·부적·유물일 때만. 종류를 바꾸면 크기는 남아도 닫힌다. */
+    val isBackpack: Boolean get() = backpack > 0 && (type == ItemType.ACCESSORY || type == ItemType.TALISMAN || type == ItemType.RELIC)
 
     /** 마인크래프트 열쇠·리소스팩 경로에 쓰는 이름([resourceId]). */
     val resourceId: String get() = resourceId(id)
@@ -314,6 +323,7 @@ data class CustomItem(
         }
         consume?.save(section.createSection("consume"))
         if (preventVanillaUse) section.set("prevent-vanilla-use", true)
+        if (backpack > 0) section.set("backpack", backpack)
         if (!requirement.isEmpty) requirement.save(section.createSection("requirement"))
         if (unidentified) section.set("unidentified", true)
         saveParts(section, "salvage", salvage)
@@ -411,6 +421,7 @@ data class CustomItem(
                 },
                 consume = section.getConfigurationSection("consume")?.let(ConsumeSpec::load),
                 preventVanillaUse = section.getBoolean("prevent-vanilla-use", false),
+                backpack = section.getInt("backpack", 0).coerceIn(0, com.inmc.customitems.player.BackpackLayout.MAX),
                 requirement = Requirement.load(section.getConfigurationSection("requirement")),
                 unidentified = section.getBoolean("unidentified", false),
                 salvage = loadParts(section, "salvage"),

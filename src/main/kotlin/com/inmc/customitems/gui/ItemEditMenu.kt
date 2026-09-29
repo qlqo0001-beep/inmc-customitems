@@ -171,6 +171,16 @@ class ItemEditMenu(
             mutate { it.copy(noDuplicate = !it.noDuplicate) }
         }
         if (item.type == ItemType.ACCESSORY || item.type.carried) {
+            set(SLOT_BACKPACK, backpackIcon(item)) { event ->
+                if (Editors.isPrompt(event)) {
+                    Editors.promptInt(custom.prompts, viewer, "배낭 크기(칸, 0 = 끄기)", 0, com.inmc.customitems.player.BackpackLayout.MAX, { open(viewer) }) {
+                        mutate(false) { current -> current.copy(backpack = it) }
+                    }
+                    return@set
+                }
+                val next = (item.backpack + Editors.step(event, 9)).coerceIn(0, com.inmc.customitems.player.BackpackLayout.MAX)
+                mutate { it.copy(backpack = next) }
+            }
             set(SLOT_INVENTORY_EFFECT, inventoryEffectIcon(item)) {
                 // 서버 설정 → 장착 칸에서만 → 가방에서도 → 서버 설정
                 mutate { it.copy(inventoryEffect = when (it.inventoryEffect) { null -> false; false -> true; true -> null }) }
@@ -491,6 +501,24 @@ class ItemEditMenu(
         listOf("<gray>" + hint + "</gray>", "", "<yellow>▶ 클릭: 전환</yellow>"),
     )
 
+    /** 배낭 크기 — 장신구·부적·유물만. 45칸이 넘으면 페이지로 넘긴다. */
+    private fun backpackIcon(item: CustomItem): org.bukkit.inventory.ItemStack {
+        val pages = com.inmc.customitems.player.BackpackLayout.pages(item.backpack)
+        return Icon.of(
+            if (item.backpack > 0) Material.BUNDLE else Material.GRAY_DYE,
+            "<gold>배낭: <white>" + (if (item.backpack > 0) item.backpack.toString() + "칸" + (if (pages > 1) " · " + pages + "페이지" else "") else "꺼짐") + "</white></gold>",
+            listOf(
+                "<gray>들고 우클릭하면 이 아이템 한 개만의 창고가 열립니다.</gray>",
+                "<gray>내용물은 아이템에 붙습니다 — 주거나 떨어뜨리면 같이 갑니다.</gray>",
+                "<gray>장착 칸(/장비)에 끼우면 <white>/배낭</white> 으로 엽니다.</gray>",
+                "<dark_gray>45칸씩 페이지 · 최대 " + com.inmc.customitems.player.BackpackLayout.MAX + "칸 · 배낭 안에 배낭은 못 넣습니다</dark_gray>",
+                "",
+                "<yellow>▶ 좌/우클릭: ±9칸 · Shift: ±90칸</yellow>",
+                "<yellow>▶ 숫자키: 직접 입력 · 0 이면 끄기</yellow>",
+            ),
+        )
+    }
+
     private fun inventoryEffectIcon(item: CustomItem): org.bukkit.inventory.ItemStack {
         val server = custom.equipmentSettings.inventoryEffects
         val state = when (item.inventoryEffect) {
@@ -601,6 +629,7 @@ class ItemEditMenu(
         const val SLOT_GEM = 34
         const val SLOT_CONSUME = 37
         const val SLOT_VANILLA_USE = 36
+        const val SLOT_BACKPACK = 18
         const val SLOT_REQUIREMENT = 38
         const val SLOT_STYLE = 39
         const val SLOT_UNIDENTIFIED = 40

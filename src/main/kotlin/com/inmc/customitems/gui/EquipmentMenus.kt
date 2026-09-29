@@ -41,6 +41,8 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
                 val slot = row * 9 + 1 + index
                 set(slot, when {
                     stored != null && index >= capacity -> Icon.annotate(stored.clone(), lore = listOf("", "<red>잠긴 칸 — 효과가 없습니다. 꺼내기만 됩니다.</red>"))
+                    stored != null && custom.items.usable(stored)?.isBackpack == true ->
+                        Icon.annotate(stored.clone(), lore = listOf("", "<yellow>▶ 좌클릭: 꺼내기 · 우클릭: 배낭 열기 · Shift: 가방으로</yellow>"))
                     stored != null -> Icon.annotate(stored.clone(), lore = listOf("", "<yellow>▶ 클릭: 꺼내기 · Shift: 가방으로</yellow>"))
                     index >= capacity -> Icon.of(Material.IRON_BARS, "<dark_gray>잠긴 칸</dark_gray>", listOf("<gray>권한이 있어야 열립니다.</gray>"))
                     // 열린 빈 칸은 비워 둔다 — 평범한 빈 칸이 "여기 넣으면 된다"를 가장 잘 말한다.
@@ -81,6 +83,11 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
 
         if (cursor == null) {
             if (stored == null) return
+            // 끼운 배낭은 우클릭으로 연다(`/배낭` 과 같다). 잠긴 칸의 것은 효과가 없듯 열리지도 않는다 — 꺼내서 연다.
+            if (event.click == ClickType.RIGHT && index < store.capacity(viewer, group) && custom.items.usable(stored)?.isBackpack == true) {
+                custom.backpacks.openEquipped(viewer, group, index)
+                return
+            }
             if (event.isShiftClick) {
                 // 가방에 다 안 들어가면 칸에 그대로 둔다 — 반만 옮기면 나머지가 사라진다.
                 if (viewer.inventory.addItem(stored.clone()).isNotEmpty()) return custom.messages.send(viewer, "equip-bag-full")

@@ -58,6 +58,8 @@ class CustomItemsPlugin : JavaPlugin() {
 
     override fun onDisable() {
         if (!::custom.isInitialized) return
+        // 열린 배낭을 먼저 닫는다 — 닫힐 때 마지막 내용을 쓴다.
+        custom.backpacks.closeAll()
         ticker.stop()
         passiveTicker.stop()
         metrics.stop()

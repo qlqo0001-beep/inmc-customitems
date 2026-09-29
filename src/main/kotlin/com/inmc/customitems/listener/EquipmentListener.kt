@@ -2,6 +2,8 @@ package com.inmc.customitems.listener
 
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.player.EquipmentStore
+import io.papermc.paper.connection.PlayerGameConnection
+import io.papermc.paper.event.player.PlayerCustomClickEvent
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
@@ -23,6 +25,21 @@ class EquipmentListener(private val custom: CustomItems) : Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onQuit(event: PlayerQuitEvent) = custom.equipment.forget(event.player.uniqueId)
+
+    /**
+     * 빠른 동작 키(기본 G)의 "빠른 메뉴" 에서 [배낭 열기] — `/배낭` 과 같다. 창과 버튼은 서버가 켜지기 전에 등록된다
+     * ([com.inmc.customitems.CustomItemsBootstrap]). 이 사건은 패킷을 받은 자리에서 올 수 있어 그 사람의 스케줄러로 넘긴다.
+     */
+    @EventHandler
+    fun onQuickAction(event: PlayerCustomClickEvent) {
+        if (event.identifier != com.inmc.customitems.CustomItemsBootstrap.OPEN_BACKPACK) return
+        val player = (event.commonConnection as? PlayerGameConnection)?.player ?: return
+        player.scheduler.run(custom.plugin, { _ ->
+            if (!player.isOnline || !custom.ready) return@run
+            if (!player.hasPermission(com.inmc.customitems.command.CustomItemsCommand.BACKPACK)) return@run
+            custom.backpacks.openEquippedAny(player)
+        }, null)
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onDeath(event: PlayerDeathEvent) {

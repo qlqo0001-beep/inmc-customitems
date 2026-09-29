@@ -40,6 +40,8 @@ class UpgradeService(private val custom: CustomItems) {
         val after = Upgrades.afterFail(step.fail, instance.level)
         if (after < 0) {
             returnGems(player, instance)
+            // 배낭이면 안의 것도 보석처럼 돌려준다.
+            custom.backpacks.spill(player, target)
             return Attempt(Outcome.DESTROYED, instance.level, null)
         }
         if (after != instance.level) ItemBuilder.render(target, definition, instance.copy(level = after), custom.items.lookup)
@@ -80,6 +82,10 @@ class UpgradeService(private val custom: CustomItems) {
                 ItemBuilder.render(evolved, target, next, custom.items.lookup)
                 give(player, leftover)
             }
+        }
+        // 배낭 번호는 무엇을 이어받든 넘긴다 — 안 넘기면 창고의 물건이 번호 잃은 파일에 갇힌다.
+        custom.backpacks.idOf(stack)?.let { id ->
+            evolved.editMeta { it.persistentDataContainer.set(com.inmc.customitems.player.Backpacks.KEY, org.bukkit.persistence.PersistentDataType.STRING, id.toString()) }
         }
         return evolved
     }

@@ -160,4 +160,13 @@ class MenuLayoutTest {
         assertEquals(all.size, all.values.toSet().size, "슬롯 충돌: " + all.entries.groupBy { it.value }.filterValues { it.size > 1 })
         for ((name, slot) in all) assertTrue(slot in 0 until 54, "$name($slot) 이 창을 벗어납니다")
     }
+
+    @Test
+    fun `배낭 화면의 넘기기 칸은 맨 아래 줄에만 있다`() {
+        // 넘기기 버튼이 내용 칸(0~44)에 겹치면 그 자리의 물건이 버튼에 덮여 안 보이고, 창에서 옮겨 적을 때 사라진다.
+        val slots = slotsOf("BackpackMenu.kt")
+        assertTrue(slots.isNotEmpty(), "슬롯 상수를 하나도 못 읽었습니다")
+        assertEquals(slots.size, slots.values.toSet().size, "슬롯 충돌: $slots")
+        for ((name, slot) in slots) assertTrue(slot in com.inmc.customitems.player.BackpackLayout.PER_PAGE until 54, "$name($slot) 이 넘기기 줄 밖입니다")
+    }
 }

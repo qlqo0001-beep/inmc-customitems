@@ -41,6 +41,15 @@ class InteractListener(private val custom: CustomItems) : Listener {
         val player = event.player
         val stack = player.inventory.itemInMainHand
         val item = custom.items.usable(stack) ?: return
+        // 배낭(장신구·부적·유물)은 우클릭이 창고를 연다 — 장착 칸에서만 효과가 나는 종류여도(효과가 아니라 여는 것이다).
+        // 웅크려 우클릭 기능이 있으면 그쪽으로, 상자·문 같은 블록을 누르면 그 블록을 연다.
+        if (trigger == Trigger.RIGHT_CLICK && item.isBackpack && !(player.isSneaking && item.abilities.any { it.trigger == Trigger.SHIFT_RIGHT_CLICK }) && !opensBlock(event)) {
+            if (!custom.requirements.check(player, item)) return
+            event.setUseItemInHand(Event.Result.DENY)
+            event.setUseInteractedBlock(Event.Result.DENY)
+            custom.backpacks.openHand(player)
+            return
+        }
         // 장착 칸에서만 효과가 나는 장신구·부적·유물은 손에 들고 눌러도 아무 일이 없다.
         if (!custom.equipmentSettings.worksOutside(item)) return
         if (!custom.requirements.check(player, item)) return
@@ -64,6 +73,11 @@ class InteractListener(private val custom: CustomItems) : Listener {
         }
         custom.abilities.fire(player, item, trigger)
     }
+
+    /** 웅크리지 않고 상자·문처럼 여는 블록을 눌렀는가 — 그러면 배낭보다 그 블록이 먼저다(바닐라와 같다). */
+    @Suppress("DEPRECATION")
+    private fun opensBlock(event: PlayerInteractEvent): Boolean =
+        event.action == Action.RIGHT_CLICK_BLOCK && !event.player.isSneaking && event.clickedBlock?.type?.isInteractable == true
 
     /**
      * 바닐라 설치 막기([com.inmc.customitems.item.CustomItem.preventVanillaUse]) — 재질이 블록인 아이템이 그 블록으로 놓이지 않게.

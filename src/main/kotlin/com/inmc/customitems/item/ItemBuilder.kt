@@ -120,8 +120,8 @@ object ItemBuilder {
         @Suppress("DEPRECATION")
         meta.setCustomModelData(table?.customModelDataAt(instance.level) ?: definition.customModelData.takeIf { it > 0 })
         meta.isUnbreakable = definition.unbreakable
-        // 여러 번 쓰는 소모품은 남은 횟수가 한 개마다 달라 겹치면 안 된다.
-        runCatching { meta.setMaxStackSize(if ((definition.consume?.uses ?: 0) > 1) 1 else definition.components.maxStack.takeIf { it > 0 }) }
+        // 여러 번 쓰는 소모품은 남은 횟수가 한 개마다 달라 겹치면 안 된다. 배낭도 — 한 개마다 창고가 따로다(배낭 번호).
+        runCatching { meta.setMaxStackSize(if ((definition.consume?.uses ?: 0) > 1 || definition.isBackpack) 1 else definition.components.maxStack.takeIf { it > 0 }) }
         components(meta, definition.components)
         // 1.20.5 부터 아이템마다 최대 내구도를 조절할 수 있다. 낡은 서버에서는
         // 그냥 건너뛴다 — 여기서 터지면 아이템 자체가 안 만들어진다.
@@ -430,6 +430,7 @@ object ItemBuilder {
         }
         if (definition.type == ItemType.TALISMAN && definition.noDuplicate) add(tag(LIMIT, "중복 불가", "같은 부적은 가장 높은 강화 하나만"))
         if (definition.type == ItemType.RELIC) add(tag(LIMIT, "단 하나", "여러 유물 중 가장 높은 등급 하나만"))
+        if (definition.isBackpack) add(tag(WHERE, "배낭", "우클릭으로 열기 · " + definition.backpack + "칸 · 장착하면 /배낭"))
     }
 
     /** 표찰 한 줄 — 그라데이션 이름표 · 옅은 설명. */
