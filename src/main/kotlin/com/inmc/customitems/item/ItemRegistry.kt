@@ -81,6 +81,7 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         set = { plugin.sets.get(it) }, item = { get(it) }, upgrade = { plugin.upgrades.get(it) },
         inventoryEffects = { plugin.equipmentSettings.inventoryEffects },
         type = { plugin.types.of(it) },
+        category = { plugin.categories.of(it) },
     )
 
     /**
@@ -137,6 +138,11 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
 
     /** 종류의 이름·기호가 바뀌었거나 종류가 생기고 지워졌다 — 로어 첫 줄이 달라지므로 지문을 다시 뜬다. */
     fun onTypesChanged() {
+        for (item in byId.values) revisions[item.id] = fingerprint(item)
+    }
+
+    /** 소분류가 바뀌었다 — 로어의 종류 줄이 소분류 이름인 아이템은 그 줄이 달라지므로 지문을 다시 뜬다. */
+    fun onCategoriesChanged() {
         for (item in byId.values) revisions[item.id] = fingerprint(item)
     }
 
@@ -248,6 +254,8 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         if (!item.worksOutsideSlots(plugin.equipmentSettings.inventoryEffects)) yaml.set("__outside", false)
         // 종류를 손대지 않았으면 적지 않는다 — 적으면 이 기능이 생긴 것만으로 모든 아이템을 다시 그린다.
         plugin.types.of(item).takeIf { it != TypeDef.of(item.type) }?.save(yaml.createSection("__type"))
+        // 로어의 종류 줄이 소분류 이름일 때만 적는다 — 소분류를 켜고 끄거나 이름을 바꾸면 그 아이템들이 다시 그려진다.
+        plugin.categories.of(item)?.takeIf { item.typeLabel.showsCategory(it) }?.let { yaml.set("__label", it.name) }
         return java.util.zip.CRC32().apply { update(yaml.saveToString().toByteArray(Charsets.UTF_8)) }.value
     }
 

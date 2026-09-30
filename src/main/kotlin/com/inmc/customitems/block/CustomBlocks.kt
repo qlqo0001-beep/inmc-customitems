@@ -228,6 +228,7 @@ class CustomBlocks(private val custom: CustomItems) {
                             CustomItem(
                                 id = found.id,
                                 material = Material.PAPER,
+                                type = com.inmc.customitems.item.ItemType.BLOCK,
                                 displayName = found.name,
                                 lore = found.lore,
                                 model = found.model,

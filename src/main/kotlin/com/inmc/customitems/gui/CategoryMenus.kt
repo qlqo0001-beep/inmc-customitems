@@ -12,6 +12,7 @@ import kr.inmc.core.store.DefinitionKey
 import kr.inmc.core.util.Text
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.event.inventory.ClickType
 
 /** 종류를 눌렀을 때. 소분류가 있으면 소분류 서랍, 없으면 곧바로 목록 — 서랍 하나를 더 거칠 이유가 없다. */
 internal fun openType(custom: CustomItems, viewer: Player, type: TypeDef) {
@@ -21,7 +22,8 @@ internal fun openType(custom: CustomItems, viewer: Player, type: TypeDef) {
 /**
  * 한 종류의 소분류 서랍(MMOItems 에서 부모 타입을 둔 타입들). 종류 하나에 아이템이 수십 개가 되면 한 목록에서 못 찾는다.
  *
- * 서랍 좌클릭 = 보기, 우클릭 = 이름, Shift+좌클릭 = 손에 든 것으로 아이콘, Shift+우클릭 = 지우기(아이템은 "분류 없음"으로).
+ * 서랍 좌클릭 = 보기, 우클릭 = 이름, Shift+좌클릭 = 손에 든 것으로 아이콘(빈손이면 자동 — 첫 아이템 모양), Shift+우클릭 = 지우기
+ * (아이템은 "분류 없음"으로), Q = 로어의 종류 줄에 이 소분류 이름 켜고 끄기(사용자 결정 2026-10-01 — 아이템마다 따로 고를 수도 있다).
  */
 class CategoryMenu(custom: CustomItems, private val viewer: Player, private val type: TypeDef) :
     Menu(custom, SIZE, Text.renderFlat("<dark_gray>커스텀아이템 — " + type.name + "</dark_gray>")) {
@@ -36,16 +38,19 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
         page = Paging.clamp(page, categories.size)
 
         for ((slot, category) in Paging.slice(categories, page).withIndex()) {
-            set(slot, iconOf(category.icon, category.iconItem, "<yellow>" + category.name + "</yellow>", listOf(
+            set(slot, categoryIcon(category, "<yellow>" + category.name + "</yellow>", listOf(
                 "<gray>아이템 <white>" + (counts[category.id] ?: 0) + "</white>개</gray>",
+                "<gray>로어의 종류 줄: <white>" + (if (category.loreName) category.name + "</white> <dark_gray>(소분류 이름)" else type.name + "</white> <dark_gray>(종류 이름)") + "</dark_gray></gray>",
                 "<dark_gray>id " + category.id + "</dark_gray>",
                 "",
                 "<yellow>▶ 좌클릭: 보기</yellow>",
                 "<yellow>▶ 우클릭: 이름 바꾸기</yellow>",
-                "<yellow>▶ Shift+좌클릭: 손에 든 것으로 아이콘</yellow>",
+                "<yellow>▶ Shift+좌클릭: 손에 든 것으로 아이콘 · 빈손이면 자동</yellow>",
+                "<yellow>▶ Q: 로어에 소분류 이름 켜기·끄기</yellow>",
                 "<red>▶ Shift+우클릭: 지우기</red>",
             ))) { event ->
                 when {
+                    event.click == ClickType.DROP || event.click == ClickType.CONTROL_DROP -> toggleLoreName(category)
                     event.isShiftClick && event.isRightClick -> confirmRemove(category)
                     event.isShiftClick -> setIcon(category)
                     event.isRightClick -> rename(category)
@@ -84,7 +89,8 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
             when {
                 !DefinitionKey.isValid(id) -> custom.messages.send(viewer, "invalid-name", Ph.of().item(raw))
                 custom.categories.get(id) != null -> custom.messages.send(viewer, "already-exists", Ph.of().item(id))
-                else -> custom.categories.put(Category(id, type.id, icon = type.icon, iconItem = type.iconItem))
+                // 아이콘은 비워 둔다 — 첫 아이템 모양이 서랍 아이콘이 된다.
+                else -> custom.categories.put(Category(id, type.id))
             }
         }
     }
@@ -102,9 +108,14 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
 
     private fun setIcon(category: Category) {
         val hand = viewer.inventory.itemInMainHand
-        if (hand.type.isAir) return
-        val (material, item) = captureIcon(hand)
+        // 빈손이면 자동으로 되돌린다(첫 아이템 모양).
+        val (material, item) = if (hand.type.isAir) null to null else captureIcon(hand)
         custom.categories.get(category.id)?.let { custom.categories.put(it.copy(icon = material, iconItem = item)) }
+        refresh()
+    }
+
+    private fun toggleLoreName(category: Category) {
+        custom.categories.get(category.id)?.let { custom.categories.put(it.copy(loreName = !it.loreName)) }
         refresh()
     }
 

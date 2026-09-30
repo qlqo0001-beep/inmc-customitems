@@ -351,17 +351,36 @@ class ItemDefinitionTest {
     }
 
     @Test
-    fun `로어가 효과가 나는 곳을 말한다`() {
-        val off = com.inmc.customitems.item.Lookup(inventoryEffects = { false })
-        fun lore(item: CustomItem, lookup: com.inmc.customitems.item.Lookup) =
-            com.inmc.customitems.item.ItemBuilder.buildLore(item, emptyMap(), lookup = lookup).joinToString(" ")
-        val charm = CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN)
-        val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
-        assertTrue("소지 효과" in lore(charm, com.inmc.customitems.item.Lookup.NONE))
-        assertTrue("장착 칸(/장비)에 끼워야" in lore(charm, off))
-        assertTrue("소지 효과" in lore(charm.copy(inventoryEffect = true), off))
-        assertTrue("장착 칸" !in lore(ring, com.inmc.customitems.item.Lookup.NONE), "손에서도 되는 장신구에 없던 줄이 생겼다")
-        assertTrue("장착 칸(/장비)에 끼워야" in lore(ring, off))
+    fun `로어의 종류 줄 — 소분류가 켜면 소분류 이름, 아이템이 고르면 그것이 먼저, 기호는 늘 종류의 것`() {
+        val shown = com.inmc.customitems.item.Category("블록", ItemType.MISC.id, "블록", loreName = true)
+        val hidden = shown.copy(loreName = false)
+        fun header(item: CustomItem, category: com.inmc.customitems.item.Category?) =
+            com.inmc.customitems.item.ItemBuilder.typeHeader(item, com.inmc.customitems.item.Lookup(category = { category }))
+        val item = CustomItem("ore", Material.PAPER, type = ItemType.MISC, category = "블록")
+        assertTrue("✦" in header(item, shown) && "블록" in header(item, shown) && "기타" !in header(item, shown))
+        assertTrue("기타" in header(item, hidden), "끈 소분류는 종류 이름")
+        assertTrue("블록" in header(item.copy(typeLabel = com.inmc.customitems.item.TypeLabel.CATEGORY), hidden), "아이템이 소분류 이름을 고르면 소분류가 꺼 둬도")
+        assertTrue("기타" in header(item.copy(typeLabel = com.inmc.customitems.item.TypeLabel.TYPE), shown), "아이템이 종류 이름을 고르면 소분류가 켜 둬도")
+        assertTrue("기타" in header(item, null), "소분류가 없으면 종류 이름")
+    }
+
+    @Test
+    fun `소분류는 아이콘을 비워 둘 수 있고 로어 표시와 함께 왕복한다 — 아이템의 종류 줄도`() {
+        val auto = com.inmc.customitems.item.Category("생선살", ItemType.MATERIAL.id, "생선살", loreName = true)
+        val fixed = com.inmc.customitems.item.Category("강화석", ItemType.CONSUMABLE.id, "강화석", icon = Material.PRISMARINE_SHARD)
+        for (category in listOf(auto, fixed)) {
+            val section = YamlConfiguration().createSection(category.id)
+            category.save(section)
+            assertEquals(category, com.inmc.customitems.item.Category.load(category.id, section))
+        }
+        val section = YamlConfiguration().createSection("x")
+        auto.save(section)
+        assertTrue(!section.contains("icon"), "비운 아이콘을 재질로 적었다")
+        val item = CustomItem("fillet", Material.COD, type = ItemType.MATERIAL, category = "생선살", typeLabel = com.inmc.customitems.item.TypeLabel.TYPE)
+        val yaml = YamlConfiguration()
+        item.save(yaml.createSection(item.id))
+        assertEquals(item.typeLabel, CustomItem.load(item.id, yaml.getConfigurationSection(item.id)!!)?.typeLabel)
+        assertEquals(ItemType.BLOCK, ItemType.of("block"), "블록 종류(2026-10-01)")
     }
 
     @Test

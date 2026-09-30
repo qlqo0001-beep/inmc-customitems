@@ -54,10 +54,6 @@
   type: consumable
   name: 강화석
   icon: PRISMARINE_SHARD
-유물강화권:
-  type: consumable
-  name: 유물 강화권
-  icon: STICK
 도구교환권:
   type: consumable
   name: 도구 교환권

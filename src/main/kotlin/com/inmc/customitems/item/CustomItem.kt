@@ -138,6 +138,8 @@ data class CustomItem(
     val tier: Tier = Tier.COMMON,
     /** 종류 아래의 소분류 id(`categories.yml`). 비우면 "분류 없음". 표시와 걸러보기 전용. */
     val category: String = "",
+    /** 로어의 종류 줄 — 소분류 설정대로(기본) · 종류 이름 · 소분류 이름(사용자 결정 2026-10-01). */
+    val typeLabel: TypeLabel = TypeLabel.AUTO,
     /** 무기의 공격 방식(단검·창·지팡이…). */
     val style: AttackStyle = AttackStyle.NONE,
 
@@ -291,6 +293,7 @@ data class CustomItem(
         section.set("type", type.id)
         section.set("tier", tier.id)
         if (category.isNotBlank()) section.set("category", category)
+        if (typeLabel != TypeLabel.AUTO) section.set("type-label", typeLabel.id)
         if (style != AttackStyle.NONE) section.set("attack-style", style.id)
 
         if (displayName.isNotBlank()) section.set("display-name", displayName)
@@ -415,6 +418,7 @@ data class CustomItem(
                 type = ItemType.of(section.getString("type")),
                 tier = Tier.of(section.getString("tier")),
                 category = section.getString("category").orEmpty().trim().lowercase(),
+                typeLabel = TypeLabel.of(section.getString("type-label")),
                 style = AttackStyle.of(section.getString("attack-style")),
                 displayName = section.getString("display-name").orEmpty(),
                 lore = section.getStringList("lore"),

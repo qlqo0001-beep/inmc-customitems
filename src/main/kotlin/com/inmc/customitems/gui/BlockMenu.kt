@@ -7,6 +7,7 @@ import com.inmc.customitems.block.ToolGrades
 import com.inmc.customitems.block.ToolKind
 import com.inmc.customitems.item.BlockKind
 import com.inmc.customitems.item.BlockSpec
+import com.inmc.customitems.item.ItemType
 import com.inmc.customitems.pack.PackAssets
 import kr.inmc.core.gui.DialogForm
 import kr.inmc.core.gui.Editors
@@ -215,7 +216,11 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
             viewer.sendMessage(Text.render("<red>" + kind.label + " 의 빈 자리가 없습니다.</red>"))
             return
         } else ""
-        mutate { it.copy(block = (it.block ?: BlockSpec(kind)).copy(kind = kind, state = state)) }
+        // 기타에 그냥 있던 것(만든 종류·소분류 없음)이 처음 블록이 되면 블록 종류로 옮긴다(사용자 결정 2026-10-01 — 블록은 따로).
+        mutate {
+            val fresh = it.block == null && it.type == ItemType.MISC && it.customType.isBlank() && it.category.isBlank()
+            it.copy(block = (it.block ?: BlockSpec(kind)).copy(kind = kind, state = state), type = if (fresh) ItemType.BLOCK else it.type)
+        }
     }
 
     companion object {

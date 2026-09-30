@@ -78,27 +78,21 @@ class LoreOrderTest {
         assertTrue(lines.any { "1.2 공격 속도" in it }, lines.toString())
     }
 
-    // --- 부적·유물 표찰 (사용자 요청 2026-09-30: 더 세련되게) -----------------------------------
+    // --- 부적·유물·장신구·배낭 표찰 — 없앴다(사용자 요청 2026-10-01: 따옴표 안 내용은 모두 없애) -------------------
 
     @Test
-    fun `부적의 표찰은 종류 바로 밑에 한 줄씩 온다`() {
-        val charm = CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN, noDuplicate = true)
-        val lines = ItemBuilder.buildLore(charm, emptyMap())
-        assertTrue("소지 효과" in lines[1] && "가방에 지니기만 해도" in lines[1], lines.toString())
-        assertTrue("중복 불가" in lines[2] && "가장 높은 강화 하나만" in lines[2], lines.toString())
-        assertTrue(lines.none { " · 같은 부적" in it || "가방에 있으면" in it }, "옛 한 줄 문구가 남았다: $lines")
-        assertTrue(ItemBuilder.buildLore(charm.copy(noDuplicate = false), emptyMap()).none { "중복 불가" in it }, "중복을 허락한 부적에 중복 불가")
-    }
-
-    @Test
-    fun `유물은 단 하나 표찰, 손에서도 되는 장신구는 표찰이 없다`() {
-        val relic = ItemBuilder.buildLore(CustomItem("relic", Material.HEART_OF_THE_SEA, type = ItemType.RELIC), emptyMap())
-        assertTrue("소지 효과" in relic[1] && "단 하나" in relic[2], relic.toString())
-        val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
-        // 등급 배지도 그라데이션이라 표찰은 이름으로 찾는다.
-        assertTrue(ItemBuilder.buildLore(ring, emptyMap()).none { line -> listOf("소지 효과", "장착 효과", "중복 불가", "단 하나").any { it in line } }, "손에서도 되는 장신구에 표찰이 생겼다")
-        val slotOnly = ItemBuilder.buildLore(ring, emptyMap(), lookup = Lookup(inventoryEffects = { false }))
-        assertTrue("장착 효과" in slotOnly[1] && "장착 칸(/장비)" in slotOnly[1], slotOnly.toString())
+    fun `장착 효과·소지 효과·중복 불가·단 하나 표찰은 어느 종류에도 없다`() {
+        val tags = listOf("소지 효과", "장착 효과", "중복 불가", "단 하나", "가방에 지니기만", "장착 칸(/장비)에 끼워야")
+        val items = listOf(
+            CustomItem("charm", Material.PAPER, type = ItemType.TALISMAN, noDuplicate = true),
+            CustomItem("relic", Material.HEART_OF_THE_SEA, type = ItemType.RELIC),
+            CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY),
+            CustomItem("bag", Material.BUNDLE, type = ItemType.BACKPACK, backpack = 9, stats = mapOf(Stat.CRIT_CHANCE to 1.0)),
+        )
+        for (item in items) for (effects in listOf(true, false)) {
+            val lines = ItemBuilder.buildLore(item, emptyMap(), lookup = Lookup(inventoryEffects = { effects }))
+            assertTrue(lines.none { line -> tags.any { it in line } }, item.id + " 에 표찰이 남았다: $lines")
+        }
     }
 
     // --- 물약 기능 줄 (사용자 요청 2026-09-30: "지속효과 : 야간투시") ------------------------------

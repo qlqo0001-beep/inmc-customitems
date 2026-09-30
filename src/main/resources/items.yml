@@ -1940,146 +1940,6 @@ items:
     lore:
     - '&7랜덤한 강화석이 나오는 상자'
     custom-model-data: 10033
-  이벤트교환권_lv1:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 1강화 상자'
-    lore:
-    - '&7이벤트 아이템을 1강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 0
-        max-level: 0
-  이벤트교환권_lv2:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 2강화 상자'
-    lore:
-    - '&7이벤트 아이템을 2강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 1
-        max-level: 1
-  이벤트교환권_lv3:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 3강화 상자'
-    lore:
-    - '&7이벤트 아이템을 3강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 2
-        max-level: 2
-  이벤트교환권_lv4:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 4강화 상자'
-    lore:
-    - '&7이벤트 아이템을 4강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 3
-        max-level: 3
-  이벤트교환권_lv5:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 5강화 상자'
-    lore:
-    - '&7이벤트 아이템을 5강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 4
-        max-level: 4
-  이벤트교환권_lv6:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 6강화 상자'
-    lore:
-    - '&7이벤트 아이템을 6강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 5
-        max-level: 5
-  이벤트교환권_lv7:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 7강화 상자'
-    lore:
-    - '&7이벤트 아이템을 7강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 6
-        max-level: 6
-  이벤트교환권_lv8:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 8강화 상자'
-    lore:
-    - '&7이벤트 아이템을 8강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 7
-        max-level: 7
-  이벤트교환권_lv9:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 9강화 상자'
-    lore:
-    - '&7이벤트 아이템을 9강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 8
-        max-level: 8
-  이벤트교환권_lv10:
-    material: STICK
-    type: consumable
-    category: 유물강화권
-    display-name: '&f&l이벤트 10강화 상자'
-    lore:
-    - '&7이벤트 아이템을 10강화 시도합니다!'
-    custom-model-data: 10016
-    consume:
-      upgrade-stone:
-        items:
-        - 강화유물
-        min-level: 9
-        max-level: 9
 
   # --- 부적 (MMOItems 의 ORNAMENT — 가방에서 효과) ---
   빛나는다이아:
@@ -2375,16 +2235,7 @@ items:
             tier: mythic
             custom-model-data: 10034
       stones:
-      - 이벤트교환권_lv1
-      - 이벤트교환권_lv2
-      - 이벤트교환권_lv3
-      - 이벤트교환권_lv4
-      - 이벤트교환권_lv5
-      - 이벤트교환권_lv6
-      - 이벤트교환권_lv7
-      - 이벤트교환권_lv8
-      - 이벤트교환권_lv9
-      - 이벤트교환권_lv10
+      - 타임스톤
 
   # --- 재료 ---
   items0:
@@ -2589,6 +2440,11 @@ items:
     lore:
     - '&7매 시간마다 받는 이상한 돌'
     custom-model-data: 10045
+    consume:
+      uses: 1
+      upgrade-stone:
+        items:
+        - 강화유물
   겜블코인:
     material: RABBIT_HIDE
     type: material

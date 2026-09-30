@@ -333,8 +333,7 @@ object ItemBuilder {
         /** 사용 기간 줄의 기준 시각. */
         now: Long = System.currentTimeMillis(),
     ): List<String> = buildList {
-        add((lookup.type(definition) ?: TypeDef.of(definition.type)).header())
-        addAll(carryLines(definition, definition.worksOutsideSlots(lookup.inventoryEffects())))
+        add(typeHeader(definition, lookup))
         addAll(periodLines(definition, instance, now))
         addAll(enchantLines)
 
@@ -453,25 +452,19 @@ object ItemBuilder {
     }
 
     /**
-     * 부적·유물·장신구가 **어디서 효과가 나는지**와 **겹치는 규칙** — 종류 바로 밑에 표찰 한 줄씩(사용자 요청 2026-09-30: 더 세련되게).
-     * 손에서도 되는 장신구는 적을 것이 없다.
+     * 로어 맨 위의 종류 줄 — 종류 이름, 또는 소분류 이름(소분류가 켜 두었거나 아이템이 골랐으면, 사용자 결정 2026-10-01).
+     * 기호는 늘 종류의 것이다.
      */
-    private fun carryLines(definition: CustomItem, outside: Boolean): List<String> = buildList {
-        val carried = definition.type == ItemType.TALISMAN || definition.type == ItemType.RELIC
-        // 배낭은 능력치·기능이 있을 때만 — 창고로만 쓰는 배낭에 "장착 효과" 를 적으면 없는 효과를 말한다.
-        val backpackEffects = definition.type == ItemType.BACKPACK && (definition.stats.isNotEmpty() || definition.abilities.isNotEmpty())
-        if (carried || ((definition.type == ItemType.ACCESSORY || backpackEffects) && !outside)) {
-            add(if (outside) tag(WHERE, "소지 효과", "가방에 지니기만 해도 발휘") else tag(WHERE, "장착 효과", "장착 칸(/장비)에 끼워야 발휘"))
-        }
-        if (definition.type == ItemType.TALISMAN && definition.noDuplicate) add(tag(LIMIT, "중복 불가", "같은 부적은 가장 높은 강화 하나만"))
-        if (definition.type == ItemType.RELIC) add(tag(LIMIT, "단 하나", "여러 유물 중 가장 높은 등급 하나만"))
+    fun typeHeader(definition: CustomItem, lookup: Lookup): String {
+        val type = lookup.type(definition) ?: TypeDef.of(definition.type)
+        val category = lookup.category(definition)?.takeIf { definition.typeLabel.showsCategory(it) } ?: return type.header()
+        return type.header(category.name)
     }
 
     /** 표찰 한 줄 — 그라데이션 이름표 · 옅은 설명. */
     private fun tag(colors: String, label: String, detail: String): String =
         "<gradient:" + colors + ">" + label + "</gradient> <dark_gray>—</dark_gray> <gray>" + detail + "</gray>"
 
-    /** 효과가 나는 곳(물빛) · 겹치는 규칙(노을빛). */
     /**
      * 사용 기간 — 끝나는 때, 끝났으면 빨간 한 줄. 아직 찍히지 않은 것(미리보기 · 기간이 생기기 전에 나간 아이템)은 기간 길이만.
      */
@@ -482,7 +475,7 @@ object ItemBuilder {
         return listOf(tag(LIMIT, "사용 기간", Periods.until(expires) + " 까지"))
     }
 
-    private const val WHERE = "#7ee0f0:#9d9bff"
+    /** 표찰 색(노을빛) — 사용 기간. */
     private const val LIMIT = "#ffc46b:#ff8a8a"
 
     /** 공격력·공격 속도는 바닐라처럼 맨손 기준값(1 · 4)을 더해 보인다 — 곡괭이의 "6 공격 피해" 가 그대로 옮겨 오게. */

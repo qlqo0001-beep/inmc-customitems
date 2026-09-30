@@ -208,6 +208,11 @@ enum class ItemType(val id: String, val display: String, val icon: Material, val
     BACKPACK("backpack", "배낭", Material.BUNDLE, "▣"),
     MATERIAL("material", "재료", Material.COPPER_INGOT, "◈"),
     GEM("gem", "보석", Material.EMERALD, "◆"),
+    /**
+     * 놓으면 커스텀 블록이 되는 것([CustomItem.block], 사용자 결정 2026-10-01 — 기타에서 떼어 냄). 동작은 기타와 같다 —
+     * 놓고 캐는 것은 블록 설정이 정하지 종류가 정하지 않는다.
+     */
+    BLOCK("block", "블록", Material.GRASS_BLOCK, "▦"),
     MISC("misc", "기타", Material.FLOWER_BANNER_PATTERN, "✦"),
     ;
 

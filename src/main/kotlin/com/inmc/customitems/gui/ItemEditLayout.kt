@@ -26,7 +26,7 @@ enum class EditTab(
 ) {
     BASIC("기본", "<aqua>", Material.ITEM_FRAME, Material.LIGHT_BLUE_STAINED_GLASS_PANE, listOf(
         listOf(EditButton.MATERIAL, EditButton.NAME, EditButton.LORE, EditButton.TEXTURE),
-        listOf(EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER, EditButton.PERIOD),
+        listOf(EditButton.TYPE, EditButton.CATEGORY, EditButton.TYPE_LABEL, EditButton.TIER, EditButton.PERIOD),
     )),
     POWER("능력", "<red>", Material.NETHERITE_SWORD, Material.RED_STAINED_GLASS_PANE, listOf(
         listOf(EditButton.STATS, EditButton.ABILITIES, EditButton.STYLE, EditButton.UPGRADE, EditButton.MINING_TIER),
@@ -47,7 +47,7 @@ enum class EditTab(
 /** 설정 화면의 버튼. 어느 탭의 어느 줄에 있는지는 [EditTab.rows] 가 정한다. */
 enum class EditButton(val label: String) {
     MATERIAL("재질"), NAME("표시 이름"), LORE("설명"), TEXTURE("겉모습"),
-    TYPE("종류"), CATEGORY("소분류"), TIER("등급"), PERIOD("사용 기간"),
+    TYPE("종류"), CATEGORY("소분류"), TYPE_LABEL("로어의 종류 줄"), TIER("등급"), PERIOD("사용 기간"),
     STATS("능력치"), ABILITIES("기능"), STYLE("공격 방식"), UPGRADE("강화·진화"), MINING_TIER("채굴 등급"),
     ENCHANTS("인챈트"), CUSTOM_ENCHANTS("커스텀 인첸트"), MODIFIERS("수식어"), SET("세트"),
     REQUIREMENT("요구 조건"), INVENTORY_EFFECT("효과가 나는 곳"), NO_DUPLICATE("중복 안 함"),
@@ -67,6 +67,8 @@ enum class EditButton(val label: String) {
         AUTO_PICKUP -> item.type == ItemType.BACKPACK || item.gem != null
         INVENTORY_EFFECT -> item.type.slotted
         NO_DUPLICATE -> item.type == ItemType.TALISMAN
+        // 소분류가 없으면 종류 이름밖에 없다.
+        TYPE_LABEL -> item.category.isNotBlank()
         MINING_TIER -> ToolGrades.vanillaTier(item.material) != null
         else -> true
     }

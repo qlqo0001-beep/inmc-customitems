@@ -93,6 +93,9 @@ class ItemEditMenu(
         EditButton.TEXTURE -> btn(textureIcon(item)) { event -> editTexture(item, event) }
         EditButton.TYPE -> btn(typeIcon(item)) { chooseType() }
         EditButton.CATEGORY -> btn(categoryIcon(item)) { chooseCategory(custom.types.of(item)) }
+        EditButton.TYPE_LABEL -> btn(typeLabelIcon(item)) { event ->
+            mutate { it.copy(typeLabel = Editors.cycle(event, com.inmc.customitems.item.TypeLabel.entries.toList(), it.typeLabel)) }
+        }
         EditButton.TIER -> btn(tierIcon(item)) { event -> mutate { it.copy(tier = Editors.cycle(event, Tier.entries.toList(), it.tier)) } }
         EditButton.PERIOD -> btn(periodIcon(item)) { event -> editPeriod(event) }
 
@@ -185,7 +188,7 @@ class ItemEditMenu(
     /** 기본값에서 바꾼 것을 짧게 — 탭 아이콘의 "설정됨". 기본 탭의 버튼은 늘 값이 있어 null. */
     private fun changed(button: EditButton, item: CustomItem): String? = when (button) {
         EditButton.MATERIAL, EditButton.NAME, EditButton.LORE, EditButton.TEXTURE,
-        EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER, EditButton.PERIOD -> null
+        EditButton.TYPE, EditButton.CATEGORY, EditButton.TYPE_LABEL, EditButton.TIER, EditButton.PERIOD -> null
         EditButton.STATS -> item.stats.size.takeIf { it > 0 }?.let { "능력치 $it" }
         EditButton.ABILITIES -> item.abilities.size.takeIf { it > 0 }?.let { "기능 $it" }
         EditButton.STYLE -> item.style.takeIf { it != AttackStyle.NONE }?.display
@@ -302,8 +305,8 @@ class ItemEditMenu(
 
     private fun typeIcon(item: CustomItem): ItemStack {
         val current = custom.types.of(item)
-        return Icon.of(
-            current.icon,
+        return typeIcon(
+            current,
             "<yellow>종류: <white>" + current.name + "</white></yellow>",
             listOf(
                 if (current.builtin) "<gray>기본 종류</gray>" else "<gray>" + current.base.display + "처럼 동작합니다.</gray>",
@@ -319,10 +322,8 @@ class ItemEditMenu(
     private fun categoryIcon(item: CustomItem): ItemStack {
         val current = custom.categories.of(item)
         val choices = custom.categories.of(custom.types.of(item))
-        return Icon.of(
-            current?.icon ?: Material.BOOKSHELF,
-            "<yellow>소분류: <white>" + (current?.name ?: "없음") + "</white></yellow>",
-            buildList {
+        val name = "<yellow>소분류: <white>" + (current?.name ?: "없음") + "</white></yellow>"
+        val lore = buildList {
                 if (choices.isEmpty()) {
                     add("<gray>" + custom.types.of(item).name + " 에는 아직 소분류가 없습니다.</gray>")
                     add("<dark_gray>목록 화면의 소분류 버튼에서 만듭니다.</dark_gray>")
@@ -333,7 +334,22 @@ class ItemEditMenu(
                 add("")
                 add("<gray>목록을 나눠 보는 서랍일 뿐, 동작은 바꾸지 않습니다.</gray>")
                 add("<yellow>▶ 클릭: 고르기</yellow>")
-            },
+            }
+        return if (current != null) categoryIcon(current, name, lore) else Icon.of(Material.BOOKSHELF, name, lore)
+    }
+
+    /** 로어의 종류 줄 — 소분류 설정대로 · 종류 이름 · 소분류 이름(사용자 결정 2026-10-01). 지금 로어에 무엇이 보이는지 같이 적는다. */
+    private fun typeLabelIcon(item: CustomItem): ItemStack {
+        val category = custom.categories.of(item)
+        return Icon.of(
+            Material.NAME_TAG,
+            "<yellow>로어의 종류 줄: <white>" + item.typeLabel.display + "</white></yellow>",
+            Editors.optionList(com.inmc.customitems.item.TypeLabel.entries.toList(), item.typeLabel) { it.display } + listOf(
+                "",
+                "<gray>지금 로어: </gray>" + com.inmc.customitems.item.ItemBuilder.typeHeader(item, custom.items.lookup),
+                "<dark_gray>소분류 설정은 소분류 서랍에서 Q 로 켜고 끕니다" +
+                    (category?.let { " (" + it.name + ": " + (if (it.loreName) "소분류 이름" else "종류 이름") + ")" } ?: "") + ".</dark_gray>",
+            ) + Editors.cycleHint,
         )
     }
 
@@ -348,7 +364,7 @@ class ItemEditMenu(
                 val items = custom.items.all()
                 custom.types.all().map { type ->
                     val count = items.count { custom.types.of(it).id == type.id }
-                    type.id to iconOf(type.icon, type.iconItem, "<dark_gray>" + type.symbol + "</dark_gray> <yellow>" + type.name + "</yellow>", listOf(
+                    type.id to typeIcon(type, "<dark_gray>" + type.symbol + "</dark_gray> <yellow>" + type.name + "</yellow>", listOf(
                         if (type.builtin) "<gray>기본 종류</gray>" else "<gray>" + type.base.display + "처럼 동작하는 종류</gray>",
                         "<dark_gray>이 종류의 아이템 " + count + "개</dark_gray>",
                     ))
@@ -374,7 +390,7 @@ class ItemEditMenu(
             custom, viewer, "소분류 — $id",
             options = {
                 listOf("" to Icon.of(Material.BARRIER, "<gray>분류 없음</gray>", emptyList())) +
-                    custom.categories.of(type).map { it.id to Icon.of(it.icon, "<yellow>" + it.name + "</yellow>", listOf("<dark_gray>id " + it.id + "</dark_gray>")) }
+                    custom.categories.of(type).map { it.id to categoryIcon(it, "<yellow>" + it.name + "</yellow>", listOf("<dark_gray>id " + it.id + "</dark_gray>")) }
             },
             selected = { setOf(item()?.let { custom.categories.of(it)?.id }.orEmpty()) },
             back = { open(viewer) },

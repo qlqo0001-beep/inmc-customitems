@@ -138,6 +138,7 @@ class PackService(private val custom: CustomItems) {
             if (result.ok) {
                 sha1 = result.sha1
                 applyMigration(result.migrated)
+                guiIcons = hasTypeIcons()
             }
             lastReport = result
             then(result)
@@ -148,9 +149,33 @@ class PackService(private val custom: CustomItems) {
     fun loadSha1() {
         val file = File(outputDir, "pack.sha1")
         if (file.isFile) sha1 = file.readText(Charsets.UTF_8).trim()
+        guiIcons = hasTypeIcons()
     }
 
+    /**
+     * 만든 팩에 종류 아이콘([TypeIcons])이 들었나 — 들었을 때만 관리 화면이 그 그림을 쓴다. 이 기능 전에 만든 팩에는 없고, 없는 모델을
+     * 붙이면 보라·검정 칸이 된다. 팩을 다시 만들면 켜진다.
+     */
+    @Volatile
+    var guiIcons: Boolean = false
+        private set
+
+    private fun hasTypeIcons(): Boolean = outputZip.isFile && runCatching {
+        java.util.zip.ZipFile(outputZip).use { it.getEntry(PackAssets.itemPath(TypeIcons.id(com.inmc.customitems.item.ItemType.WEAPON))) != null }
+    }.getOrDefault(false)
+
     // --- 실제 작업 (워커 스레드) ---------------------------------------------------------
+
+    /** 관리 화면의 종류 아이콘([TypeIcons]) — 플러그인 안의 그림을 평면 아이템 모델로. */
+    private fun typeIcons(merger: PackMerger) {
+        for (type in com.inmc.customitems.item.ItemType.entries) {
+            val png = custom.plugin.getResource(TypeIcons.RESOURCE + type.id + ".png")?.use { it.readBytes() } ?: continue
+            val id = TypeIcons.id(type)
+            merger.put(GENERATED, PackAssets.texturePath(id), png)
+            merger.put(GENERATED, PackAssets.modelPath(id), PackAssets.modelJson(id).toByteArray())
+            merger.put(GENERATED, PackAssets.itemPath(id), PackAssets.itemJson(PackAssets.NAMESPACE + ":item/" + id).toByteArray())
+        }
+    }
 
     /** 강화 단계가 모양을 바꾸면 그 단계의 모델(`<이름>_lv<단계>`). 공용 방식이면 그 방식을 쓰는 아이템마다 만든다. */
     private fun levelModels(merger: PackMerger, missing: MutableList<String>, item: CustomItem, table: com.inmc.customitems.item.UpgradeTable?) {
@@ -191,6 +216,7 @@ class PackService(private val custom: CustomItems) {
         // 1. 우리가 만드는 것이 **맨 앞**이다 — 우선순위가 가장 낮다.
         //    관리자가 sources/ 에 넣은 팩이 이길 수 있어야 한다.
         merger.put(GENERATED, "pack.mcmeta", PackAssets.mcmetaJson(description()).toByteArray())
+        typeIcons(merger)
 
         for (item in items) {
             levelModels(merger, missing, item, tables[item.id])

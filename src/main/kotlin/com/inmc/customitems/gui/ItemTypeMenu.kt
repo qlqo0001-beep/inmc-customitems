@@ -98,7 +98,7 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
     /** 종류 서랍 칸 — 첫 화면과 "나머지 종류" 고르기가 같이 쓴다. 누르는 안내([click])는 부르는 쪽이 붙인다. */
     private fun drawer(type: TypeDef, count: Int, click: List<String>): ItemStack {
         val categories = custom.categories.of(type)
-        return iconOf(type.icon, type.iconItem, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
+        return typeIcon(type, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
             if (!type.builtin) add("<dark_gray>" + type.base.display + "처럼 동작</dark_gray>")
             add("<gray>아이템 <white>" + count + "</white>개</gray>")
             if (categories.isNotEmpty()) {
@@ -131,10 +131,11 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
         const val SIZE = 54
 
         /**
-         * 종류 칸 — [com.inmc.customitems.item.ItemType] 순서대로. 둘째 줄에 일반 종류 일곱(무기·방어구·도구·소모품 … 재료·보석·기타),
-         * 넷째 줄에 몸에 끼우는 넷(장신구·부적·유물·배낭)을 한 칸씩 띄워. 종류를 늘리면 여기도 늘린다(`MenuLayoutTest` 가 모자라면 잡는다).
+         * 종류 칸 — [com.inmc.customitems.item.ItemType] 순서대로. 둘째 줄에 장비 셋(무기·방어구·도구)과 쓰는 것 셋(소모품·재료·보석),
+         * 셋째 줄에 블록 · [전체 보기] · 기타, 넷째 줄에 몸에 끼우는 넷(장신구·부적·유물·배낭)을 한 칸씩 띄워(사용자 요청 2026-10-01 — 정리).
+         * 종류를 늘리면 여기도 늘린다(`MenuLayoutTest` 가 모자라면 잡는다).
          */
-        val TYPE_SLOTS = listOf(10, 11, 12, 13, 28, 30, 32, 34, 14, 15, 16)
+        val TYPE_SLOTS = listOf(10, 11, 12, 14, 28, 30, 32, 34, 15, 16, 20, 24)
         const val SLOT_ALL = 22
 
         /** 만든 종류 칸 — 아홉까지. 넘치면 마지막 칸이 "나머지 종류" 고르기(거기서 넘친 종류의 서랍을 연다). */

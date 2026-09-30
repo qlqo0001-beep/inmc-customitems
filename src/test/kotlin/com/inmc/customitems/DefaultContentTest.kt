@@ -127,7 +127,7 @@ class DefaultContentTest {
     }
 
     @Test
-    fun `유물은 강화권으로만 오르고 N강 강화권은 N-1강에서만 쓴다`() {
+    fun `유물은 타임스톤으로만 오른다 — 재료이면서 강화석, 옛 이벤트 교환권은 없다`() {
         val relic = items.getValue("강화유물")
         assertEquals(ItemType.RELIC, relic.type)
         val table = relic.upgrade.own!!
@@ -136,13 +136,14 @@ class DefaultContentTest {
         assertEquals(0.1, table.step(10)!!.chance)
         assertEquals(Tier.MYTHIC, table.tierAt(10))
 
-        val first = items.getValue("이벤트교환권_lv1").consume!!.upgrade!!
-        val second = items.getValue("이벤트교환권_lv2").consume!!.upgrade!!
-        assertNull(Upgrades.refuse("이벤트교환권_lv1", first, relic, 0))
-        // 1강 강화권은 0강에서만 — "끝까지"와 "0강까지"가 구별돼야 한다.
-        assertEquals("upgrade-wrong-level", Upgrades.refuse("이벤트교환권_lv1", first, relic, 1))
-        assertNull(Upgrades.refuse("이벤트교환권_lv2", second, relic, 1))
-        assertEquals("upgrade-wrong-level", Upgrades.refuse("이벤트교환권_lv2", second, relic, 0))
+        // 사용자 결정 2026-10-01: 유물 강화 아이템은 타임스톤 하나 — 재료 종류인데 강화석으로도 쓴다. 소모품의 교환권은 없앴다.
+        assertEquals(listOf("타임스톤"), relic.upgrade.stones)
+        val time = items.getValue("타임스톤")
+        assertEquals(ItemType.MATERIAL, time.type)
+        val stone = time.consume!!.upgrade!!
+        assertNull(Upgrades.refuse("타임스톤", stone, relic, 0))
+        assertNull(Upgrades.refuse("타임스톤", stone, relic, 9))
+        assertTrue(items.keys.none { it.startsWith("이벤트교환권") }, "유물 교환권이 남았다")
         // 평범한 강화석은 유물에 못 쓴다(MMOItems 에서도 유물은 강화석을 받지 않았다).
         val common = items.getValue("티어1-하급").consume!!.upgrade!!
         assertEquals("upgrade-wrong-stone", Upgrades.refuse("티어1-하급", common, relic, 0))
@@ -200,7 +201,8 @@ class DefaultContentTest {
         // 번호가 남은 아이템이 빌드에서 모양을 잃지 않는다 — 찾으면 모델, 바닐라로 그려지던 번호면 null(번호만 뗀다).
         val roots = com.inmc.customitems.pack.NumberMigration.activeRoots(defaultPack)
         val numbered = items.values.filter { it.customModelData > 0 }
-        assertTrue(numbered.size >= 100, "옮겨 온 MMOItems 아이템의 번호가 있어야 한다")
+        // 105 → 95: 유물 교환권 열 개를 뺐다(사용자 2026-10-01).
+        assertTrue(numbered.size >= 90, "옮겨 온 MMOItems 아이템의 번호가 있어야 한다")
         val resolved = numbered.associateWith { com.inmc.customitems.pack.NumberMigration.resolve(defaultPack, it.material.name.lowercase(), it.customModelData, roots) }
         val vanilla = resolved.filterValues { it == null }.keys.map { it.id }.toSet()
         assertEquals(setOf("2차낚싯대", "3차낚싯대", "4차낚싯대", "5차낚싯대"), vanilla, "기본 팩이 이 번호를 바닐라 낚싯대로 채워 둔 것만 바닐라")

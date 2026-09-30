@@ -18,15 +18,19 @@ data class Category(
     /** 종류의 id — 기본 종류(`consumable`)이거나 관리자가 만든 종류(`보호권`). */
     val type: String,
     val name: String = id,
-    val icon: Material = ItemType.of(type).icon,
+    /** 서랍 아이콘 재질. 비우면 **그 소분류 첫 아이템 모양**(사용자 요청 2026-10-01 — 생선살 서랍이 구리 주괴로 보이지 않게). */
+    val icon: Material? = null,
     /** 손에 든 것으로 정한 아이콘 — 모델(번호·item_model)·커스텀아이템 모양까지. 없으면 [icon] 재질. */
     val iconItem: StoredItem? = null,
+    /** 로어의 종류 줄에 종류 이름 대신 이 소분류 이름을 보인다 — 아이템이 따로 고르지 않았으면([TypeLabel.AUTO]). */
+    val loreName: Boolean = false,
 ) {
     fun save(section: ConfigurationSection) {
         section.set("type", type)
         section.set("name", name)
-        section.set("icon", icon.name)
+        icon?.let { section.set("icon", it.name) }
         iconItem?.save(section.createSection("icon-item"))
+        if (loreName) section.set("lore-name", true)
     }
 
     companion object {
@@ -36,8 +40,9 @@ data class Category(
                 id = id,
                 type = type,
                 name = section.getString("name")?.takeIf { it.isNotBlank() } ?: id,
-                icon = section.getString("icon")?.let { Material.matchMaterial(it) } ?: ItemType.of(type).icon,
+                icon = section.getString("icon")?.let { Material.matchMaterial(it) },
                 iconItem = section.getConfigurationSection("icon-item")?.let(StoredItem::load),
+                loreName = section.getBoolean("lore-name", false),
             )
         }
     }
@@ -51,10 +56,11 @@ class CategoryRegistry(private val custom: CustomItems) : YamlFileStore(
         종류 아래의 소분류. /커스텀아이템 관리 → 종류 → 소분류 에서 GUI 로 만들고 고칩니다.
         표시와 걸러보기 전용입니다. 아이템 쪽은 items.yml 의 category 에 이 id 를 적습니다.
 
-        type  weapon / armor / tool / consumable / accessory / talisman / relic / material / gem / misc 또는 만든 종류의 id(types.yml)
+        type  weapon / armor / tool / consumable / accessory / talisman / relic / backpack / material / gem / block / misc 또는 만든 종류의 id(types.yml)
         name  서랍에 보이는 이름
-        icon  서랍 아이콘(재질 이름)
+        icon  서랍 아이콘(재질 이름). 비우면 그 소분류 첫 아이템 모양
         icon-item  손에 든 것으로 정한 아이콘(모델·커스텀아이템 모양). 화면에서 정합니다
+        lore-name  true 면 로어의 종류 줄에 종류 이름 대신 이 소분류 이름(아이템의 type-label 이 먼저)
     """.trimIndent() + "\n",
     what = "소분류",
 ) {
@@ -73,9 +79,15 @@ class CategoryRegistry(private val custom: CustomItems) : YamlFileStore(
     fun put(category: Category) {
         categories[category.id] = category
         markDirty()
+        custom.items.onCategoriesChanged()
     }
 
-    fun remove(id: String): Boolean = (categories.remove(id.lowercase()) != null).also { if (it) markDirty() }
+    fun remove(id: String): Boolean = (categories.remove(id.lowercase()) != null).also {
+        if (it) {
+            markDirty()
+            custom.items.onCategoriesChanged()
+        }
+    }
 
     override fun read(config: YamlConfiguration) {
         categories.clear()
@@ -86,5 +98,24 @@ class CategoryRegistry(private val custom: CustomItems) : YamlFileStore(
 
     override fun write(config: YamlConfiguration) {
         for (category in categories.values) category.save(config.createSection(category.id))
+    }
+}
+
+/** 로어의 종류 줄에 무엇을 보일지 — 아이템마다([CustomItem.typeLabel]). 기본은 소분류가 정한 대로([Category.loreName]). */
+enum class TypeLabel(val id: String, val display: String) {
+    AUTO("auto", "소분류 설정대로"),
+    TYPE("type", "종류 이름"),
+    CATEGORY("category", "소분류 이름"),
+    ;
+
+    /** 이 아이템이 든 [category] 의 이름을 보일까. */
+    fun showsCategory(category: Category): Boolean = when (this) {
+        AUTO -> category.loreName
+        TYPE -> false
+        CATEGORY -> true
+    }
+
+    companion object {
+        fun of(id: String?): TypeLabel = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: AUTO
     }
 }

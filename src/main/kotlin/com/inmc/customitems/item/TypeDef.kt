@@ -8,7 +8,7 @@ import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.configuration.file.YamlConfiguration
 
 /**
- * 종류(대분류) 하나 — 기본 10종([ItemType])이거나 관리자가 만든 것(보호권·열쇠·캡슐 …).
+ * 종류(대분류) 하나 — 기본 종류([ItemType])이거나 관리자가 만든 것(보호권·열쇠·캡슐 …).
  *
  * **동작은 [base] 가 정한다.** 관리자가 만든 종류는 이름·아이콘·기호만 갖고, 부적·유물·소모품처럼 동작이 걸린 것은
  * 기본 종류 하나를 골라 그대로 따른다("보호권"은 소모품처럼). 그래서 동작 코드는 [ItemType] 만 보면 되고,
@@ -27,8 +27,8 @@ data class TypeDef(
 ) {
     val builtin: Boolean get() = id == base.id
 
-    /** 로어 맨 위 — 흐린 글씨로 종류만. */
-    fun header(): String = "<dark_gray>" + symbol + "</dark_gray> <gray>" + name + "</gray>"
+    /** 로어 맨 위 — 흐린 글씨로 종류만. [label] 은 소분류 이름을 보일 때(기호는 늘 종류의 것). */
+    fun header(label: String = name): String = "<dark_gray>" + symbol + "</dark_gray> <gray>" + label + "</gray>"
 
     fun save(section: ConfigurationSection) {
         if (!builtin) section.set("base", base.id)
@@ -62,7 +62,7 @@ class TypeRegistry(private val custom: CustomItems) : YamlFileStore(
     path = listOf("types.yml"),
     header = """
         종류(대분류). /커스텀아이템 관리 → 종류 관리 에서 GUI 로 고치는 것을 권장합니다.
-        기본 10종(weapon armor tool consumable accessory talisman relic material gem misc)은 이름·아이콘·기호만 바꿀 수 있고,
+        기본 종류(weapon armor tool consumable accessory talisman relic backpack material gem block misc)는 이름·아이콘·기호만 바꿀 수 있고,
         새 종류는 base 에 적은 기본 종류처럼 동작합니다(예: 보호권 → consumable). 아이템 쪽은 items.yml 의 custom-type 에 id 를 적습니다.
     """.trimIndent() + "\n",
     what = "종류",
@@ -76,7 +76,7 @@ class TypeRegistry(private val custom: CustomItems) : YamlFileStore(
     /** 관리자가 만든 종류. */
     fun custom(): List<TypeDef> = defs.values.filter { !it.builtin }
 
-    /** 기본 10종 다음 만든 것. */
+    /** 기본 종류 다음 만든 것. */
     fun all(): List<TypeDef> = ItemType.entries.map(::builtin) + custom()
 
     fun get(id: String?): TypeDef? {

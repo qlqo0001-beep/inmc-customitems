@@ -14,7 +14,7 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 
 /**
- * 종류 관리 — 기본 10종의 이름·아이콘·기호 바꾸기와 새 종류 만들기(보호권·열쇠·캡슐 …).
+ * 종류 관리 — 기본 종류의 이름·아이콘·기호 바꾸기와 새 종류 만들기(보호권·열쇠·캡슐 …).
  * 새 종류는 기본 종류 하나를 골라 그것처럼 동작한다([TypeDef.base]).
  */
 class TypeListMenu(custom: CustomItems, private val viewer: Player) :
@@ -28,7 +28,7 @@ class TypeListMenu(custom: CustomItems, private val viewer: Player) :
         val counts = custom.items.all().groupingBy { custom.types.of(it).id }.eachCount()
         page = Paging.clamp(page, all.size)
         for ((slot, type) in Paging.slice(all, page).withIndex()) {
-            set(slot, iconOf(type.icon, type.iconItem, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
+            set(slot, typeIcon(type, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
                 add(if (type.builtin) "<dark_gray>기본 종류 · id " + type.id + "</dark_gray>" else "<dark_gray>만든 종류 · id " + type.id + " · " + type.base.display + "처럼 동작</dark_gray>")
                 add("<gray>아이템 <white>" + (counts[type.id] ?: 0) + "</white>개</gray>")
                 add("")
@@ -86,8 +86,9 @@ class TypeEditMenu(custom: CustomItems, private val viewer: Player, private val 
         set(SLOT_SYMBOL, Icon.of(Material.OAK_SIGN, "<yellow>기호: <white>" + type.symbol + "</white></yellow>", listOf(
             "<gray>로어 첫 줄 앞의 작은 기호(⚔ ✚ ❂ …).</gray>", "", "<yellow>▶ 클릭: 바꾸기</yellow>",
         ))) { prompt("기호", type.symbol) { value -> type.copy(symbol = value.take(4)) } }
-        set(SLOT_ICON, iconOf(type.icon, type.iconItem, "<yellow>아이콘</yellow>", listOf(
-            "<gray>서랍에 보이는 아이콘. 모델 번호·커스텀아이템 모양 그대로 됩니다.</gray>", "",
+        set(SLOT_ICON, typeIcon(type, "<yellow>아이콘</yellow>", listOf(
+            "<gray>서랍에 보이는 아이콘. 모델 번호·커스텀아이템 모양 그대로 됩니다.</gray>",
+            "<gray>기본 모양은 기본 종류면 종류 아이콘(팩), 만든 종류면 첫 아이템 모양.</gray>", "",
             "<yellow>▶ 좌클릭: 손에 든 것으로 바꾸기</yellow>",
             "<yellow>▶ 우클릭: 기본 모양으로</yellow>",
         ))) { event ->
