@@ -64,8 +64,13 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "backpack-one" to "<red>배낭은 한 개씩 들어야 열립니다.</red>",
             "backpack-busy" to "<red>다른 사람이 이 배낭을 보고 있습니다.</red>",
             "backpack-nested" to "<red>배낭 안에 배낭은 넣을 수 없습니다.</red>",
-            "backpack-spilled" to "<yellow>부서진 배낭 안의 물건을 돌려받았습니다.</yellow>",
+            "backpack-spilled" to "<yellow>쓸 수 없게 된 배낭 안의 물건을 돌려받았습니다.</yellow>",
             "backpack-none" to "<red>장착 칸에 끼운 배낭이 없습니다.</red> <gray>손에 든 배낭은 우클릭으로 엽니다.</gray>",
+            "backpack-no-number" to "<red>{amount}번 배낭이 없습니다.</red> <gray>지금 끼운 배낭은 {value}개입니다.</gray>",
+
+            // --- 사용 기간 -----------------------------------------------------------
+            "item-expired" to "<yellow>사용 기간이 끝나 {item}<yellow> 이(가) 사라졌습니다.</yellow>",
+            "item-expired-use" to "<red>사용 기간이 끝난 아이템입니다.</red>",
 
             // --- 강화·진화 -----------------------------------------------------------
             "upgrade-success" to "<gold>강화 성공! {item}<gold> <white>+{amount}</white></gold>",

@@ -15,7 +15,7 @@ import org.bukkit.event.inventory.InventoryAction
 import org.bukkit.event.inventory.InventoryClickEvent
 
 /**
- * 장착 화면(`/장비`) — 장신구·부적·유물을 한 줄씩.
+ * 장착 화면(`/장비`) — 장신구·부적·유물을 한 줄씩, 구분선 아래에 배낭 줄(앞 칸부터 `/배낭 1, 2, 3 …`).
  *
  * **바닐라가 아이템을 옮기게 두지 않는다.** 칸의 진짜 내용물은 [EquipmentStore] 에 있고 이 창은 그 그림일 뿐이다.
  * 바닐라 이동(끌기·숫자키·두 번 클릭 모으기)을 허락하면 창과 저장소가 어긋나 복사된다. 그래서 창의 클릭은
@@ -28,6 +28,8 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
 
     override fun draw() {
         clear()
+        // 배낭 번호 — 채워진 열린 칸만 앞에서부터(Backpacks.equipped 와 같은 규칙).
+        val numbers = custom.backpacks.equipped(viewer).mapIndexed { number, found -> (found.where as com.inmc.customitems.player.Backpacks.Where.Equipped).index to number + 1 }.toMap()
         for (group in Group.entries) {
             val row = ROWS.getValue(group)
             val capacity = store.capacity(viewer, group)
@@ -35,14 +37,18 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
                 "<gray>열린 칸 <white>" + capacity + "</white> / " + EquipmentStore.MAX + "</gray>",
                 "<gray>" + group.display + " 종류만 넣을 수 있습니다.</gray>",
                 "<gray>끌어다 놓거나 가방에서 Shift+클릭.</gray>",
-            ) + if (group == Group.ACCESSORY) emptyList() else listOf("<dark_gray>가방에 든 것과 함께 효과가 납니다.</dark_gray>")))
+            ) + when (group) {
+                Group.ACCESSORY -> emptyList()
+                Group.BACKPACK -> listOf("<dark_gray>앞 칸부터 /배낭 1, 2, 3 … · 우클릭으로 열기</dark_gray>")
+                else -> listOf("<dark_gray>가방에 든 것과 함께 효과가 납니다.</dark_gray>")
+            }))
             for (index in 0 until EquipmentStore.MAX) {
                 val stored = store.get(viewer.uniqueId, group, index)
                 val slot = row * 9 + 1 + index
                 set(slot, when {
                     stored != null && index >= capacity -> Icon.annotate(stored.clone(), lore = listOf("", "<red>잠긴 칸 — 효과가 없습니다. 꺼내기만 됩니다.</red>"))
-                    stored != null && custom.items.usable(stored)?.isBackpack == true ->
-                        Icon.annotate(stored.clone(), lore = listOf("", "<yellow>▶ 좌클릭: 꺼내기 · 우클릭: 배낭 열기 · Shift: 가방으로</yellow>"))
+                    stored != null && group == Group.BACKPACK && numbers[index] != null ->
+                        Icon.annotate(stored.clone(), lore = listOf("", "<gold>/배낭 " + numbers.getValue(index) + "</gold>", "<yellow>▶ 좌클릭: 꺼내기 · 우클릭: 배낭 열기 · Shift: 가방으로</yellow>"))
                     stored != null -> Icon.annotate(stored.clone(), lore = listOf("", "<yellow>▶ 클릭: 꺼내기 · Shift: 가방으로</yellow>"))
                     index >= capacity -> Icon.of(Material.IRON_BARS, "<dark_gray>잠긴 칸</dark_gray>", listOf("<gray>권한이 있어야 열립니다.</gray>"))
                     // 열린 빈 칸은 비워 둔다 — 평범한 빈 칸이 "여기 넣으면 된다"를 가장 잘 말한다.
@@ -50,7 +56,7 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
                 })
             }
         }
-        for (row in listOf(1, 3, 5)) for (column in 0 until 9) set(row * 9 + column, Icon.EDGE)
+        for (row in listOf(3, 5)) for (column in 0 until 9) set(row * 9 + column, Icon.EDGE)
         set(SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
     }
 
@@ -84,8 +90,8 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
         if (cursor == null) {
             if (stored == null) return
             // 끼운 배낭은 우클릭으로 연다(`/배낭` 과 같다). 잠긴 칸의 것은 효과가 없듯 열리지도 않는다 — 꺼내서 연다.
-            if (event.click == ClickType.RIGHT && index < store.capacity(viewer, group) && custom.items.usable(stored)?.isBackpack == true) {
-                custom.backpacks.openEquipped(viewer, group, index)
+            if (event.click == ClickType.RIGHT && group == Group.BACKPACK && index < store.capacity(viewer, group) && custom.items.usable(stored)?.isBackpack == true) {
+                custom.backpacks.openEquipped(viewer, index)
                 return
             }
             if (event.isShiftClick) {
@@ -102,6 +108,8 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
         if (index >= store.capacity(viewer, group)) return custom.messages.send(viewer, "equip-locked")
         val definition = custom.items.identify(cursor)
         if (definition == null || definition.type != group.type) return custom.messages.send(viewer, "equip-wrong-type", Ph.of().value(group.display))
+        // 사용 기간이 끝난 것은 끼우지 못한다(사용자 결정 2026-09-30 — 효과 정지는 장착·사용 불가).
+        if (custom.items.isExpired(cursor)) return custom.messages.send(viewer, "item-expired-use")
         // 칸에 이미 있으면 맞바꾼다. 커서에 여러 개면 맞바꿀 수 없다(남는 것을 둘 데가 없다).
         if (stored != null && cursor.amount > 1) return
         val one = cursor.clone().also { it.amount = 1 }
@@ -116,6 +124,7 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
         val stack = event.currentItem?.takeIf { !it.type.isAir } ?: return
         val definition = custom.items.identify(stack) ?: return
         val group = Group.of(definition.type) ?: return
+        if (custom.items.isExpired(stack)) return custom.messages.send(viewer, "item-expired-use")
         val capacity = store.capacity(viewer, group)
         val index = (0 until capacity).firstOrNull { store.get(viewer.uniqueId, group, it) == null }
             ?: return custom.messages.send(viewer, "equip-full", Ph.of().value(group.display))
@@ -131,7 +140,8 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
     }
 
     private companion object {
-        val ROWS = mapOf(Group.ACCESSORY to 0, Group.TALISMAN to 2, Group.RELIC to 4)
+        /** 장신구·부적·유물은 위에 붙여 두고, 배낭은 구분선(3번 줄) 아래에 — 효과를 내는 줄과 창고 줄을 가른다. */
+        val ROWS = mapOf(Group.ACCESSORY to 0, Group.TALISMAN to 1, Group.RELIC to 2, Group.BACKPACK to 4)
         val HANDLED = setOf(ClickType.LEFT, ClickType.RIGHT, ClickType.SHIFT_LEFT, ClickType.SHIFT_RIGHT)
         const val SLOT_CLOSE = 53
     }
@@ -172,7 +182,7 @@ class EquipmentSettingsMenu(custom: CustomItems, private val viewer: Player) :
     }
 
     private companion object {
-        val SLOTS = listOf(11, 13, 15)
+        val SLOTS = listOf(10, 12, 14, 16)
         const val SLOT_INVENTORY = 4
         const val SLOT_BACK = 22
     }

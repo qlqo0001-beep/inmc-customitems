@@ -94,6 +94,7 @@ class ItemEditMenu(
         EditButton.TYPE -> btn(typeIcon(item)) { chooseType() }
         EditButton.CATEGORY -> btn(categoryIcon(item)) { chooseCategory(custom.types.of(item)) }
         EditButton.TIER -> btn(tierIcon(item)) { event -> mutate { it.copy(tier = Editors.cycle(event, Tier.entries.toList(), it.tier)) } }
+        EditButton.PERIOD -> btn(periodIcon(item)) { event -> editPeriod(event) }
 
         // --- 능력: 무엇을 하나 · 무엇이 붙나 · 언제·어디서 ---
         EditButton.STATS -> btn(statsIcon(item)) { StatsMenu(custom, viewer, id).open(viewer) }
@@ -124,6 +125,10 @@ class ItemEditMenu(
         EditButton.SOCKETS -> btn(socketsIcon(item)) { SocketMenu(custom, viewer, id).open(viewer) }
         EditButton.BLOCK -> btn(blockIcon(item)) { BlockMenu(custom, viewer, id).open(viewer) }
         EditButton.BACKPACK -> btn(backpackIcon(item)) { event -> editBackpack(item, event) }
+        EditButton.AUTO_PICKUP -> btn(toggleIcon(Material.HOPPER, "드랍 자동 수납", item.autoPickup,
+            if (item.gem != null) "이 보석을 박은 배낭은 주운 물건을 가방보다 먼저 받습니다." else "주운 물건이 가방보다 먼저 이 배낭에 들어갑니다.")) {
+            mutate { it.copy(autoPickup = !it.autoPickup) }
+        }
         EditButton.UNIDENTIFIED -> btn(toggleIcon(Material.FILLED_MAP, "미확인으로 나오기", item.unidentified, "만들면 정체가 가려지고 감정서로 밝힙니다.")) {
             mutate { it.copy(unidentified = !it.unidentified) }
         }
@@ -180,7 +185,7 @@ class ItemEditMenu(
     /** 기본값에서 바꾼 것을 짧게 — 탭 아이콘의 "설정됨". 기본 탭의 버튼은 늘 값이 있어 null. */
     private fun changed(button: EditButton, item: CustomItem): String? = when (button) {
         EditButton.MATERIAL, EditButton.NAME, EditButton.LORE, EditButton.TEXTURE,
-        EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER -> null
+        EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER, EditButton.PERIOD -> null
         EditButton.STATS -> item.stats.size.takeIf { it > 0 }?.let { "능력치 $it" }
         EditButton.ABILITIES -> item.abilities.size.takeIf { it > 0 }?.let { "기능 $it" }
         EditButton.STYLE -> item.style.takeIf { it != AttackStyle.NONE }?.display
@@ -198,6 +203,7 @@ class ItemEditMenu(
         EditButton.SOCKETS -> item.sockets.size.takeIf { it > 0 }?.let { "소켓 $it" }
         EditButton.BLOCK -> item.block?.let { "블록" }
         EditButton.BACKPACK -> item.backpack.takeIf { it > 0 }?.let { "배낭 " + it + "칸" }
+        EditButton.AUTO_PICKUP -> "자동 수납".takeIf { item.autoPickup }
         EditButton.UNIDENTIFIED -> "미확인".takeIf { item.unidentified }
         EditButton.SALVAGE -> item.salvage.size.takeIf { it > 0 }?.let { "분해물 " + it + "종" }
         EditButton.ROLES -> item.roles.size.takeIf { it > 0 }?.let { "연동 역할 $it" }
@@ -594,7 +600,8 @@ class ItemEditMenu(
                 "",
                 "<gray>들고 우클릭하면 이 아이템 한 개만의 창고가 열립니다.</gray>",
                 "<gray>내용물은 아이템에 붙습니다 — 주거나 떨어뜨리면 같이 갑니다.</gray>",
-                "<gray>장착 칸(/장비)에 끼우면 <white>/배낭</white> 으로 엽니다.</gray>",
+                "<gray>장착 칸(/장비)의 배낭 줄에 끼우면 <white>/배낭 번호</white> · G 키로 엽니다.</gray>",
+                "<gray>강화 단계가 칸을 더할 수 있습니다(강화·진화 → 단계).</gray>",
                 "<dark_gray>최대 " + BackpackLayout.MAX + "칸 · 배낭 안에 배낭은 못 넣습니다</dark_gray>",
                 "",
                 "<yellow>▶ 좌/우클릭: 한 줄(9칸)씩 · Shift: 열 줄씩</yellow>",
@@ -602,6 +609,21 @@ class ItemEditMenu(
             ),
         )
     }
+
+    /** 사용 기간(사용자 결정 2026-09-30 — 받은 순간부터 실제 시간). */
+    private fun periodIcon(item: CustomItem) = Icon.of(
+        if (item.period > 0) Material.CLOCK else Material.GRAY_DYE,
+        "<yellow>사용 기간: <white>" + (if (item.period > 0) kr.inmc.core.util.Durations.formatShort(item.period) else "없음") + "</white></yellow>",
+        listOf(
+            "<gray>받은(만들어진) 순간부터 실제 시간으로 흐릅니다.</gray>",
+            "<gray>다 되면: <white>" + item.expiry.display + "</white></gray>",
+            "<dark_gray>효과 정지 — 남되 능력치·기능·장착·사용이 멈춥니다.</dark_gray>",
+            "<dark_gray>배낭이면 어느 쪽이든 안의 물건은 돌려줍니다.</dark_gray>",
+            "",
+            "<yellow>▶ 좌클릭: 기간 적기 (예: 7d · 12h · 1d 12h, 0 = 없음)</yellow>",
+            "<yellow>▶ 우클릭: 다 되면 사라짐 ↔ 효과 정지</yellow>",
+        ),
+    )
 
     private fun inventoryEffectIcon(item: CustomItem): ItemStack {
         val server = custom.equipmentSettings.inventoryEffects
@@ -666,6 +688,25 @@ class ItemEditMenu(
                     it.copy(texture = text, model = "")
                 }
             }
+        }
+    }
+
+    private fun editPeriod(event: InventoryClickEvent) {
+        if (event.isRightClick) {
+            mutate { it.copy(expiry = if (it.expiry == com.inmc.customitems.item.Expiry.VANISH) com.inmc.customitems.item.Expiry.DISABLE else com.inmc.customitems.item.Expiry.VANISH) }
+            return
+        }
+        Editors.promptText(
+            custom.prompts, viewer, "사용 기간",
+            listOf("<gray>예: <white>7d</white> · <white>12h</white> · <white>1d 12h</white> · <white>30m</white> — <white>0</white> 이면 없앱니다.</gray>"),
+            reopen = { open(viewer) },
+        ) { raw ->
+            val seconds = kr.inmc.core.util.Durations.parse(raw.trim(), -1L)
+            if (seconds < 0) {
+                viewer.sendMessage(Text.render("<red>기간을 읽지 못했습니다: " + raw + "</red>"))
+                return@promptText
+            }
+            mutate(false) { it.copy(period = seconds) }
         }
     }
 

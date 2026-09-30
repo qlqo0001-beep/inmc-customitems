@@ -26,7 +26,7 @@ enum class EditTab(
 ) {
     BASIC("기본", "<aqua>", Material.ITEM_FRAME, Material.LIGHT_BLUE_STAINED_GLASS_PANE, listOf(
         listOf(EditButton.MATERIAL, EditButton.NAME, EditButton.LORE, EditButton.TEXTURE),
-        listOf(EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER),
+        listOf(EditButton.TYPE, EditButton.CATEGORY, EditButton.TIER, EditButton.PERIOD),
     )),
     POWER("능력", "<red>", Material.NETHERITE_SWORD, Material.RED_STAINED_GLASS_PANE, listOf(
         listOf(EditButton.STATS, EditButton.ABILITIES, EditButton.STYLE, EditButton.UPGRADE, EditButton.MINING_TIER),
@@ -34,9 +34,9 @@ enum class EditTab(
         listOf(EditButton.REQUIREMENT, EditButton.INVENTORY_EFFECT, EditButton.NO_DUPLICATE),
     )),
     USE("용도", "<green>", Material.BARREL, Material.LIME_STAINED_GLASS_PANE, listOf(
-        listOf(EditButton.CONSUME, EditButton.GEM, EditButton.SOCKETS, EditButton.BLOCK, EditButton.BACKPACK),
-        listOf(EditButton.UNIDENTIFIED, EditButton.SALVAGE),
-        listOf(EditButton.ROLES, EditButton.DATA),
+        listOf(EditButton.CONSUME, EditButton.GEM, EditButton.SOCKETS, EditButton.BLOCK),
+        listOf(EditButton.BACKPACK, EditButton.AUTO_PICKUP),
+        listOf(EditButton.UNIDENTIFIED, EditButton.SALVAGE, EditButton.ROLES, EditButton.DATA),
     )),
     VANILLA("바닐라", "<yellow>", Material.GRASS_BLOCK, Material.YELLOW_STAINED_GLASS_PANE, listOf(
         listOf(EditButton.GLOW, EditButton.UNBREAKABLE, EditButton.DURABILITY),
@@ -47,11 +47,11 @@ enum class EditTab(
 /** 설정 화면의 버튼. 어느 탭의 어느 줄에 있는지는 [EditTab.rows] 가 정한다. */
 enum class EditButton(val label: String) {
     MATERIAL("재질"), NAME("표시 이름"), LORE("설명"), TEXTURE("겉모습"),
-    TYPE("종류"), CATEGORY("소분류"), TIER("등급"),
+    TYPE("종류"), CATEGORY("소분류"), TIER("등급"), PERIOD("사용 기간"),
     STATS("능력치"), ABILITIES("기능"), STYLE("공격 방식"), UPGRADE("강화·진화"), MINING_TIER("채굴 등급"),
     ENCHANTS("인챈트"), CUSTOM_ENCHANTS("커스텀 인첸트"), MODIFIERS("수식어"), SET("세트"),
     REQUIREMENT("요구 조건"), INVENTORY_EFFECT("효과가 나는 곳"), NO_DUPLICATE("중복 안 함"),
-    CONSUME("소모품"), GEM("보석"), SOCKETS("소켓"), BLOCK("블록"), BACKPACK("배낭"),
+    CONSUME("소모품"), GEM("보석"), SOCKETS("소켓"), BLOCK("블록"), BACKPACK("배낭"), AUTO_PICKUP("드랍 자동 수납"),
     UNIDENTIFIED("미확인"), SALVAGE("분해물"),
     ROLES("연동 역할"), DATA("연동 값"),
     GLOW("빛나게"), UNBREAKABLE("무한 내구도"), DURABILITY("최대 내구도"),
@@ -62,7 +62,10 @@ enum class EditButton(val label: String) {
 
     /** 이 아이템에 뜻이 있는 버튼인가. */
     fun shownFor(item: CustomItem): Boolean = when (this) {
-        BACKPACK, INVENTORY_EFFECT -> item.type == ItemType.ACCESSORY || item.type.carried
+        BACKPACK -> item.type == ItemType.BACKPACK
+        // 보석에 켜 두면 그 보석을 박은 배낭이 자동 수납이 된다.
+        AUTO_PICKUP -> item.type == ItemType.BACKPACK || item.gem != null
+        INVENTORY_EFFECT -> item.type.slotted
         NO_DUPLICATE -> item.type == ItemType.TALISMAN
         MINING_TIER -> ToolGrades.vanillaTier(item.material) != null
         else -> true

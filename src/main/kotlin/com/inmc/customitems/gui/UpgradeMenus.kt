@@ -150,7 +150,7 @@ class UpgradeTableMenu(
             "<gray>등급·모양은 \"이 단계부터\"라 가져오지 않습니다.</gray>",
         ))) {
             if (table.maxLevel >= UpgradeTable.MAX_STEPS) return@set
-            val step = table.steps.lastOrNull()?.copy(tier = null, customModelData = 0, texture = "", model = "") ?: UpgradeStep()
+            val step = table.steps.lastOrNull()?.copy(tier = null, customModelData = 0, texture = "", model = "", backpack = 0, autoPickup = false) ?: UpgradeStep()
             ref.set(table.copy(steps = table.steps + step))
             refresh()
         }
@@ -188,6 +188,8 @@ class UpgradeTableMenu(
         if (table.mode == UpgradeMode.ADD) for ((stat, value) in step.percents.entries.take(4)) add("<gray>" + stat.display + " 기본의 +" + kr.inmc.core.util.Numbers.chance(value) + "%</gray>")
         step.tier?.let { add("<gray>등급 → " + it.color + it.display + "</gray>") }
         if (step.customModelData > 0 || step.texture.isNotBlank() || step.model.isNotBlank()) add("<gray>모양이 바뀝니다</gray>")
+        if (step.backpack != 0) add("<gold>배낭 +" + step.backpack + "칸</gold>")
+        if (step.autoPickup) add("<gold>드랍 자동 수납</gold>")
     }
 
     private companion object {
@@ -239,19 +241,51 @@ class UpgradeStepMenu(
             change { it.copy(tier = Editors.cycle(event, tiers, it.tier)) }
             refresh()
         }
-        set(SLOT_TEXTURE, Icon.of(Material.PAINTING, "<yellow>이 단계부터 텍스처: <white>" + step.texture.ifBlank { step.model.ifBlank { "그대로" } } + "</white></yellow>", listOf(
-            "<gray>pack/textures/ 의 png 이름. 직접 만든 모델이면 <white>model:이름</white></gray>",
-            "<gray>팩을 다시 빌드해야 보입니다.</gray>", "", "<yellow>▶ 좌클릭: 적기 · 우클릭: 비우기</yellow>",
+        // 아이템 설정의 겉모습과 같은 손짓(사용자 요청 2026-09-30 — 여기서도 모델을 고르게).
+        set(SLOT_TEXTURE, Icon.of(Material.PAINTING, "<yellow>이 단계부터 겉모습: <white>" + step.model.ifBlank { step.texture }.ifBlank { "그대로" } + "</white></yellow>", listOf(
+            if (step.model.isNotBlank()) "<gray>모델: <white>" + step.model + "</white></gray>" else if (step.texture.isNotBlank()) "<gray>텍스처: <white>" + step.texture + "</white></gray>" else "<dark_gray>아이템 모양 그대로</dark_gray>",
+            "<gray>팩을 다시 빌드해야 보입니다.</gray>", "",
+            "<yellow>▶ 좌클릭: 팩의 모델에서 고르기(검색)</yellow>",
+            "<yellow>▶ Shift+좌클릭: 텍스처·모델 이름 직접 입력</yellow>",
+            "<red>▶ 우클릭: 비우기</red>",
         ))) { event ->
-            if (event.isRightClick) {
-                change { it.copy(texture = "", model = "") }
-                refresh()
+            when {
+                event.isRightClick -> {
+                    change { it.copy(texture = "", model = "") }
+                    refresh()
+                }
+                !event.isShiftClick -> ModelListMenu.pick(custom, viewer, current = step.model.takeIf { it.isNotBlank() }, back = { open(viewer) }) { model ->
+                    change { it.copy(model = model, texture = "") }
+                    open(viewer)
+                }
+                else -> Editors.promptText(custom.prompts, viewer, "텍스처 파일 이름", listOf(
+                    "<gray>pack/textures/ 에 넣은 png 이름. 예: <white>relic_5.png</white></gray>",
+                    "<gray>모델을 직접 만들었으면 <white>model:이름</white> 으로 적으세요.</gray>",
+                ), reopen = { open(viewer) }) { raw ->
+                    val text = raw.trim()
+                    change { if (text.startsWith("model:")) it.copy(model = text.removePrefix("model:").trim(), texture = "") else it.copy(texture = text, model = "") }
+                }
+            }
+        }
+        // 배낭에만 뜻이 있는 둘(사용자 요청 2026-09-30 — 강화하면 칸이 늘고, 자동 수납이 붙는다).
+        set(SLOT_BACKPACK, Editors.intIcon(Material.BUNDLE, "<gold>이 단계에서 배낭 +칸</gold>", step.backpack, extra = listOf(
+            "<gray>배낭에만 뜻이 있습니다. 앞 단계들 것과 쌓입니다.</gray>",
+            "<gray>+" + level + " 까지 합: <white>" + table.backpackAt(level) + "</white>칸</gray>",
+        ), stepLabel = "9")) { event ->
+            if (Editors.isPrompt(event)) {
+                Editors.promptInt(custom.prompts, viewer, "이 단계에서 더할 배낭 칸", 0, com.inmc.customitems.player.BackpackLayout.MAX, { open(viewer) }) { value -> change { it.copy(backpack = value) } }
                 return@set
             }
-            Editors.promptText(custom.prompts, viewer, "텍스처 파일 이름", listOf("<gray>예: <white>relic_5.png</white></gray>"), reopen = { open(viewer) }) { raw ->
-                val text = raw.trim()
-                change { if (text.startsWith("model:")) it.copy(model = text.removePrefix("model:").trim(), texture = "") else it.copy(texture = text, model = "") }
-            }
+            change { it.copy(backpack = (it.backpack + Editors.step(event, 9)).coerceIn(0, com.inmc.customitems.player.BackpackLayout.MAX)) }
+            refresh()
+        }
+        set(SLOT_AUTO_PICKUP, Icon.of(if (step.autoPickup) Material.HOPPER else Material.GRAY_DYE, "<gold>이 단계부터 드랍 자동 수납: " + Icon.toggle(step.autoPickup) + "</gold>", listOf(
+            "<gray>배낭에만 뜻이 있습니다 — 주운 물건이 가방보다 먼저</gray>",
+            "<gray>배낭에 들어갑니다. 켜면 뒤 단계에도 이어집니다.</gray>",
+            "", "<yellow>▶ 클릭: 전환</yellow>",
+        ))) {
+            change { it.copy(autoPickup = !it.autoPickup) }
+            refresh()
         }
 
         // 고정값 다음에 % — 한 목록으로 보여준다.
@@ -302,6 +336,8 @@ class UpgradeStepMenu(
     private companion object {
         const val SLOT_CHANCE = 10
         const val SLOT_FAIL = 11
+        const val SLOT_BACKPACK = 12
+        const val SLOT_AUTO_PICKUP = 13
         const val SLOT_TIER = 14
         const val SLOT_TEXTURE = 16
         const val FIRST_STAT = 18

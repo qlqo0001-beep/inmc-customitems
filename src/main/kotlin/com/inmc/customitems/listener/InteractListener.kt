@@ -40,6 +40,12 @@ class InteractListener(private val custom: CustomItems) : Listener {
 
         val player = event.player
         val stack = player.inventory.itemInMainHand
+        // 사용 기간이 끝난 것은 쓰지 못한다(사용자 결정 2026-09-30) — 활 당기기·던지기·먹기 같은 바닐라 사용까지.
+        if (custom.items.isExpired(stack)) {
+            event.setUseItemInHand(Event.Result.DENY)
+            if (trigger == Trigger.RIGHT_CLICK) custom.messages.send(player, "item-expired-use")
+            return
+        }
         val item = custom.items.usable(stack) ?: return
         // 배낭(장신구·부적·유물)은 우클릭이 창고를 연다 — 장착 칸에서만 효과가 나는 종류여도(효과가 아니라 여는 것이다).
         // 웅크려 우클릭 기능이 있으면 그쪽으로, 상자·문 같은 블록을 누르면 그 블록을 연다.
@@ -87,6 +93,8 @@ class InteractListener(private val custom: CustomItems) : Listener {
     fun onPlace(event: BlockPlaceEvent) {
         val item = custom.items.identify(event.itemInHand) ?: return
         if (item.preventVanillaUse && item.block == null) event.isCancelled = true
+        // 사용 기간이 끝난 것은 놓지도 못한다(커스텀 블록 포함 — BlockListener 가 이 사건을 직접 쏘므로 여기서 같이 막힌다).
+        if (custom.items.isExpired(event.itemInHand)) event.isCancelled = true
     }
 
     /**
@@ -95,7 +103,7 @@ class InteractListener(private val custom: CustomItems) : Listener {
      */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onConsume(event: PlayerItemConsumeEvent) {
-        if (custom.items.identify(event.item)?.preventVanillaUse == true) event.isCancelled = true
+        if (custom.items.identify(event.item)?.preventVanillaUse == true || custom.items.isExpired(event.item)) event.isCancelled = true
     }
 
     /** 나간 사람의 쿨다운은 들고 있을 이유가 없다. */

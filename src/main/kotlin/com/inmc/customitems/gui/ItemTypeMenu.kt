@@ -107,8 +107,11 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
     companion object {
         const val SIZE = 54
 
-        /** 종류 칸. 두 줄에 다섯씩 — 종류를 늘리면 여기도 늘린다(`MenuLayoutTest` 가 모자라면 잡는다). */
-        val TYPE_SLOTS = listOf(11, 12, 13, 14, 15, 29, 30, 31, 32, 33)
+        /**
+         * 종류 칸 — [com.inmc.customitems.item.ItemType] 순서대로. 둘째 줄에 일반 종류 일곱(무기·방어구·도구·소모품 … 재료·보석·기타),
+         * 넷째 줄에 몸에 끼우는 넷(장신구·부적·유물·배낭)을 한 칸씩 띄워. 종류를 늘리면 여기도 늘린다(`MenuLayoutTest` 가 모자라면 잡는다).
+         */
+        val TYPE_SLOTS = listOf(10, 11, 12, 13, 28, 30, 32, 34, 14, 15, 16)
         const val SLOT_ALL = 22
 
         /** 만든 종류 칸 — 아홉까지. 더 많으면 종류 관리 화면에서 본다. */

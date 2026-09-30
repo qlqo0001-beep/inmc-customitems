@@ -14,6 +14,8 @@ class Ticker(private val custom: CustomItems) : TickerBase(custom.plugin) {
 
     override fun ready(): Boolean = custom.ready
 
+    private var turns = 0L
+
     override fun tick(now: Long) {
         step("prompts") { custom.prompts.tick(now) }
         step("flush") {
@@ -32,6 +34,8 @@ class Ticker(private val custom: CustomItems) : TickerBase(custom.plugin) {
             for (player in org.bukkit.Bukkit.getOnlinePlayers()) custom.stats.sync(player)
         }
         step("regen") { regen() }
+        // 사용 기간 — 기능은 usable 이 그 자리에서 끄므로 모습만 맞추면 된다. 5초면 충분하다.
+        if (turns++ % 5 == 0L) step("expiry") { custom.expiry.sweep() }
     }
 
     /** 초당 체력 회복. 죽었거나 가득 찬 사람은 건너뛴다. */

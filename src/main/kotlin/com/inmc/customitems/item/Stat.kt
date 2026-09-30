@@ -204,6 +204,8 @@ enum class ItemType(val id: String, val display: String, val icon: Material, val
     ACCESSORY("accessory", "장신구", Material.AMETHYST_SHARD, "❖"),
     TALISMAN("talisman", "부적", Material.PAPER, "✧"),
     RELIC("relic", "유물", Material.HEART_OF_THE_SEA, "❂"),
+    /** 들고 다니는 창고([CustomItem.backpack], 사용자 결정 2026-09-30). 장착 칸의 배낭 줄에 끼우고, 능력치·기능은 장신구처럼 난다. */
+    BACKPACK("backpack", "배낭", Material.BUNDLE, "▣"),
     MATERIAL("material", "재료", Material.COPPER_INGOT, "◈"),
     GEM("gem", "보석", Material.EMERALD, "◆"),
     MISC("misc", "기타", Material.FLOWER_BANNER_PATTERN, "✦"),
@@ -214,6 +216,9 @@ enum class ItemType(val id: String, val display: String, val icon: Material, val
      * 유물은 종류가 달라도 **한 번에 하나만** 붙는다.
      */
     val carried: Boolean get() = this == TALISMAN || this == RELIC
+
+    /** 장착 칸(`/장비`)에 끼우는 종류 — 장신구·배낭·부적·유물. 장착 칸 밖(가방·손)에서의 효과를 서버·아이템이 정한다. */
+    val slotted: Boolean get() = this == ACCESSORY || this == BACKPACK || carried
 
     /** 로어 맨 위 — 흐린 글씨로 종류만. 등급은 이름 색과 맨 아래 배지([Tier.badge])가 말한다. */
     fun header(): String = "<dark_gray>" + symbol + "</dark_gray> <gray>" + display + "</gray>"

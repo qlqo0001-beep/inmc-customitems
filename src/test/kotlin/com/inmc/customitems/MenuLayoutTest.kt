@@ -88,22 +88,29 @@ class MenuLayoutTest {
         val relic = CustomItem("relic", Material.PAPER, type = ItemType.RELIC)
         val ring = CustomItem("ring", Material.GOLD_NUGGET, type = ItemType.ACCESSORY)
 
+        val bag = CustomItem("bag", Material.BUNDLE, type = ItemType.BACKPACK)
+        val gem = CustomItem("gem", Material.EMERALD, type = ItemType.GEM, gem = com.inmc.customitems.item.GemSpec(com.inmc.customitems.item.GemSpec.ANY, 100.0))
         for (item in listOf(sword, pickaxe)) {
             assertFalse(EditButton.BACKPACK.shownFor(item), item.id + " 에 배낭")
+            assertFalse(EditButton.AUTO_PICKUP.shownFor(item), item.id + " 에 자동 수납")
             assertFalse(EditButton.INVENTORY_EFFECT.shownFor(item), item.id + " 에 효과가 나는 곳")
             assertFalse(EditButton.NO_DUPLICATE.shownFor(item), item.id + " 에 중복 안 함")
         }
-        for (item in listOf(talisman, relic, ring)) {
-            assertTrue(EditButton.BACKPACK.shownFor(item), item.id + " 에 배낭이 없다")
+        for (item in listOf(talisman, relic, ring, bag)) {
             assertTrue(EditButton.INVENTORY_EFFECT.shownFor(item), item.id + " 에 효과가 나는 곳이 없다")
         }
+        // 배낭 칸은 배낭 종류만, 자동 수납은 배낭과 보석(박으면 그 배낭이 자동 수납)에만.
+        assertTrue(EditButton.BACKPACK.shownFor(bag))
+        for (item in listOf(talisman, relic, ring)) assertFalse(EditButton.BACKPACK.shownFor(item), item.id + " 에 배낭 칸")
+        assertTrue(EditButton.AUTO_PICKUP.shownFor(bag))
+        assertTrue(EditButton.AUTO_PICKUP.shownFor(gem))
         assertTrue(EditButton.NO_DUPLICATE.shownFor(talisman))
         assertFalse(EditButton.NO_DUPLICATE.shownFor(relic), "중복 안 함은 부적만 쓴다(Carried)")
         assertTrue(EditButton.MINING_TIER.shownFor(pickaxe))
         assertFalse(EditButton.MINING_TIER.shownFor(talisman), "도구가 아닌데 채굴 등급")
         // 숨은 버튼은 칸이 없다 — 검증기가 그 칸을 누르지 않게.
         assertEquals(null, ItemEditLayout.slotOf(sword, EditButton.BACKPACK))
-        assertTrue(ItemEditLayout.slotOf(talisman, EditButton.BACKPACK) != null)
+        assertTrue(ItemEditLayout.slotOf(bag, EditButton.BACKPACK) != null)
     }
 
     @Test

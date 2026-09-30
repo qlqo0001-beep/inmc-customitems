@@ -67,6 +67,9 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     /** 배낭 — 장신구·부적·유물 한 개마다의 창고. 바꿀 때마다 즉시 저장한다. */
     val backpacks = com.inmc.customitems.player.Backpacks(this)
 
+    /** 사용 기간이 끝난 아이템의 뒤처리(사라짐·효과 정지 모습·배낭 돌려주기). */
+    val expiry = com.inmc.customitems.player.ExpiryService(this)
+
     val stations = com.inmc.customitems.craft.StationRegistry(this)
 
     val crafting = com.inmc.customitems.craft.CraftService(this)

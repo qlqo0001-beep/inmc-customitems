@@ -34,6 +34,8 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
         ACCESSORY("accessory", "장신구", ItemType.ACCESSORY, Material.AMETHYST_SHARD),
         TALISMAN("talisman", "부적", ItemType.TALISMAN, Material.PAPER),
         RELIC("relic", "유물", ItemType.RELIC, Material.HEART_OF_THE_SEA),
+        /** 배낭 줄(사용자 결정 2026-09-30) — 앞 칸부터 `/배낭 1, 2, 3 …`. 맨 뒤에 둔다 — 죽을 때 칸 번호(종류 순서 × 8)가 밀리지 않게. */
+        BACKPACK("backpack", "배낭", ItemType.BACKPACK, Material.BUNDLE),
         ;
 
         /** 권한 노드. `incustomitems.slots.talisman.6` 이면 부적 칸 6개. */
@@ -198,6 +200,7 @@ class EquipmentSettings(private val custom: CustomItems) : YamlFileStore(
             EquipmentStore.Group.ACCESSORY to 4,
             EquipmentStore.Group.TALISMAN to 4,
             EquipmentStore.Group.RELIC to 1,
+            EquipmentStore.Group.BACKPACK to 1,
         )
     }
 }

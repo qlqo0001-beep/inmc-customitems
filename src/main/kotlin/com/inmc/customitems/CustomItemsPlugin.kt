@@ -43,6 +43,8 @@ class CustomItemsPlugin : JavaPlugin() {
         CustomItemHook.register(InmcItemProvider(custom))
         // 죽을 때 장착 칸도 가방과 같이 — 인벤키퍼가 이 창구를 본다.
         kr.inmc.core.integration.ExtraInventory.register(custom.equipment)
+        // 배낭 안의 것을 가방처럼 센다 — 상점 판매·랜덤박스 열쇠·화폐 실물이 배낭까지 본다.
+        kr.inmc.core.integration.CarriedStorage.register(custom.backpacks)
 
         registerListeners()
         CustomItemsCommand(custom).register(this)
@@ -69,6 +71,7 @@ class CustomItemsPlugin : JavaPlugin() {
         // 계속 묻게 되고, 그쪽 로그에 우리 이름이 안 나와 원인을 찾기 어렵다.
         CustomItemHook.unregister(ItemBuilder.NAMESPACE)
         kr.inmc.core.integration.ExtraInventory.unregister(custom.equipment)
+        kr.inmc.core.integration.CarriedStorage.unregister(custom.backpacks)
         // 빠지면 역할을 쓰는 플러그인들이 제 파일로 돌아간다(옮긴 뒤라면 빈 목록 — 우리 없이는 우리 아이템도 없다).
         kr.inmc.core.integration.ItemRoles.detach(custom.roleStore)
         custom.items.flushBlocking()

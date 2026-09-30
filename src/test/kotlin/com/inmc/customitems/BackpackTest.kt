@@ -47,23 +47,56 @@ class BackpackTest {
     }
 
     @Test
-    fun `배낭은 장신구·부적·유물만이고 크기가 있어야 한다`() {
-        assertTrue(CustomItem("bag", Material.PAPER, type = ItemType.TALISMAN, backpack = 27).isBackpack)
-        assertTrue(CustomItem("bag", Material.PAPER, type = ItemType.RELIC, backpack = 9).isBackpack)
-        assertTrue(CustomItem("bag", Material.PAPER, type = ItemType.ACCESSORY, backpack = 9).isBackpack)
-        assertFalse(CustomItem("bag", Material.PAPER, type = ItemType.TALISMAN).isBackpack, "크기 0")
-        assertFalse(CustomItem("sword", Material.IRON_SWORD, type = ItemType.WEAPON, backpack = 27).isBackpack, "종류를 바꾸면 크기가 남아도 닫힌다")
+    fun `배낭은 배낭 종류이고 크기가 있어야 한다`() {
+        assertTrue(CustomItem("bag", Material.BUNDLE, type = ItemType.BACKPACK, backpack = 27).isBackpack)
+        assertFalse(CustomItem("bag", Material.BUNDLE, type = ItemType.BACKPACK).isBackpack, "크기 0")
+        // 2026-09-30 부터 배낭은 제 종류가 있다 — 장신구·부적·유물에 남은 크기로는 열리지 않는다(종류를 배낭으로 바꾸면 내용물 그대로).
+        for (type in listOf(ItemType.ACCESSORY, ItemType.TALISMAN, ItemType.RELIC, ItemType.WEAPON)) {
+            assertFalse(CustomItem("bag", Material.PAPER, type = type, backpack = 27).isBackpack, "$type 에 크기가 있어도 배낭이 아니다")
+        }
+        assertTrue(ItemType.BACKPACK.slotted, "배낭은 장착 칸에 끼운다")
+        assertFalse(ItemType.BACKPACK.carried, "배낭은 가방에 두기만 해서는 효과가 안 난다(장신구처럼)")
     }
 
     @Test
-    fun `배낭 크기가 왕복하고 없으면 적지 않는다`() {
-        val bag = CustomItem("bag", Material.PAPER, type = ItemType.RELIC, backpack = 135)
+    fun `배낭 크기·자동 수납·사용 기간이 왕복하고 없으면 적지 않는다`() {
+        val bag = CustomItem("bag", Material.BUNDLE, type = ItemType.BACKPACK, backpack = 135, autoPickup = true, period = 7 * 86400L, expiry = com.inmc.customitems.item.Expiry.DISABLE)
         val section = YamlConfiguration().createSection("bag")
         bag.save(section)
-        assertEquals(135, CustomItem.load("bag", section)!!.backpack)
+        val back = CustomItem.load("bag", section)!!
+        assertEquals(135, back.backpack)
+        assertTrue(back.autoPickup)
+        assertEquals(7 * 86400L, back.period)
+        assertEquals(com.inmc.customitems.item.Expiry.DISABLE, back.expiry)
+        assertEquals("7d", section.getString("period"), "기간은 사람이 읽는 모양으로")
         val plain = YamlConfiguration().createSection("stick")
         CustomItem("stick", Material.STICK).save(plain)
-        assertFalse(plain.contains("backpack"), "적으면 이 칸이 생긴 것만으로 모든 아이템의 지문이 바뀐다")
+        for (key in listOf("backpack", "auto-pickup", "period", "expiry")) {
+            assertFalse(plain.contains(key), "$key 를 적으면 이 칸이 생긴 것만으로 모든 아이템의 지문이 바뀐다")
+        }
+    }
+
+    @Test
+    fun `강화 단계가 배낭 칸을 쌓아 더하고 자동 수납은 켠 단계부터 이어진다`() {
+        val table = com.inmc.customitems.item.UpgradeTable("t", steps = listOf(
+            com.inmc.customitems.item.UpgradeStep(backpack = 9),
+            com.inmc.customitems.item.UpgradeStep(),
+            com.inmc.customitems.item.UpgradeStep(backpack = 18, autoPickup = true),
+            com.inmc.customitems.item.UpgradeStep(),
+        ))
+        assertEquals(0, table.backpackAt(0))
+        assertEquals(9, table.backpackAt(1))
+        assertEquals(9, table.backpackAt(2))
+        assertEquals(27, table.backpackAt(3))
+        assertEquals(27, table.backpackAt(10), "최대 단계를 넘어도 있는 단계까지만")
+        assertFalse(table.autoPickupAt(2))
+        assertTrue(table.autoPickupAt(3))
+        assertTrue(table.autoPickupAt(4), "켠 단계 뒤로 이어진다")
+        val section = YamlConfiguration().createSection("step")
+        table.steps[2].save(section)
+        val back = com.inmc.customitems.item.UpgradeStep.load(section)
+        assertEquals(18, back.backpack)
+        assertTrue(back.autoPickup)
     }
 
     @Test

@@ -36,7 +36,10 @@ class CraftService(private val custom: CustomItems) {
     }
 
     /** 가방(핫바 포함, 방어구·왼손 제외)에 있는 이 재료의 개수. */
-    fun count(player: Player, part: Part): Int = player.inventory.storageContents.sumOf { if (matches(it, part)) it!!.amount else 0 }
+    /** 가방과 배낭(core `CarriedStorage`, 사용자 결정 2026-09-30 — 배낭 안 물건도 가방처럼)에 든 [part] 의 개수. */
+    fun count(player: Player, part: Part): Int =
+        player.inventory.storageContents.sumOf { if (matches(it, part)) it!!.amount else 0 } +
+            kr.inmc.core.integration.CarriedStorage.count(player) { matches(it, part) }
 
     fun meets(player: Player, recipe: StationRecipe): Boolean =
         player.level >= recipe.level && (recipe.permission.isBlank() || player.hasPermission(recipe.permission))
@@ -88,7 +91,7 @@ class CraftService(private val custom: CustomItems) {
         return (0 until QUEUE).firstOrNull { it !in used }
     }
 
-    /** 가방에서 [part] 만큼 거둔다. 모자라는지는 [count] 로 먼저 본다. */
+    /** 가방에서, 모자라면 배낭에서 [part] 만큼 거둔다. 모자라는지는 [count] 로 먼저 본다. */
     fun take(player: Player, part: Part) {
         var left = part.amount
         val inventory = player.inventory
@@ -100,6 +103,7 @@ class CraftService(private val custom: CustomItems) {
             left -= taken
             if (taken >= stack.amount) inventory.setItem(index, null) else stack.amount -= taken
         }
+        if (left > 0) kr.inmc.core.integration.CarriedStorage.take(player, left) { matches(it, part) }
     }
 
     /** 결과를 새로 만들어 준다(우리 아이템은 이때 굴린다). 가방이 차면 발밑으로. */

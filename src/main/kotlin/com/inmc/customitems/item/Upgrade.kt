@@ -55,6 +55,10 @@ data class UpgradeStep(
     val customModelData: Int = 0,
     val texture: String = "",
     val model: String = "",
+    /** 이 단계에서 배낭에 더하는 칸(사용자 요청 2026-09-30). 배낭이 아니면 뜻이 없다. 앞 단계들 것과 쌓인다([UpgradeTable.backpackAt]). */
+    val backpack: Int = 0,
+    /** 이 단계부터 드랍 자동 수납([CustomItem.autoPickup]). */
+    val autoPickup: Boolean = false,
 ) {
     fun save(section: ConfigurationSection) {
         section.set("chance", chance)
@@ -71,6 +75,8 @@ data class UpgradeStep(
         if (customModelData > 0) section.set("custom-model-data", customModelData)
         if (texture.isNotBlank()) section.set("texture", texture)
         if (model.isNotBlank()) section.set("model", model)
+        if (backpack != 0) section.set("backpack", backpack)
+        if (autoPickup) section.set("auto-pickup", true)
     }
 
     companion object {
@@ -83,6 +89,8 @@ data class UpgradeStep(
             customModelData = section.getInt("custom-model-data", 0).coerceAtLeast(0),
             texture = section.getString("texture").orEmpty(),
             model = section.getString("model").orEmpty(),
+            backpack = section.getInt("backpack", 0),
+            autoPickup = section.getBoolean("auto-pickup", false),
         )
     }
 }
@@ -119,6 +127,12 @@ data class UpgradeTable(
         (level.coerceAtMost(maxLevel) downTo 1).firstNotNullOfOrNull { at ->
             step(at)?.takeIf { it.texture.isNotBlank() || it.model.isNotBlank() }?.let { at to it }
         }
+
+    /** [level] 강까지 배낭에 더해진 칸(단계마다 쌓인다). */
+    fun backpackAt(level: Int): Int = (1..level.coerceAtMost(maxLevel)).sumOf { step(it)?.backpack ?: 0 }
+
+    /** [level] 강에 드랍 자동 수납이 켜졌나 — 그 단계나 앞 단계 하나라도 켰으면. */
+    fun autoPickupAt(level: Int): Boolean = (1..level.coerceAtMost(maxLevel)).any { step(it)?.autoPickup == true }
 
     /** [level] 강의 모델 번호. 안 정했으면 null. */
     fun customModelDataAt(level: Int): Int? =

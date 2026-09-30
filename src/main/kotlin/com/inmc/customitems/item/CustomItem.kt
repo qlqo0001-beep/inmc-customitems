@@ -209,11 +209,23 @@ data class CustomItem(
      */
     val preventVanillaUse: Boolean = false,
     /**
-     * 배낭 크기(칸 수, 0 = 배낭 아님) — 장신구·부적·유물([isBackpack])을 우클릭하면 **이 아이템 한 개만의** 창고가 열린다(사용자 결정
-     * 2026-09-30: 셜커 상자처럼 아이템에 붙는다, 크기는 자유 — 45칸씩 페이지). 내용물은 아이템이 아니라 서버 파일에 있고 아이템에는
-     * 배낭 번호만 찍힌다([com.inmc.customitems.player.Backpacks]). 장착 칸에 끼우면 `/배낭` 으로 연다.
+     * 배낭 크기(칸 수, 0 = 배낭 아님) — 배낭 종류([ItemType.BACKPACK], [isBackpack])를 우클릭하면 **이 아이템 한 개만의** 창고가 열린다
+     * (사용자 결정 2026-09-30: 셜커 상자처럼 아이템에 붙는다, 크기는 자유 — 45칸씩 페이지). 내용물은 아이템이 아니라 서버 파일에 있고
+     * 아이템에는 배낭 번호만 찍힌다([com.inmc.customitems.player.Backpacks]). 장착 칸의 배낭 줄에 끼우면 `/배낭 <번호>` 로 연다.
+     * 강화 단계가 칸을 더할 수 있다([UpgradeStep.backpack]).
      */
     val backpack: Int = 0,
+    /**
+     * 드랍 자동 수납(사용자 요청 2026-09-30) — 배낭이면 주운 물건이 가방보다 먼저 이 배낭에 들어간다. **보석**에 켜 두면 그 보석을
+     * 박은 배낭이 그렇게 된다. 강화 단계로도 켠다([UpgradeStep.autoPickup]). 켜졌는지는 [com.inmc.customitems.player.Backpacks.autoPickup].
+     */
+    val autoPickup: Boolean = false,
+    /**
+     * 사용 기간(초, 0 = 없음) — **만들어진 순간부터 실제 시간**으로 흐른다(사용자 결정 2026-09-30). 끝나는 시각은 아이템 한 개마다
+     * 찍힌다([ItemInstance.expires]). 다 되면 [expiry] 대로 — 사라지거나, 남되 능력치·기능·장착·사용이 멈춘다([Periods]).
+     */
+    val period: Long = 0L,
+    val expiry: Expiry = Expiry.VANISH,
     val requirement: Requirement = Requirement(),
     /** 만들 때 미확인으로 나온다. 감정서로 밝힐 때까지 능력치·기능이 돌지 않는다. */
     val unidentified: Boolean = false,
@@ -254,19 +266,19 @@ data class CustomItem(
 
     fun label(): String = displayName.ifBlank { id }
 
-    /** 배낭으로 열리는가 — 크기가 있고 장신구·부적·유물일 때만. 종류를 바꾸면 크기는 남아도 닫힌다. */
-    val isBackpack: Boolean get() = backpack > 0 && (type == ItemType.ACCESSORY || type == ItemType.TALISMAN || type == ItemType.RELIC)
+    /** 배낭으로 열리는가 — 배낭 종류이고 크기가 있을 때만. 종류를 바꾸면 크기는 남아도 닫힌다. */
+    val isBackpack: Boolean get() = backpack > 0 && type == ItemType.BACKPACK
 
     /** 마인크래프트 열쇠·리소스팩 경로에 쓰는 이름([resourceId]). */
     val resourceId: String get() = resourceId(id)
 
     /** 능력치가 도는 칸. 장신구와 방패는 양손 어디서나, 그 밖은 재질이 정한다([slotFor]). */
     fun slotGroup(): EquipmentSlotGroup = Components.slotGroup(components.equipSlot)
-        ?: if (type == ItemType.ACCESSORY || material.name == "SHIELD") EquipmentSlotGroup.HAND else slotFor(material)
+        ?: if (type == ItemType.ACCESSORY || type == ItemType.BACKPACK || material.name == "SHIELD") EquipmentSlotGroup.HAND else slotFor(material)
 
     /** 장착 칸 밖(가방·손)에서 효과를 내는가. 장착 칸에 끼우는 종류만 [inventoryEffect]·[serverDefault] 를 탄다. */
     fun worksOutsideSlots(serverDefault: Boolean): Boolean =
-        !(type == ItemType.ACCESSORY || type.carried) || (inventoryEffect ?: serverDefault)
+        !type.slotted || (inventoryEffect ?: serverDefault)
 
     fun stat(stat: Stat): Double = stats[stat] ?: 0.0
 
@@ -324,6 +336,11 @@ data class CustomItem(
         consume?.save(section.createSection("consume"))
         if (preventVanillaUse) section.set("prevent-vanilla-use", true)
         if (backpack > 0) section.set("backpack", backpack)
+        if (autoPickup) section.set("auto-pickup", true)
+        if (period > 0) {
+            section.set("period", kr.inmc.core.util.Durations.format(period))
+            if (expiry != Expiry.VANISH) section.set("expiry", expiry.id)
+        }
         if (!requirement.isEmpty) requirement.save(section.createSection("requirement"))
         if (unidentified) section.set("unidentified", true)
         saveParts(section, "salvage", salvage)
@@ -422,6 +439,9 @@ data class CustomItem(
                 consume = section.getConfigurationSection("consume")?.let(ConsumeSpec::load),
                 preventVanillaUse = section.getBoolean("prevent-vanilla-use", false),
                 backpack = section.getInt("backpack", 0).coerceIn(0, com.inmc.customitems.player.BackpackLayout.MAX),
+                autoPickup = section.getBoolean("auto-pickup", false),
+                period = kr.inmc.core.util.Durations.parse(section.getString("period"), 0L).coerceAtLeast(0L),
+                expiry = Expiry.of(section.getString("expiry")),
                 requirement = Requirement.load(section.getConfigurationSection("requirement")),
                 unidentified = section.getBoolean("unidentified", false),
                 salvage = loadParts(section, "salvage"),

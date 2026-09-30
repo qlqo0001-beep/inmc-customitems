@@ -49,11 +49,13 @@ object ItemBuilder {
      *
      * @param revision 정의의 지문. 나중에 정의가 바뀌었는지 알아보는 데 쓴다([ItemRegistry.revision]).
      */
-    fun create(definition: CustomItem, amount: Int = 1, revision: Long = 0L, random: Random = RANDOM, lookup: Lookup = Lookup.NONE): ItemStack {
+    fun create(definition: CustomItem, amount: Int = 1, revision: Long = 0L, random: Random = RANDOM, lookup: Lookup = Lookup.NONE, stamp: Boolean = true): ItemStack {
         val stack = ItemStack(definition.material)
         stack.amount = amount.coerceIn(1, definition.material.maxStackSize.coerceAtLeast(1))
         stack.editMeta { it.persistentDataContainer.set(ID_KEY, PersistentDataType.STRING, definition.id) }
-        val instance = ItemInstance.roll(definition, random).copy(revision = revision)
+        // 사용 기간은 만들어지는 이 순간부터 흐른다(사용자 결정 2026-09-30).
+        val expires = if (stamp && definition.period > 0) Periods.stamp(definition.period, System.currentTimeMillis()) else null
+        val instance = ItemInstance.roll(definition, random).copy(revision = revision, expires = expires)
         render(stack, definition, instance, lookup)
         if (!instance.unidentified) applyCustomEnchants(stack, definition)
         return stack
@@ -78,6 +80,10 @@ object ItemBuilder {
         val totals = StatCalc.total(definition, instance, lookup)
         val meta = stack.itemMeta ?: return
         instance.write(meta.persistentDataContainer)
+        // 사용 기간이 끝났으면(효과 정지) 평범한 물건으로 그린다 — 우리 속성도, 바닐라의 입기·먹기·캐기도 없다(아래 vanillaUse).
+        val now = System.currentTimeMillis()
+        val expired = Periods.expired(definition, instance.expires, now)
+        if (expired) meta.persistentDataContainer.set(ItemInstance.EXPIRED, PersistentDataType.BYTE, 1) else meta.persistentDataContainer.remove(ItemInstance.EXPIRED)
 
         // 미확인이면 정체(이름·능력치·인챈트·속성)를 감춘다. 모양과 등급 색만 남는다 — 무엇을 주웠는지는 몰라도 얼마나 귀한지는 보인다.
         val hidden = instance.unidentified
@@ -143,7 +149,7 @@ object ItemBuilder {
         var addedAttribute = false
         // 부적·유물은 가방에서 효과가 나므로 바닐라 속성을 아이템에 달지 않는다 — 사람에게 직접 건다(StatService).
         // 달면 손에 들었을 때 한 번 더 붙는다. 장착 칸에서만 효과가 나는 장신구도 같다 — 달면 손에 들었을 때 바닐라가 붙인다.
-        for ((stat, value) in if (hidden || definition.type.carried || !definition.worksOutsideSlots(lookup.inventoryEffects())) emptyMap() else totals) {
+        for ((stat, value) in if (hidden || expired || definition.type.carried || !definition.worksOutsideSlots(lookup.inventoryEffects())) emptyMap() else totals) {
             val attribute = stat.attribute() ?: continue
             meta.addAttributeModifier(
                 attribute,
@@ -161,14 +167,14 @@ object ItemBuilder {
         val enchantLines = if (showEnchants) vanillaEnchantLines(meta.enchants) + custom.enchants else emptyList()
         val defaults = if (showAttributes && !addedAttribute) defaultStats(definition.material) else emptyMap()
         val handHeld = slot == org.bukkit.inventory.EquipmentSlotGroup.MAINHAND
-        val lore = if (hidden) unidentifiedLore(definition, lookup) else buildLore(definition, totals, instance, lookup, enchantLines, custom.status, defaults, handHeld)
+        val lore = if (hidden) unidentifiedLore(definition, lookup) else buildLore(definition, totals, instance, lookup, enchantLines, custom.status, defaults, handHeld, now)
         meta.lore(lore.map { Text.renderFlat(it) })
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS)
         meta.persistentDataContainer.set(ENCHANT_SIGNATURE, org.bukkit.persistence.PersistentDataType.STRING, enchantSignature(meta.enchants, CustomEnchantHook.levels(stack)))
 
         stack.itemMeta = meta
         // 메타를 다 쓴 **뒤에** — 메타를 쓰면서 부품이 덮이지 않게.
-        vanillaUse(stack, definition)
+        vanillaUse(stack, definition, expired)
     }
 
     /**
@@ -177,12 +183,36 @@ object ItemBuilder {
      * 놓기는 부품으로 못 막아 `InteractListener` 가 `BlockPlaceEvent` 를 막는다.
      */
     @Suppress("UnstableApiUsage")
-    private fun vanillaUse(stack: ItemStack, definition: CustomItem) {
+    private fun vanillaUse(stack: ItemStack, definition: CustomItem, expired: Boolean) {
         runCatching {
             val consumable = io.papermc.paper.datacomponent.DataComponentTypes.CONSUMABLE
-            if (definition.preventVanillaUse) stack.unsetData(consumable)
+            if (definition.preventVanillaUse || expired) stack.unsetData(consumable)
             else if (stack.isDataOverridden(consumable)) stack.resetData(consumable)
         }
+        // 사용 기간이 끝난 것(효과 정지, 사용자 결정 2026-09-30) — 입기·활공·죽음 막기·캐기 빠르기·방패 막기·무기 동작을 뗀다.
+        // 되살아나면(관리자가 기간을 지우거나 늘림) **떼어 둔 것만** 되돌린다 — 관리자가 부품 화면에서 붙인 것은 건드리지 않는다.
+        for (type in EXPIRED_PARTS) runCatching {
+            if (expired) stack.unsetData(type)
+            else if (!stack.hasData(type) && stack.isDataOverridden(type)) stack.resetData(type)
+        }
+        // 기본 속성(칼의 공격력·갑옷의 방어)도 비운다 — 빈 목록을 두면 재질 기본값이 사라진다.
+        runCatching {
+            val attributes = io.papermc.paper.datacomponent.DataComponentTypes.ATTRIBUTE_MODIFIERS
+            if (expired) stack.setData(attributes, io.papermc.paper.datacomponent.item.ItemAttributeModifiers.itemAttributes().build())
+            else if (stack.isDataOverridden(attributes) && stack.getData(attributes)?.modifiers()?.isEmpty() == true) stack.resetData(attributes)
+        }
+    }
+
+    @Suppress("UnstableApiUsage")
+    private val EXPIRED_PARTS: List<io.papermc.paper.datacomponent.DataComponentType> by lazy {
+        listOf(
+            io.papermc.paper.datacomponent.DataComponentTypes.EQUIPPABLE,
+            io.papermc.paper.datacomponent.DataComponentTypes.GLIDER,
+            io.papermc.paper.datacomponent.DataComponentTypes.DEATH_PROTECTION,
+            io.papermc.paper.datacomponent.DataComponentTypes.TOOL,
+            io.papermc.paper.datacomponent.DataComponentTypes.BLOCKS_ATTACKS,
+            io.papermc.paper.datacomponent.DataComponentTypes.WEAPON,
+        )
     }
 
     /** 바닐라 인챈트 줄 — 이름·레벨은 번역 열쇠로(서버 말이 아니라 보는 사람의 말로). 저주는 빨갛게. */
@@ -300,9 +330,12 @@ object ItemBuilder {
         defaults: Map<Stat, Double> = emptyMap(),
         /** 손에 드는 것 — 공격력·공격 속도를 바닐라처럼 맨손 기준값을 더한 값으로 보인다. */
         handHeld: Boolean = false,
+        /** 사용 기간 줄의 기준 시각. */
+        now: Long = System.currentTimeMillis(),
     ): List<String> = buildList {
         add((lookup.type(definition) ?: TypeDef.of(definition.type)).header())
         addAll(carryLines(definition, definition.worksOutsideSlots(lookup.inventoryEffects())))
+        addAll(periodLines(definition, instance, now))
         addAll(enchantLines)
 
         // 능력치는 목록 순서가 아니라 enum 순서로. 칼마다 공격력이 다른 줄에 있으면 읽기 어렵다.
@@ -425,7 +458,9 @@ object ItemBuilder {
      */
     private fun carryLines(definition: CustomItem, outside: Boolean): List<String> = buildList {
         val carried = definition.type == ItemType.TALISMAN || definition.type == ItemType.RELIC
-        if (carried || (definition.type == ItemType.ACCESSORY && !outside)) {
+        // 배낭은 능력치·기능이 있을 때만 — 창고로만 쓰는 배낭에 "장착 효과" 를 적으면 없는 효과를 말한다.
+        val backpackEffects = definition.type == ItemType.BACKPACK && (definition.stats.isNotEmpty() || definition.abilities.isNotEmpty())
+        if (carried || ((definition.type == ItemType.ACCESSORY || backpackEffects) && !outside)) {
             add(if (outside) tag(WHERE, "소지 효과", "가방에 지니기만 해도 발휘") else tag(WHERE, "장착 효과", "장착 칸(/장비)에 끼워야 발휘"))
         }
         if (definition.type == ItemType.TALISMAN && definition.noDuplicate) add(tag(LIMIT, "중복 불가", "같은 부적은 가장 높은 강화 하나만"))
@@ -437,6 +472,16 @@ object ItemBuilder {
         "<gradient:" + colors + ">" + label + "</gradient> <dark_gray>—</dark_gray> <gray>" + detail + "</gray>"
 
     /** 효과가 나는 곳(물빛) · 겹치는 규칙(노을빛). */
+    /**
+     * 사용 기간 — 끝나는 때, 끝났으면 빨간 한 줄. 아직 찍히지 않은 것(미리보기 · 기간이 생기기 전에 나간 아이템)은 기간 길이만.
+     */
+    fun periodLines(definition: CustomItem, instance: ItemInstance, now: Long): List<String> {
+        if (definition.period <= 0) return emptyList()
+        val expires = instance.expires ?: return listOf(tag(LIMIT, "사용 기간", kr.inmc.core.util.Durations.formatShort(definition.period) + " (받은 때부터)"))
+        if (Periods.expired(definition, expires, now)) return listOf("<red>✖ 사용 기간이 끝났습니다 — 효과 없음</red>")
+        return listOf(tag(LIMIT, "사용 기간", Periods.until(expires) + " 까지"))
+    }
+
     private const val WHERE = "#7ee0f0:#9d9bff"
     private const val LIMIT = "#ffc46b:#ff8a8a"
 

@@ -29,6 +29,8 @@ data class ItemInstance(
     /** 강화 단계. 0 이 기본. */
     val level: Int = 0,
     val revision: Long = 0L,
+    /** 사용 기간이 끝나는 시각(에포크 밀리초). 기간이 없는 아이템은 null([CustomItem.period], [Periods]). */
+    val expires: Long? = null,
 ) {
     /** [index] 번 소켓의 보석. 비었으면 null. */
     fun gem(index: Int): String? = gems.getOrNull(index)?.takeIf { it.isNotEmpty() }
@@ -48,6 +50,7 @@ data class ItemInstance(
         if (usesLeft == null) pdc.remove(USES) else pdc.set(USES, PersistentDataType.INTEGER, usesLeft)
         if (unidentified) pdc.set(UNIDENTIFIED, PersistentDataType.BYTE, 1) else pdc.remove(UNIDENTIFIED)
         if (level > 0) pdc.set(LEVEL, PersistentDataType.INTEGER, level) else pdc.remove(LEVEL)
+        if (expires == null) pdc.remove(EXPIRES) else pdc.set(EXPIRES, PersistentDataType.LONG, expires)
         pdc.set(REVISION, PersistentDataType.LONG, revision)
     }
 
@@ -63,6 +66,21 @@ data class ItemInstance(
         val REVISION = key("rev")
         val UNIDENTIFIED = key("unid")
         val LEVEL = key("upg")
+        val EXPIRES = key("expires")
+
+        /** 만료된 모습(로어·떼어 낸 부품)으로 그렸다는 표시. 지금 만료인데 이게 없으면(또는 그 반대면) 다시 그린다. */
+        val EXPIRED = key("expired")
+
+        /** 끝나는 시각만 — 능력치·기능을 켤지 물을 때마다 불리므로 몫 전체를 읽지 않는다. */
+        fun expiresAt(stack: ItemStack?): Long? {
+            val meta = stack?.takeIf { !it.type.isAir && it.hasItemMeta() }?.itemMeta ?: return null
+            return meta.persistentDataContainer.get(EXPIRES, PersistentDataType.LONG)
+        }
+
+        fun drawnExpired(stack: ItemStack?): Boolean {
+            val meta = stack?.takeIf { !it.type.isAir && it.hasItemMeta() }?.itemMeta ?: return false
+            return meta.persistentDataContainer.has(EXPIRED, PersistentDataType.BYTE)
+        }
 
         /** 감정 전인가. 전투마다 불리므로 몫 전체를 읽지 않고 이 칸만 본다. */
         fun isUnidentified(stack: ItemStack?): Boolean {
@@ -83,6 +101,7 @@ data class ItemInstance(
             unidentified = pdc.has(UNIDENTIFIED, PersistentDataType.BYTE),
             level = pdc.get(LEVEL, PersistentDataType.INTEGER)?.coerceAtLeast(0) ?: 0,
             revision = pdc.get(REVISION, PersistentDataType.LONG) ?: 0L,
+            expires = pdc.get(EXPIRES, PersistentDataType.LONG),
         )
 
         /** 새로 만들 아이템의 몫. 폭이 있는 능력치만 굴리고, 수식어는 각자 확률로. */

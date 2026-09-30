@@ -92,16 +92,27 @@ class CustomItemsCommand(private val custom: CustomItems) {
             }
 
     /** `/배낭` — 장착 칸에 끼운 배낭. 하나면 곧바로, 여럿이면 고르는 화면. 손에 든 배낭은 우클릭으로 연다. */
+    /** `/배낭` = 1번, `/배낭 <번호>` — 번호는 장착 칸 배낭 줄의 앞 칸부터(사용자 결정 2026-09-30). */
     private fun backpackTree(): LiteralArgumentBuilder<CommandSourceStack> =
         Commands.literal("배낭")
             .requires { it.sender.hasPermission(BACKPACK) }
-            .executes { ctx ->
-                val player = ctx.source.executor as? Player ?: ctx.source.sender as? Player
-                    ?: return@executes 0.also { custom.messages.send(ctx.source.sender, "player-only") }
-                if (!custom.ready) return@executes 0.also { custom.messages.send(player, "not-ready") }
-                custom.backpacks.openEquippedAny(player)
-                1
-            }
+            .executes { ctx -> openBackpack(ctx.source, 1) }
+            .then(
+                Commands.argument("번호", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, com.inmc.customitems.player.EquipmentStore.MAX))
+                    .suggests { ctx, builder ->
+                        (ctx.source.executor as? Player)?.let { player -> custom.backpacks.equipped(player).indices.forEach { builder.suggest(it + 1) } }
+                        builder.buildFuture()
+                    }
+                    .executes { ctx -> openBackpack(ctx.source, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "번호")) },
+            )
+
+    private fun openBackpack(source: CommandSourceStack, number: Int): Int {
+        val player = source.executor as? Player ?: source.sender as? Player
+            ?: return 0.also { custom.messages.send(source.sender, "player-only") }
+        if (!custom.ready) return 0.also { custom.messages.send(player, "not-ready") }
+        custom.backpacks.openNumber(player, number)
+        return 1
+    }
 
     private fun tree(): LiteralArgumentBuilder<CommandSourceStack> =
         Commands.literal("커스텀아이템")

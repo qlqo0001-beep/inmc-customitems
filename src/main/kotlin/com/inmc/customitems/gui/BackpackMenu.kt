@@ -3,7 +3,6 @@ package com.inmc.customitems.gui
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.player.BackpackLayout
 import kr.inmc.core.gui.Icon
-import kr.inmc.core.util.Text
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
@@ -27,14 +26,15 @@ class BackpackMenu(
     private val viewer: Player,
     /** 배낭 번호. */
     val id: UUID,
-    label: String,
+    /** 창 제목 — 배낭 아이템에 보이는 이름 그대로(사용자 요청 2026-09-30). */
+    title: net.kyori.adventure.text.Component,
     /** 칸 번호 → 아이템. 창을 여는 동안 이것이 진짜다. */
     private val contents: HashMap<Int, ItemStack>,
     size: Int,
 ) : Menu(
     custom,
     BackpackLayout.rows(BackpackLayout.capacity(size, contents.keys.maxOrNull())) * 9,
-    Text.renderFlat(label),
+    title,
 ) {
 
     private val capacity = BackpackLayout.capacity(size, contents.keys.maxOrNull())

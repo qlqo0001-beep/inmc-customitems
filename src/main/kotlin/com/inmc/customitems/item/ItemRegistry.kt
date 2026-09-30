@@ -47,8 +47,17 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
     /** 이 스택이 우리 아이템이고, 그 정의가 아직 남아 있으면 그것. */
     fun identify(stack: ItemStack?): CustomItem? = get(ItemBuilder.identify(stack))
 
-    /** 쓸 수 있는 우리 아이템. **미확인이면 null** — 감정하기 전에는 능력치·기능·공격 방식이 돌지 않는다. */
-    fun usable(stack: ItemStack?): CustomItem? = identify(stack)?.takeIf { !ItemInstance.isUnidentified(stack) }
+    /**
+     * 쓸 수 있는 우리 아이템. **미확인이면 null** — 감정하기 전에는 능력치·기능·공격 방식이 돌지 않는다.
+     * **사용 기간이 끝났어도 null**([Periods]) — 끝나는 시각을 그 자리에서 보므로 다음 점검을 기다리지 않고 바로 멈춘다.
+     */
+    fun usable(stack: ItemStack?): CustomItem? = identify(stack)?.takeIf { !ItemInstance.isUnidentified(stack) && !expired(it, stack) }
+
+    /** 사용 기간이 끝난 우리 아이템인가(사라짐이든 효과 정지든). */
+    fun isExpired(stack: ItemStack?): Boolean = identify(stack)?.let { expired(it, stack) } == true
+
+    private fun expired(definition: CustomItem, stack: ItemStack?): Boolean =
+        definition.period > 0 && Periods.expired(definition, ItemInstance.expiresAt(stack), System.currentTimeMillis())
 
     fun create(id: String?, amount: Int = 1): ItemStack? {
         val item = get(id) ?: return null
@@ -62,7 +71,8 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
 
     /** 화면에 보여줄 한 개. 저장된 정의가 아니어도(편집 중인 사본) 된다. 미확인 아이템도 관리 화면에는 정체를 보인다. */
     fun preview(definition: CustomItem): ItemStack =
-        ItemBuilder.create(definition.copy(unidentified = false), 1, revision(definition.id), lookup = lookup)
+        // 사용 기간은 찍지 않는다 — 미리보기에는 "7일 (받은 때부터)" 처럼 길이가 보여야 한다.
+        ItemBuilder.create(definition.copy(unidentified = false), 1, revision(definition.id), lookup = lookup, stamp = false)
 
     fun revision(id: String): Long = revisions[id.lowercase()] ?: 0L
 
@@ -81,16 +91,32 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         val definition = identify(stack) ?: return false
         val instance = ItemInstance.read(stack)
         val revision = revision(definition.id)
-        if (instance.revision == revision && ItemBuilder.renderedEnchants(stack!!) == ItemBuilder.enchantSignature(stack)) return false
-        ItemBuilder.render(stack!!, definition, instance.copy(revision = revision), lookup)
+        // 기간이 생기기 전에 나간 아이템은 처음 눈에 들어온 지금부터 센다. 만료 모습과 지금 상태가 다르면 다시 그린다.
+        val now = System.currentTimeMillis()
+        val expires = instance.expires ?: if (definition.period > 0) Periods.stamp(definition.period, now) else null
+        val expired = Periods.expired(definition, expires, now)
+        if (instance.revision == revision && expires == instance.expires && expired == ItemInstance.drawnExpired(stack) &&
+            ItemBuilder.renderedEnchants(stack!!) == ItemBuilder.enchantSignature(stack)
+        ) return false
+        ItemBuilder.render(stack!!, definition, instance.copy(revision = revision, expires = expires), lookup)
         return true
+    }
+
+    /**
+     * 사용 기간이 끝나 **사라져야** 하는 것. 배낭은 여기서 치우지 않는다 — 안의 것을 돌려받을 사람이 있어야 해서
+     * 그 사람의 점검([com.inmc.customitems.player.ExpiryService])이 치운다.
+     */
+    fun vanishes(stack: ItemStack?): Boolean {
+        val definition = identify(stack) ?: return false
+        return definition.expiry == Expiry.VANISH && !definition.isBackpack && expired(definition, stack)
     }
 
     /** 가방(또는 상자) 전체를 훑어 옛 것을 다시 그린다. `getItem` 이 복사본일 수 있어 다시 넣는다. */
     fun refresh(inventory: org.bukkit.inventory.Inventory) {
         for (index in 0 until inventory.size) {
             val stack = inventory.getItem(index) ?: continue
-            if (refresh(stack)) inventory.setItem(index, stack)
+            if (hasPeriod && vanishes(stack)) inventory.setItem(index, null)
+            else if (refresh(stack)) inventory.setItem(index, stack)
         }
     }
 
@@ -150,11 +176,23 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         triggers = byId.values.flatMap { item -> item.abilities.map { it.trigger } }.toSet()
         hasPassive = com.inmc.customitems.ability.Trigger.PASSIVE in triggers
         hasCarried = byId.values.any { it.type.carried }
+        hasPeriod = byId.values.any { it.period > 0 }
+        hasBackpacks = byId.values.any { it.isBackpack }
         hasBlocks = byId.values.any { it.block != null }
         blockStates = byId.values.mapNotNull { item ->
             item.block?.takeIf { it.kind.usesState && it.state.isNotBlank() }?.let { it.kind.id + "|" + it.state to item.id }
         }.toMap()
     }
+
+    /** 배낭이 하나라도 있는가. 없으면 줍기·판매·열쇠가 배낭을 찾지 않는다. */
+    @Volatile
+    var hasBackpacks: Boolean = false
+        private set
+
+    /** 사용 기간이 있는 아이템이 하나라도 있는가. 없으면 만료 점검이 접속자를 훑지 않는다. */
+    @Volatile
+    var hasPeriod: Boolean = false
+        private set
 
     /** 블록으로 놓이는 아이템이 하나라도 있는가. 없으면 블록 리스너가 사건마다 곧바로 돌아간다. */
     @Volatile

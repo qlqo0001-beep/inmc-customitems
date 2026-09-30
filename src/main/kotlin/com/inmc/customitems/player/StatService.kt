@@ -144,7 +144,8 @@ class StatService(private val custom: CustomItems) {
                 if (stack == null || index >= capacity) continue
                 val definition = custom.items.usable(stack) ?: continue
                 if (definition.type != group.type || !custom.requirements.meets(player, definition)) continue
-                if (group == EquipmentStore.Group.ACCESSORY) {
+                // 배낭 줄의 배낭도 장신구처럼 — 끼운 것마다 붙는다.
+                if (group == EquipmentStore.Group.ACCESSORY || group == EquipmentStore.Group.BACKPACK) {
                     accessories += Equipped(null, stack, definition, StatCalc.total(definition, ItemInstance.read(stack), custom.items.lookup))
                 } else {
                     consider(EQUIPMENT_FIRST + group.ordinal * EquipmentStore.MAX + index, stack, definition)
