@@ -183,7 +183,8 @@ object ItemChecks {
             ok(bag.stat(Stat.CRIT_CHANCE) == 0.0, "서버 설정을 껐는데 가방의 부적이 붙었다(" + bag.stat(Stat.CRIT_CHANCE) + ")")
                 ?: ok(bag.stat(Stat.LIFESTEAL) == 3.0, "가방에서도로 정한 부적이 안 붙었다(" + bag.stat(Stat.LIFESTEAL) + ")")
                 ?: ok(held == before, "장착 칸에서만인 장신구를 손에 들었는데 최대 체력 " + before + " → " + held)
-                ?: ok(lore.contains("장착 칸"), "로어가 장착 칸에 끼우라고 말하지 않는다: " + lore)
+                // 효과가 나는 곳은 로어에 적지 않는다(사용자 요청 2026-10-01 — 장착 효과·소지 효과 표찰을 없앰).
+                ?: ok(!lore.contains("장착 효과") && !lore.contains("장착 칸(/장비)"), "로어에 없앤 표찰이 남았다: " + lore)
                 ?: ok(slotted == 5.0, "장착 칸에 끼운 부적이 안 붙었다(" + slotted + ")")
         },
         Check("만들기·되알아보기·로어·속성") { s ->
