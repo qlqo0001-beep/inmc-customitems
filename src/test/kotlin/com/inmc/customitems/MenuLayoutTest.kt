@@ -227,11 +227,24 @@ class MenuLayoutTest {
     }
 
     @Test
-    fun `배낭 화면의 넘기기 칸은 맨 아래 줄에만 있다`() {
-        // 넘기기 버튼이 내용 칸(0~44)에 겹치면 그 자리의 물건이 버튼에 덮여 안 보이고, 창에서 옮겨 적을 때 사라진다.
-        val slots = slotsOf("BackpackMenu.kt")
-        assertTrue(slots.isNotEmpty(), "슬롯 상수를 하나도 못 읽었습니다")
-        assertEquals(slots.size, slots.values.toSet().size, "슬롯 충돌: $slots")
-        for ((name, slot) in slots) assertTrue(slot in com.inmc.customitems.player.BackpackLayout.PER_PAGE until 54, "$name($slot) 이 넘기기 줄 밖입니다")
+    fun `배낭 화면의 조작 줄은 내용 칸 아래에만 있고 넘기기와 배낭 번호가 겹치지 않는다`() {
+        // 버튼이 내용 칸에 겹치면 그 자리의 물건이 버튼에 덮여 안 보이고, 창에서 옮겨 적을 때 사라진다.
+        val layout = com.inmc.customitems.player.BackpackLayout
+        val menu = com.inmc.customitems.gui.BackpackMenu
+        for (capacity in listOf(1, 9, 10, 27, 45, 46, 100, layout.MAX)) {
+            val pages = layout.pages(capacity)
+            val content = layout.contentRows(capacity) * 9
+            assertTrue(content >= minOf(capacity, layout.PER_PAGE), "$capacity 칸인데 내용 칸이 $content")
+            for (control in listOf(false, true)) {
+                val rows = layout.rows(capacity, control)
+                assertTrue(rows <= 6, "$capacity 칸 · 조작 $control → $rows 줄")
+                assertEquals(if (pages > 1 || control) content + 9 else content, rows * 9, "$capacity 칸의 조작 줄은 내용 칸 바로 아래 한 줄")
+            }
+            val paging = if (pages > 1) listOf(menu.COLUMN_PREV, menu.COLUMN_PAGE, menu.COLUMN_NEXT) else emptyList()
+            val switch = layout.switchColumns(pages)
+            assertEquals(switch.size, switch.toSet().size, "배낭 번호 자리 충돌: $switch")
+            assertTrue(switch.all { it in 0..8 } && switch.none { it in paging }, "$capacity 칸: 배낭 번호 $switch 가 넘기기 $paging 를 덮는다")
+            if (pages == 1) assertTrue(switch.size >= com.inmc.customitems.player.EquipmentStore.MAX, "한 페이지 배낭에는 배낭 줄(최대 8)이 다 들어가야 한다")
+        }
     }
 }

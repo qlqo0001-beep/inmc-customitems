@@ -6,16 +6,10 @@ import com.inmc.customitems.item.CustomItem
 import com.inmc.customitems.item.ItemBuilder
 import com.inmc.customitems.item.ItemInstance
 import com.inmc.customitems.util.Ph
-import io.papermc.paper.dialog.Dialog
-import io.papermc.paper.registry.data.dialog.ActionButton
-import io.papermc.paper.registry.data.dialog.DialogBase
-import io.papermc.paper.registry.data.dialog.action.DialogAction
-import io.papermc.paper.registry.data.dialog.type.DialogType
 import kr.inmc.core.integration.CarriedStorage
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.event.ClickCallback
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
@@ -25,7 +19,6 @@ import java.io.File
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.time.Duration
 import java.util.Base64
 import java.util.UUID
 
@@ -165,49 +158,12 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
     }
 
     /**
-     * 빠른 동작 키(G)의 [배낭] — 배낭이 하나면 곧바로 열고, 여럿이면 **맨 배낭 수만큼 버튼이 있는 창을 그때 만들어** 띄운다
-     * (사용자 결정 2026-09-30). 첫 창은 응답을 기다리고 있으므로 없을 때도 창을 닫아 줘야 한다.
+     * 빠른 동작 키(G)의 [배낭] — **늘 1번 배낭을 곧바로** 연다. 여럿이면 배낭 창의 조작 줄에서 번호로 바꾼다(사용자 결정 2026-09-30 —
+     * 고르는 창을 거치면 두 번 눌러야 해서). 첫 창은 응답을 기다리고 있으므로 먼저 닫는다(열다가 막혀도 기다리는 창에 갇히지 않게).
      */
     fun quickMenu(player: Player) {
-        val bags = equipped(player)
-        when (bags.size) {
-            0 -> {
-                player.closeDialog()
-                custom.messages.send(player, "backpack-none")
-            }
-            1 -> {
-                // 첫 창이 응답을 기다리고 있다 — 닫고 연다(열다가 막혀도 기다리는 창에 갇히지 않게).
-                player.closeDialog()
-                openNumber(player, 1)
-            }
-            else -> player.showDialog(dialog(bags))
-        }
-    }
-
-    private fun dialog(bags: List<Found>): Dialog = Dialog.create { factory ->
-        factory.empty()
-            .base(
-                DialogBase.builder(Component.text("배낭"))
-                    .canCloseWithEscape(true)
-                    .pause(false)
-                    .afterAction(DialogBase.DialogAfterAction.CLOSE)
-                    .build(),
-            )
-            .type(
-                DialogType.multiAction(
-                    bags.mapIndexed { index, found ->
-                        val number = index + 1
-                        ActionButton.builder(Component.text("$number  ", NamedTextColor.GRAY).append(nameOf(found.stack, found.definition)))
-                            .tooltip(Component.text("/배낭 $number"))
-                            .width(200)
-                            .action(DialogAction.customClick({ _, audience ->
-                                val player = audience as? Player ?: return@customClick
-                                player.scheduler.run(custom.plugin, { _ -> if (player.isOnline && custom.ready) openNumber(player, number) }, null)
-                            }, CALLBACK))
-                            .build()
-                    },
-                ).columns(1).build(),
-            )
+        player.closeDialog()
+        openNumber(player, 1)
     }
 
     /** 아이템에 보이는 이름 그대로(등급 색 포함). */
@@ -220,7 +176,10 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
             return
         }
         viewers[id] = player.uniqueId
-        BackpackMenu(custom, player, id, nameOf(stack, definition), fresh(id), size(definition, stack)).open(player)
+        // 조작 줄의 번호 버튼 — 장착 칸 배낭 줄 그대로, 지금 것이 몇째인지.
+        val bags = equipped(player)
+        val current = bags.indexOfFirst { idOf(it.stack) == id }
+        BackpackMenu(custom, player, id, nameOf(stack, definition), fresh(id), size(definition, stack), bags.map { it.stack.clone() }, current).open(player)
     }
 
     /** 연 순간 안의 것을 맞춘다 — 기간이 끝나 사라질 것은 치우고 옛 정의로 그려진 것은 다시 그린다(상자를 열 때와 같다). */
@@ -278,8 +237,13 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
 
     // --- 드랍 자동 수납 -------------------------------------------------------------------------
 
-    /** 사람 → 마지막으로 "넣을 자리 없음" 이었던 때. 줍기 시도는 아이템마다 매 틱 오므로(가방이 찬 채 더미 위에 서 있으면) 잠깐 묻지 않는다. */
-    private val misses = HashMap<UUID, Long>()
+    /**
+     * (사람, 재질) → 마지막으로 "넣을 자리 없음" 이었던 때. 줍기 시도는 아이템마다 매 틱 오므로(가방이 찬 채 더미 위에 서 있으면) 잠깐 묻지
+     * 않는다. 재질마다 따로 — 흙 자리가 없다고 배낭에 쌓아 둔 다이아몬드까지 가방으로 보내지 않게.
+     */
+    private val misses = object : LinkedHashMap<Pair<UUID, Material>, Long>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<UUID, Material>, Long>?): Boolean = size > CACHE
+    }
 
     /**
      * 자동 수납 배낭에 [stack] 을 넣을 자리가 있나 — 줍기 시도마다 묻는 가벼운 확인(내용물을 복사하지 않고 캐시만 본다). 없으면 그 사람은
@@ -287,7 +251,8 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
      */
     fun hasRoom(player: Player, stack: ItemStack): Boolean {
         val now = System.currentTimeMillis()
-        misses[player.uniqueId]?.let { if (now - it < MISS_MS) return false }
+        val key = player.uniqueId to stack.type
+        misses[key]?.let { if (now - it < MISS_MS) return false }
         val room = custom.items.identify(stack)?.isBackpack != true && carried(player).any { found ->
             if (!autoPickup(found.definition, found.stack)) return@any false
             val id = idOf(found.stack) ?: return@any true // 번호가 아직 없는 배낭은 비어 있다
@@ -296,7 +261,7 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
             contents.values.any { it.isSimilar(stack) && it.amount < it.maxStackSize } ||
                 (0 until size(found.definition, found.stack)).any { it !in contents }
         }
-        if (room) misses.remove(player.uniqueId) else misses[player.uniqueId] = now
+        if (room) misses.remove(key) else misses[key] = now
         return room
     }
 
@@ -425,8 +390,6 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
 
         private const val MISS_MS = 500L
 
-        /** G 창의 버튼은 한 번 누르면 끝, 5분 지나면 무효. */
-        private val CALLBACK: ClickCallback.Options = ClickCallback.Options.builder().uses(1).lifetime(Duration.ofMinutes(5)).build()
     }
 }
 
@@ -448,8 +411,17 @@ object BackpackLayout {
 
     fun pages(capacity: Int): Int = maxOf(1, (capacity + PER_PAGE - 1) / PER_PAGE)
 
-    /** 화면 줄 수. 페이지가 여럿이면 6줄(넘기기 줄 포함). */
-    fun rows(capacity: Int): Int = if (pages(capacity) > 1) 6 else ((capacity + 8) / 9).coerceIn(1, 5)
+    /** 내용 줄 수 — 페이지가 여럿이면 5줄(45칸), 아니면 필요한 만큼. */
+    fun contentRows(capacity: Int): Int = if (pages(capacity) > 1) 5 else ((capacity + 8) / 9).coerceIn(1, 5)
+
+    /** 화면 줄 수 — 내용 줄 + 조작 줄(넘길 페이지가 있거나 [control] — 바꿀 다른 배낭이 있으면). 많아야 6줄. */
+    fun rows(capacity: Int, control: Boolean = false): Int = contentRows(capacity) + if (pages(capacity) > 1 || control) 1 else 0
+
+    /**
+     * 조작 줄에서 배낭 번호 버튼이 앉는 열 — 번호 순서대로. 가운데 셋은 페이지 넘기기 자리라 뒤로 미룬다(페이지가 여럿이면 여섯까지).
+     * 한 페이지짜리 배낭이면 아홉 자리 모두 — 배낭 줄(최대 8칸)이 다 들어간다.
+     */
+    fun switchColumns(pages: Int): List<Int> = if (pages > 1) listOf(0, 1, 2, 6, 7, 8) else listOf(0, 1, 2, 6, 7, 8, 3, 4, 5)
 
     fun index(page: Int, slot: Int): Int = page * PER_PAGE + slot
 

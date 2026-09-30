@@ -27,10 +27,9 @@ class EquipmentListener(private val custom: CustomItems) : Listener {
     fun onQuit(event: PlayerQuitEvent) = custom.equipment.forget(event.player.uniqueId)
 
     /**
-     * 빠른 동작 키(기본 G)의 "빠른 메뉴" 에서 [배낭] — 배낭이 하나면 열고, 여럿이면 맨 수만큼 버튼이 있는 창을 그때 만들어 띄운다
-     * ([com.inmc.customitems.player.Backpacks.quickMenu]). 첫 창은 서버가 켜지기 전에 등록된다([com.inmc.customitems.CustomItemsBootstrap])
-     * — 누르면 응답을 기다리므로 **반드시** 무엇인가(창·배낭·닫기)를 돌려준다. 이 사건은 패킷을 받은 자리에서 올 수 있어 그 사람의
-     * 스케줄러로 넘긴다.
+     * 빠른 동작 키(기본 G)의 "빠른 메뉴" 에서 [배낭] — 1번 배낭을 곧바로 연다(여럿이면 배낭 창 안에서 번호로 바꾼다,
+     * [com.inmc.customitems.player.Backpacks.quickMenu]). 첫 창은 서버가 켜지기 전에 등록된다([com.inmc.customitems.CustomItemsBootstrap])
+     * — 누르면 응답을 기다리므로 **반드시** 창을 닫아 준다. 이 사건은 패킷을 받은 자리에서 올 수 있어 그 사람의 스케줄러로 넘긴다.
      */
     @EventHandler
     fun onQuickAction(event: PlayerCustomClickEvent) {

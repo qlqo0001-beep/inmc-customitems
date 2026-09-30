@@ -33,8 +33,8 @@ import java.util.List;
  * 서로 다른 클래스가 된다({@code LinkageError}).
  *
  * <p>버튼은 서버로 돌아오는 custom click({@link #OPEN_BACKPACK}) — {@code EquipmentListener.onQuickAction} 이 받는다. 이 창은
- * 누구에게나 같은(정적인) 데이터라 사람마다 다른 목록은 담지 못한다 — 그래서 [배낭] 은 <b>응답을 기다리고</b>(WAIT_FOR_RESPONSE), 서버가
- * 그 사람이 맨 배낭 수만큼 버튼이 있는 창을 그때 만들어 보낸다(하나면 곧바로 연다, 사용자 결정 2026-09-30).
+ * 누구에게나 같은(정적인) 데이터다. [배낭] 은 <b>응답을 기다리고</b>(WAIT_FOR_RESPONSE — 창이 깜박이지 않게) 서버가 창을 닫고 1번 배낭을
+ * 연다. 여럿이면 배낭 창의 조작 줄에서 번호로 바꾼다(사용자 결정 2026-09-30 — 고르는 창을 거치면 두 번 눌러야 한다).
  */
 public final class CustomItemsBootstrap implements PluginBootstrap {
 
@@ -58,7 +58,7 @@ public final class CustomItemsBootstrap implements PluginBootstrap {
                     .build())
                 .type(DialogType.multiAction(List.of(
                         ActionButton.builder(Component.text("배낭", NamedTextColor.GOLD))
-                            .tooltip(Component.text("장착 칸(/장비)에 끼운 배낭 — 여럿이면 고르는 창이 뜹니다"))
+                            .tooltip(Component.text("장착 칸(/장비)의 1번 배낭 — 여럿이면 창 아래 번호로 바꿉니다"))
                             .width(160)
                             .action(DialogAction.customClick(OPEN_BACKPACK, null))
                             .build()))
