@@ -29,18 +29,15 @@ class EquipmentListener(private val custom: CustomItems) : Listener {
     /**
      * 빠른 동작 키(기본 G)의 "빠른 메뉴" 에서 [배낭] — 1번 배낭을 곧바로 연다(여럿이면 배낭 창 안에서 번호로 바꾼다,
      * [com.inmc.customitems.player.Backpacks.quickMenu]). 첫 창은 서버가 켜지기 전에 등록된다([com.inmc.customitems.CustomItemsBootstrap])
-     * — 누르면 응답을 기다리므로 **반드시** 창을 닫아 준다. 이 사건은 패킷을 받은 자리에서 올 수 있어 그 사람의 스케줄러로 넘긴다.
+     * — 누르는 순간 클라이언트가 창을 닫으므로 답할 것은 없다(못 열면 메시지만). 이 사건은 패킷을 받은 자리에서 올 수 있어 그 사람의
+     * 스케줄러로 넘긴다.
      */
     @EventHandler
     fun onQuickAction(event: PlayerCustomClickEvent) {
         if (event.identifier != com.inmc.customitems.CustomItemsBootstrap.OPEN_BACKPACK) return
         val player = (event.commonConnection as? PlayerGameConnection)?.player ?: return
         player.scheduler.run(custom.plugin, { _ ->
-            if (!player.isOnline) return@run
-            if (!custom.ready || !player.hasPermission(com.inmc.customitems.command.CustomItemsCommand.BACKPACK)) {
-                player.closeDialog()
-                return@run
-            }
+            if (!player.isOnline || !custom.ready || !player.hasPermission(com.inmc.customitems.command.CustomItemsCommand.BACKPACK)) return@run
             custom.backpacks.quickMenu(player)
         }, null)
     }

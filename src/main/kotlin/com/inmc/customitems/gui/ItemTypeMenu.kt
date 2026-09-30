@@ -2,11 +2,13 @@ package com.inmc.customitems.gui
 
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.item.ItemType
+import com.inmc.customitems.item.TypeDef
 import kr.inmc.core.gui.Editors
 import kr.inmc.core.gui.Icon
 import kr.inmc.core.util.Text
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 
 /**
  * 관리 화면의 첫 장 — 종류별 서랍(MMOItems 의 타입 목록).
@@ -21,22 +23,28 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
         clear()
         val all = custom.items.all()
         val counts = all.groupingBy { custom.types.of(it).id }.eachCount()
-        val drawers = ItemType.entries.map(custom.types::builtin).zip(TYPE_SLOTS) + custom.types.custom().zip(CUSTOM_SLOTS)
+        // 만든 종류가 칸보다 많으면 마지막 칸이 "나머지 종류" 고르기다 — 안 그러면 넘친 종류의 서랍을 열 길이 없다
+        // (종류 관리 화면은 누르면 설정으로 간다).
+        val made = custom.types.custom()
+        val shown = if (made.size <= CUSTOM_SLOTS.size) made else made.take(CUSTOM_SLOTS.size - 1)
+        val drawers = ItemType.entries.map(custom.types::builtin).zip(TYPE_SLOTS) + shown.zip(CUSTOM_SLOTS)
 
         for ((type, slot) in drawers) {
-            val count = counts[type.id] ?: 0
-            val categories = custom.categories.of(type)
-            set(slot, iconOf(type.icon, type.iconItem, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
-                if (!type.builtin) add("<dark_gray>" + type.base.display + "처럼 동작</dark_gray>")
-                add("<gray>아이템 <white>" + count + "</white>개</gray>")
-                if (categories.isNotEmpty()) {
-                    add("<gray>소분류 <white>" + categories.size + "</white>개</gray>")
-                    for (category in categories.take(6)) add("<dark_gray>  ▪ " + category.name + "</dark_gray>")
-                    if (categories.size > 6) add("<dark_gray>  …</dark_gray>")
-                }
-                add("")
-                add("<yellow>▶ 클릭: 보기</yellow>")
-            })) { openType(custom, viewer, type) }
+            set(slot, drawer(type, counts[type.id] ?: 0, listOf("", "<yellow>▶ 클릭: 보기</yellow>"))) { openType(custom, viewer, type) }
+        }
+        if (shown.size < made.size) {
+            val rest = made.drop(shown.size)
+            set(CUSTOM_SLOTS.last(), Icon.of(Material.CHEST, "<gold>나머지 종류 <white>" + rest.size + "</white>개</gold>",
+                rest.take(6).map { "<dark_gray>  ▪ " + it.name + "</dark_gray>" } + (if (rest.size > 6) listOf("<dark_gray>  …</dark_gray>") else emptyList()) +
+                    listOf("", "<yellow>▶ 클릭: 고르기</yellow>"),
+            )) {
+                ChoiceMenu(
+                    custom, viewer, "종류 고르기",
+                    options = { rest.map { it.id to drawer(it, counts[it.id] ?: 0, emptyList()) } },
+                    selected = { emptySet() },
+                    back = { open(viewer) },
+                ) { picked -> custom.types.get(picked)?.let { openType(custom, viewer, it) } }.open(viewer)
+            }
         }
         set(SLOT_ALL, Icon.of(Material.CHEST, "<gold>전체 보기</gold>", listOf(
             "<gray>종류와 상관없이 전부 <white>" + all.size + "</white>개</gray>",
@@ -87,6 +95,21 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
         fillEmpty(Icon.EDGE)
     }
 
+    /** 종류 서랍 칸 — 첫 화면과 "나머지 종류" 고르기가 같이 쓴다. 누르는 안내([click])는 부르는 쪽이 붙인다. */
+    private fun drawer(type: TypeDef, count: Int, click: List<String>): ItemStack {
+        val categories = custom.categories.of(type)
+        return iconOf(type.icon, type.iconItem, "<yellow>" + type.symbol + " " + type.name + "</yellow>", buildList {
+            if (!type.builtin) add("<dark_gray>" + type.base.display + "처럼 동작</dark_gray>")
+            add("<gray>아이템 <white>" + count + "</white>개</gray>")
+            if (categories.isNotEmpty()) {
+                add("<gray>소분류 <white>" + categories.size + "</white>개</gray>")
+                for (category in categories.take(6)) add("<dark_gray>  ▪ " + category.name + "</dark_gray>")
+                if (categories.size > 6) add("<dark_gray>  …</dark_gray>")
+            }
+            addAll(click)
+        })
+    }
+
     private fun packButton() = Icon.of(
         Material.PAINTING,
         "<yellow>리소스팩</yellow>",
@@ -114,7 +137,7 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
         val TYPE_SLOTS = listOf(10, 11, 12, 13, 28, 30, 32, 34, 14, 15, 16)
         const val SLOT_ALL = 22
 
-        /** 만든 종류 칸 — 아홉까지. 더 많으면 종류 관리 화면에서 본다. */
+        /** 만든 종류 칸 — 아홉까지. 넘치면 마지막 칸이 "나머지 종류" 고르기(거기서 넘친 종류의 서랍을 연다). */
         val CUSTOM_SLOTS = (36..44).toList()
         const val SLOT_TYPES = 4
         const val SLOT_BLOCKS = 8

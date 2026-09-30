@@ -33,8 +33,12 @@ import java.util.List;
  * 서로 다른 클래스가 된다({@code LinkageError}).
  *
  * <p>버튼은 서버로 돌아오는 custom click({@link #OPEN_BACKPACK}) — {@code EquipmentListener.onQuickAction} 이 받는다. 이 창은
- * 누구에게나 같은(정적인) 데이터다. [배낭] 은 <b>응답을 기다리고</b>(WAIT_FOR_RESPONSE — 창이 깜박이지 않게) 서버가 창을 닫고 1번 배낭을
- * 연다. 여럿이면 배낭 창의 조작 줄에서 번호로 바꾼다(사용자 결정 2026-09-30 — 고르는 창을 거치면 두 번 눌러야 한다).
+ * 누구에게나 같은(정적인) 데이터다. [배낭] 은 <b>누르면 창이 닫히고</b>(CLOSE) 서버가 1번 배낭을 연다. 여럿이면 배낭 창의 조작 줄에서
+ * 번호로 바꾼다(사용자 결정 2026-09-30 — 고르는 창을 거치면 두 번 눌러야 한다).
+ *
+ * <p><b>응답을 기다리게(WAIT_FOR_RESPONSE) 두지 않는다.</b> 26.2 클라이언트는 그때 뜨는 "서버를 기다리는 중" 창을 새 창·컨테이너 화면·
+ * 컨테이너 닫기로만 닫고 {@code closeDialog} 로는 닫지 않는다(클라이언트 {@code clearDialog} 가 대화창만 본다) — 배낭이 없어 메시지만
+ * 보낼 때 그 창에 갇혔다(테섭 2026-09-30). 서버가 창을 다시 보낼 일이 없으니 기다릴 까닭도 없다.
  */
 public final class CustomItemsBootstrap implements PluginBootstrap {
 
@@ -52,7 +56,7 @@ public final class CustomItemsBootstrap implements PluginBootstrap {
                 .base(DialogBase.builder(Component.text("빠른 메뉴"))
                     .canCloseWithEscape(true)
                     .pause(false)
-                    .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
+                    .afterAction(DialogBase.DialogAfterAction.CLOSE)
                     .body(List.of(DialogBody.plainMessage(
                         Component.text("빠른 동작 키(기본 G)로 여는 메뉴입니다. 키는 조작 설정에서 바꿀 수 있습니다.", NamedTextColor.GRAY), 300)))
                     .build())

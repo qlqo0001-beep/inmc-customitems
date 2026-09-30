@@ -139,10 +139,10 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
         refresh()
     }
 
-    private companion object {
-        /** 장신구·부적·유물은 위에 붙여 두고, 배낭은 구분선(3번 줄) 아래에 — 효과를 내는 줄과 창고 줄을 가른다. */
+    companion object {
+        /** 장신구·부적·유물은 위에 붙여 두고, 배낭은 구분선(3번 줄) 아래에 — 효과를 내는 줄과 창고 줄을 가른다. 검증기도 이 표로 칸을 센다. */
         val ROWS = mapOf(Group.ACCESSORY to 0, Group.TALISMAN to 1, Group.RELIC to 2, Group.BACKPACK to 4)
-        val HANDLED = setOf(ClickType.LEFT, ClickType.RIGHT, ClickType.SHIFT_LEFT, ClickType.SHIFT_RIGHT)
+        private val HANDLED = setOf(ClickType.LEFT, ClickType.RIGHT, ClickType.SHIFT_LEFT, ClickType.SHIFT_RIGHT)
         const val SLOT_CLOSE = 53
     }
 }

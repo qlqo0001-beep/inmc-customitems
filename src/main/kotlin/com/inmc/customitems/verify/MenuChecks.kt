@@ -107,8 +107,8 @@ object MenuChecks {
             ok(menu?.tab == EditTab.USE, "용도 탭을 눌렀는데 ${menu?.tab ?: s.topName()}")
                 ?: ok(ItemEditLayout.slotOf(s.current(), EditButton.BACKPACK) == null, "칼에 배낭 버튼이 있다")
                 ?: run {
-                    // 부적으로 바꾸면 배낭 칸이 생긴다 — 누르면 한 줄(9칸) 는다.
-                    s.item(s.current().copy(type = ItemType.TALISMAN))
+                    // 배낭 종류로 바꾸면 배낭 칸이 생긴다 — 누르면 한 줄(9칸) 는다.
+                    s.item(s.current().copy(type = ItemType.BACKPACK))
                     s.press(EditButton.BACKPACK) ?: ok(s.current().backpack == 9, "배낭 칸을 눌렀는데 크기 " + s.current().backpack)
                 }
         },
@@ -165,12 +165,15 @@ object MenuChecks {
             val index = s.custom.types.custom().indexOfFirst { it.id == type.id }
             ok("검사부적" in header && "✪" in header, "로어 첫 줄: $header")
                 ?: ok(crit == 4.0, "부적처럼 가방에서 효과가 안 났다: $crit")
-                ?: ok(index in ItemTypeMenu.CUSTOM_SLOTS.indices, "만든 종류가 첫 화면 칸에 안 들어간다(${index})")
+                ?: ok(index >= 0, "만든 종류가 목록에 없다")
                 ?: run {
+                    // 첫 화면 칸은 아홉 — 만든 종류가 넘치면 마지막 칸의 "나머지 종류" 고르기에서 연다.
+                    val slots = ItemTypeMenu.CUSTOM_SLOTS
+                    val direct = s.custom.types.custom().size <= slots.size || index < slots.size - 1
                     ItemTypeMenu(s.custom, s.player).open(s.player)
-                    s.click(ItemTypeMenu.CUSTOM_SLOTS[index])
+                    if (direct) s.click(slots[index]) else { s.click(slots.last()); s.click(index - (slots.size - 1)) }
                     val shown = s.player.openInventory.topInventory.contents.take(Paging.PER_PAGE).filterNotNull().mapNotNull { s.custom.items.identify(it)?.id }
-                    ok(s.top() is ItemListMenu && shown == listOf(item.id), "만든 종류 서랍: ${s.topName()} $shown")
+                    ok(s.top() is ItemListMenu && shown == listOf(item.id), "만든 종류 서랍(" + (if (direct) "첫 화면" else "나머지 종류") + "): ${s.topName()} $shown")
                 }
         },
         Check("소분류: 고른 서랍에만 보이고, 종류를 바꾸면 빠진다") { s ->
@@ -206,7 +209,7 @@ object MenuChecks {
         Check("장착 화면: 끌어다 넣고, 다른 종류는 막고, Shift 로 가방에") { s ->
             val charm = s.item(CustomItem("zz_verify_eqmenu", Material.PAPER, type = ItemType.TALISMAN))
             val sword = s.item(CustomItem("zz_verify_eqsword", Material.IRON_SWORD, type = ItemType.WEAPON))
-            val talismanRow = 2 * 9 + 1
+            val talismanRow = EquipmentMenu.ROWS.getValue(com.inmc.customitems.player.EquipmentStore.Group.TALISMAN) * 9 + 1
             EquipmentMenu(s.custom, s.player).open(s.player)
             s.player.openInventory.setCursor(s.stack(sword))
             s.click(talismanRow)

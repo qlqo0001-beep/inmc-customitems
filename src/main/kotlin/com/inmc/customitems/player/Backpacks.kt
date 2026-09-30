@@ -159,10 +159,9 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
 
     /**
      * 빠른 동작 키(G)의 [배낭] — **늘 1번 배낭을 곧바로** 연다. 여럿이면 배낭 창의 조작 줄에서 번호로 바꾼다(사용자 결정 2026-09-30 —
-     * 고르는 창을 거치면 두 번 눌러야 해서). 첫 창은 응답을 기다리고 있으므로 먼저 닫는다(열다가 막혀도 기다리는 창에 갇히지 않게).
+     * 고르는 창을 거치면 두 번 눌러야 해서). 빠른 메뉴 창은 누르는 순간 클라이언트가 닫는다([com.inmc.customitems.CustomItemsBootstrap]).
      */
     fun quickMenu(player: Player) {
-        player.closeDialog()
         openNumber(player, 1)
     }
 
