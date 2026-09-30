@@ -83,7 +83,7 @@ object ItemChecks {
         stack(definition).also { ItemBuilder.render(it, definition, ItemInstance.read(it).copy(level = level), custom.items.lookup) }
 
     val ALL: List<Check> = listOf(
-        Check("강화석: 성공하면 +1, 실패하면 정한 대로, 지정 강화석만") { s ->
+        Check("강화석: 성공하면 +1, 실패하면 정한 대로(그 확률로), 지정 강화석만") { s ->
             val sword = s.item(CustomItem("zz_verify_upg", Material.IRON_SWORD, displayName = "검증검", upgrade = UpgradeSpec(own = TWO_STEPS.copy(id = "zz_verify_upg"))))
             val stone = s.item(CustomItem("zz_verify_ustone", Material.PRISMARINE_SHARD, consume = ConsumeSpec(uses = 0, upgrade = UpgradeStone())))
             s.player.inventory.setItem(9, s.stack(sword))
@@ -97,6 +97,16 @@ object ItemChecks {
                     ok(ItemInstance.read(s.player.inventory.getItem(9)).level == 0, "0% 단계가 실패해 +0 으로 내려가야 하는데 " + ItemInstance.read(s.player.inventory.getItem(9)).level)
                 }
                 ?: run {
+                    // 실패 시 하락 확률 0% — 실패해도 그대로(인첸트 강화 스크롤처럼 한 번 더 굴린다, 2026-10-01).
+                    val safe = s.item(sword.copy(upgrade = UpgradeSpec(own = TWO_STEPS.copy(id = sword.id,
+                        steps = TWO_STEPS.steps.mapIndexed { index, step -> if (index == 1) step.copy(failChance = 0.0) else step }))))
+                    s.player.inventory.setItem(9, s.leveled(safe, 1))
+                    s.dropOnto(9, s.stack(stone))
+                    val level = ItemInstance.read(s.player.inventory.getItem(9)).level
+                    ok(level == 1, "실패 시 하락 확률이 0% 인데 +1 이 +$level 이 됐다")
+                }
+                ?: run {
+                    s.player.inventory.setItem(9, s.leveled(sword, 0))
                     s.item(sword.copy(upgrade = sword.upgrade.copy(stones = listOf("zz_other_stone"))))
                     s.dropOnto(9, s.stack(stone))
                     ok(ItemInstance.read(s.player.inventory.getItem(9)).level == 0, "지정 강화석이 아닌데 강화됐다")

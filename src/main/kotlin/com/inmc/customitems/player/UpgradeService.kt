@@ -27,6 +27,7 @@ class UpgradeService(private val custom: CustomItems) {
     /**
      * 한 단계 강화를 시도한다. [target] 을 그 자리에서 다시 그린다.
      *
+     * 실패하면 단계의 실패 결과를 그 확률([com.inmc.customitems.item.UpgradeStep.failChance])로 한 번 더 굴린다 — 빗나가면 그대로.
      * 파괴되면 박혀 있던 보석은 돌려준다 — 강화 실패로 보석까지 잃으면 아무도 보석을 박지 않는다.
      */
     fun attempt(player: Player, target: ItemStack, definition: CustomItem, table: UpgradeTable, stone: com.inmc.customitems.item.UpgradeStone): Attempt {
@@ -37,7 +38,8 @@ class UpgradeService(private val custom: CustomItems) {
             ItemBuilder.render(target, definition, instance.copy(level = instance.level + 1), custom.items.lookup)
             return Attempt(Outcome.SUCCESS, instance.level + 1, target)
         }
-        val after = Upgrades.afterFail(step.fail, instance.level)
+        val fail = Upgrades.failResult(step, random.nextDouble() * 100.0)
+        val after = Upgrades.afterFail(fail, instance.level)
         if (after < 0) {
             returnGems(player, instance)
             // 배낭이면 안의 것도 보석처럼 돌려준다.
@@ -47,7 +49,7 @@ class UpgradeService(private val custom: CustomItems) {
         if (after != instance.level) ItemBuilder.render(target, definition, instance.copy(level = after), custom.items.lookup)
         val outcome = when {
             after == instance.level -> Outcome.KEPT
-            step.fail == com.inmc.customitems.item.FailResult.RESET -> Outcome.RESET
+            fail == com.inmc.customitems.item.FailResult.RESET -> Outcome.RESET
             else -> Outcome.DOWN
         }
         return Attempt(outcome, after, target)

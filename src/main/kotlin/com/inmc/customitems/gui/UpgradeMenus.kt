@@ -182,7 +182,7 @@ class UpgradeTableMenu(
     }
 
     private fun stepSummary(table: UpgradeTable, step: UpgradeStep): List<String> = buildList {
-        add("<gray>성공 <white>" + kr.inmc.core.util.Numbers.chance(step.chance) + "%</white> · 실패하면 <white>" + step.fail.display + "</white></gray>")
+        add("<gray>성공 <white>" + kr.inmc.core.util.Numbers.chance(step.chance) + "%</white> · 실패하면 <white>" + step.failText + "</white></gray>")
         for ((stat, value) in step.stats.entries.take(6)) add(stat.line(value))
         if (step.stats.size > 6) add("<dark_gray>…</dark_gray>")
         if (table.mode == UpgradeMode.ADD) for ((stat, value) in step.percents.entries.take(4)) add("<gray>" + stat.display + " 기본의 +" + kr.inmc.core.util.Numbers.chance(value) + "%</gray>")
@@ -231,9 +231,31 @@ class UpgradeStepMenu(
             refresh()
         }
         set(SLOT_FAIL, Icon.of(Material.TNT, "<yellow>실패하면: <white>" + step.fail.display + "</white></yellow>",
-            Editors.optionList(FailResult.entries.toList(), step.fail) { it.display } + listOf("", "<gray>파괴돼도 박혀 있던 보석은 돌려줍니다.</gray>") + Editors.cycleHint)) { event ->
+            Editors.optionList(FailResult.entries.toList(), step.fail) { it.display } + listOf(
+                "",
+                "<gray>그대로가 아니면 옆 칸의 확률로 한 번 더 굴립니다(빗나가면 그대로).</gray>",
+                "<gray>파괴돼도 박혀 있던 보석은 돌려줍니다.</gray>",
+            ) + Editors.cycleHint)) { event ->
             change { it.copy(fail = Editors.cycle(event, FailResult.entries.toList(), it.fail)) }
             refresh()
+        }
+        // 실패 결과의 확률 — 실패하면 한 번 더 굴려 빗나가면 그대로(인첸트 강화 스크롤의 하락 확률과 같다, 사용자 요청 2026-10-01).
+        // 그대로면 뜻이 없어 숨긴다.
+        if (step.fail != FailResult.KEEP) {
+            val overall = (100.0 - step.chance) * step.failChance / 100.0
+            set(SLOT_FAIL_CHANCE, Editors.numberIcon(Material.GUNPOWDER, "<yellow>실패 시 " + step.fail.display + " 확률</yellow>", step.failChance, unit = "%", extra = listOf(
+                "<gray>강화에 실패하면 이 확률로 한 번 더 굴립니다 —</gray>",
+                "<gray>맞으면 <white>" + step.fail.display + "</white>, 빗나가면 <white>그대로</white>.</gray>",
+                "<gray>강화 한 번에 " + step.fail.display + "될 확률: <white>" + kr.inmc.core.util.Numbers.chance(overall) + "%</white></gray>",
+                "<dark_gray>(단계 성공 확률 기준 — 강화석이 확률을 정하면 달라집니다)</dark_gray>",
+            ), stepLabel = "5")) { event ->
+                if (Editors.isPrompt(event)) {
+                    Editors.promptDouble(custom.prompts, viewer, "실패 시 " + step.fail.display + " 확률(%)", 0.0, 100.0, reopen = { open(viewer) }) { v -> change { it.copy(failChance = v) } }
+                    return@set
+                }
+                change { it.copy(failChance = (it.failChance + Editors.step(event, 5.0)).coerceIn(0.0, 100.0)) }
+                refresh()
+            }
         }
         val tiers = listOf<Tier?>(null) + Tier.entries
         set(SLOT_TIER, Icon.of(Material.NETHER_STAR, "<yellow>이 단계부터 등급: " + (step.tier?.let { it.color + it.display } ?: "<white>그대로</white>") + "</yellow>",
@@ -333,13 +355,15 @@ class UpgradeStepMenu(
         }
     }
 
+    /** 윗줄은 시도(성공 · 실패 결과 · 그 확률) → 모습(등급 · 겉모습) → 배낭 둘. */
     private companion object {
         const val SLOT_CHANCE = 10
         const val SLOT_FAIL = 11
-        const val SLOT_BACKPACK = 12
-        const val SLOT_AUTO_PICKUP = 13
-        const val SLOT_TIER = 14
-        const val SLOT_TEXTURE = 16
+        const val SLOT_FAIL_CHANCE = 12
+        const val SLOT_TIER = 13
+        const val SLOT_TEXTURE = 14
+        const val SLOT_BACKPACK = 15
+        const val SLOT_AUTO_PICKUP = 16
         const val FIRST_STAT = 18
         const val STATS = 27
         const val SLOT_ADD_STAT = 49

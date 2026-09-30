@@ -512,8 +512,8 @@ object ItemBuilder {
             val next = table.step(level + 1)
             if (next != null) {
                 // 확률 100%·실패해도 그대로면 강화석이 확률을 정하는 것이다(MMOItems 식) — 100% 라고 적으면 거짓말이 된다.
-                if (next.chance < 100.0 || next.fail != FailResult.KEEP) {
-                    add("<dark_gray>다음 강화 성공 " + trim(next.chance) + "% · 실패하면 " + next.fail.display + "</dark_gray>")
+                if (next.chance < 100.0 || next.risky) {
+                    add("<dark_gray>다음 강화 성공 " + trim(next.chance) + "% · 실패하면 " + next.failText + "</dark_gray>")
                 }
                 return@buildList
             }

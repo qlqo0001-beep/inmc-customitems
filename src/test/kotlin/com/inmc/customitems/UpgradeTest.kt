@@ -42,7 +42,7 @@ class UpgradeTest {
     private val weapon = UpgradeTable("weapon", "무기용", UpgradeMode.ADD, listOf(
         UpgradeStep(chance = 100.0, stats = mapOf(Stat.ATTACK_DAMAGE to 2.0)),
         UpgradeStep(chance = 80.0, fail = FailResult.KEEP, stats = mapOf(Stat.ATTACK_DAMAGE to 2.0)),
-        UpgradeStep(chance = 50.0, fail = FailResult.DOWN, percents = mapOf(Stat.ATTACK_DAMAGE to 10.0, Stat.LUCK to 50.0), tier = Tier.EPIC),
+        UpgradeStep(chance = 50.0, fail = FailResult.DOWN, failChance = 40.0, percents = mapOf(Stat.ATTACK_DAMAGE to 10.0, Stat.LUCK to 50.0), tier = Tier.EPIC),
     ))
 
     /** 첨부한 MMOItems 강화유물처럼 단계마다 능력치 전체를 적는 전용 표(일부). */
@@ -101,6 +101,9 @@ class UpgradeTest {
         val yaml = YamlConfiguration()
         weapon.save(yaml.createSection("weapon"))
         assertEquals(weapon, UpgradeTable.load("weapon", YamlConfiguration().apply { loadFromString(yaml.saveToString()) }.getConfigurationSection("weapon")!!))
+        // 실패 확률 100 은 적지 않는다 — 안 적은 것이 100 이라 옛 정의의 지문(자동 갱신)이 안 바뀐다.
+        assertFalse(yaml.contains("weapon.steps.2.fail-chance"))
+        assertEquals(40.0, yaml.getDouble("weapon.steps.3.fail-chance"))
     }
 
     @Test
@@ -163,6 +166,28 @@ class UpgradeTest {
         assertEquals(0, Upgrades.afterFail(FailResult.DOWN, 0))
         assertEquals(0, Upgrades.afterFail(FailResult.RESET, 5))
         assertEquals(-1, Upgrades.afterFail(FailResult.DESTROY, 5))
+    }
+
+    @Test
+    fun `실패하면 결과를 그 확률로 한 번 더 굴리고 빗나가면 그대로다 — 인첸트 강화 스크롤처럼`() {
+        val down = UpgradeStep(chance = 50.0, fail = FailResult.DOWN, failChance = 30.0)
+        assertEquals(FailResult.DOWN, Upgrades.failResult(down, 0.0))
+        assertEquals(FailResult.DOWN, Upgrades.failResult(down, 29.99))
+        assertEquals(FailResult.KEEP, Upgrades.failResult(down, 30.0), "확률과 같으면 빗나감 — 성공 굴림과 같은 방향")
+        assertEquals(FailResult.KEEP, Upgrades.failResult(down, 99.99))
+        assertEquals(FailResult.DESTROY, Upgrades.failResult(UpgradeStep(fail = FailResult.DESTROY), 99.99), "안 적은 옛 단계는 100% — 예전처럼 늘 일어난다")
+        assertEquals(FailResult.KEEP, Upgrades.failResult(UpgradeStep(fail = FailResult.RESET, failChance = 0.0), 0.0), "0% 면 일어나지 않는다")
+        assertEquals(FailResult.KEEP, Upgrades.failResult(UpgradeStep(), 0.0), "그대로는 굴릴 것이 없다")
+    }
+
+    @Test
+    fun `실패 결과 글 — 확률이 100 이면 결과만, 아래면 확률과 함께, 0 이면 그대로`() {
+        assertEquals("한 단계 하락", UpgradeStep(fail = FailResult.DOWN).failText)
+        assertEquals("30% 확률로 파괴", UpgradeStep(fail = FailResult.DESTROY, failChance = 30.0).failText)
+        assertEquals("12.5% 확률로 0강으로 초기화", UpgradeStep(fail = FailResult.RESET, failChance = 12.5).failText)
+        assertEquals("그대로", UpgradeStep(fail = FailResult.DOWN, failChance = 0.0).failText)
+        assertFalse(UpgradeStep(fail = FailResult.DOWN, failChance = 0.0).risky, "0% 면 잃을 것이 없다 — 로어의 다음 강화 줄도 그대로처럼")
+        assertTrue(UpgradeStep(fail = FailResult.DOWN, failChance = 0.5).risky)
     }
 
     @Test

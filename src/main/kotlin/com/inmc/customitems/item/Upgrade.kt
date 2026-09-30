@@ -49,6 +49,11 @@ enum class UpgradeMode(val id: String, val display: String) {
 data class UpgradeStep(
     val chance: Double = 100.0,
     val fail: FailResult = FailResult.KEEP,
+    /**
+     * 실패했을 때 [fail] 이 실제로 일어날 확률(%) — 한 번 더 굴려 빗나가면 그대로다. 인첸트 강화 스크롤의 "실패 시 하락 확률"과 같은
+     * 방식(사용자 요청 2026-10-01 — 실패 위험이 너무 크다). [FailResult.KEEP] 이면 뜻이 없다. 안 적은 단계는 100(예전처럼 실패하면 늘).
+     */
+    val failChance: Double = 100.0,
     val stats: Map<Stat, Double> = emptyMap(),
     val percents: Map<Stat, Double> = emptyMap(),
     val tier: Tier? = null,
@@ -60,9 +65,21 @@ data class UpgradeStep(
     /** 이 단계부터 드랍 자동 수납([CustomItem.autoPickup]). */
     val autoPickup: Boolean = false,
 ) {
+    /** 실패하면 무언가 잃을 수 있는가 — 결과가 그대로이거나 그 확률이 0 이면 아니다. */
+    val risky: Boolean get() = fail != FailResult.KEEP && failChance > 0.0
+
+    /** "한 단계 하락" · "30% 확률로 한 단계 하락" · "그대로" — 로어와 편집 화면이 같이 쓴다. */
+    val failText: String get() = when {
+        !risky -> FailResult.KEEP.display
+        failChance >= 100.0 -> fail.display
+        else -> kr.inmc.core.util.Numbers.chance(failChance) + "% 확률로 " + fail.display
+    }
+
     fun save(section: ConfigurationSection) {
         section.set("chance", chance)
         if (fail != FailResult.KEEP) section.set("fail", fail.id)
+        // 100 은 적지 않는다 — 안 적은 것이 100 이라 옛 정의의 지문(자동 갱신)이 그대로다.
+        if (failChance < 100.0) section.set("fail-chance", failChance)
         if (stats.isNotEmpty()) {
             val node = section.createSection("stats")
             for ((stat, value) in stats) node.set(stat.id, value)
@@ -83,6 +100,7 @@ data class UpgradeStep(
         fun load(section: ConfigurationSection): UpgradeStep = UpgradeStep(
             chance = section.getDouble("chance", 100.0).coerceIn(0.0, 100.0),
             fail = FailResult.of(section.getString("fail")),
+            failChance = section.getDouble("fail-chance", 100.0).coerceIn(0.0, 100.0),
             stats = readStats(section, "stats"),
             percents = readStats(section, "percents"),
             tier = section.getString("tier")?.let { raw -> Tier.entries.firstOrNull { it.id.equals(raw.trim(), ignoreCase = true) } },
@@ -349,6 +367,13 @@ object Upgrades {
     /** 성공 확률(%) — 강화석의 등급별 확률 → 강화석의 고정 확률 → 단계의 확률 순, 그 위에 보너스. */
     fun chance(step: UpgradeStep, stone: UpgradeStone, tier: Tier): Double =
         ((stone.chances[tier] ?: stone.chance.takeIf { it > 0.0 } ?: step.chance) + stone.bonus).coerceIn(0.0, 100.0)
+
+    /**
+     * 실패했을 때 실제로 일어나는 것 — [UpgradeStep.fail] 을 [UpgradeStep.failChance] 로 한 번 더 굴린다. 빗나가면 그대로.
+     * [roll] 은 0 이상 100 미만(성공 굴림과 같은 방향 — 확률보다 작으면 맞음).
+     */
+    fun failResult(step: UpgradeStep, roll: Double): FailResult =
+        if (step.fail == FailResult.KEEP || roll >= step.failChance) FailResult.KEEP else step.fail
 
     /** 실패 뒤의 단계. 파괴면 -1. */
     fun afterFail(fail: FailResult, level: Int): Int = when (fail) {
