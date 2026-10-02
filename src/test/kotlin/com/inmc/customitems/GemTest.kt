@@ -69,4 +69,16 @@ class GemTest {
             assertEquals(item, CustomItem.load(item.id, reread.getConfigurationSection(item.id)!!))
         }
     }
+
+    @Test
+    fun `보석은 손이나 가방에서는 아무것도 하지 않는다`() {
+        // 보석 설정이 있거나 종류가 보석이면 — 서버 설정·아이템 설정과 상관없이.
+        assertFalse(CustomItem("g1", Material.EMERALD, gem = GemSpec(GemSpec.ANY, 100.0)).worksOutsideSlots(true))
+        assertFalse(CustomItem("g2", Material.EMERALD, type = ItemType.GEM).worksOutsideSlots(true))
+        assertFalse(CustomItem("g3", Material.EMERALD, type = ItemType.GEM, inventoryEffect = true).worksOutsideSlots(true))
+        // 그 밖은 그대로 — 무기는 들면 돌고, 부적은 설정을 탄다.
+        assertTrue(CustomItem("w", Material.IRON_SWORD, type = ItemType.WEAPON).worksOutsideSlots(false))
+        assertTrue(CustomItem("t", Material.PAPER, type = ItemType.TALISMAN).worksOutsideSlots(true))
+        assertFalse(CustomItem("t2", Material.PAPER, type = ItemType.TALISMAN).worksOutsideSlots(false))
+    }
 }

@@ -53,6 +53,8 @@ class EquipmentListener(private val custom: CustomItems) : Listener {
     fun onAttemptPickup(event: org.bukkit.event.player.PlayerAttemptPickupItemEvent) {
         val player = event.player
         if (!custom.ready || !custom.items.hasBackpacks || !player.canPickupItems) return
+        // 개인 설정 "배낭 드랍 자동 수납"을 끈 사람 — 바닐라 줍기 그대로(core PlayerSettings).
+        if (!kr.inmc.core.integration.PlayerSettings.enabled(player, com.inmc.customitems.CustomItemsSettings.AUTO_PICKUP)) return
         val item = event.item
         if (item.owner?.let { it != player.uniqueId } == true) return
         if (!custom.backpacks.hasRoom(player, item.itemStack)) return

@@ -139,7 +139,12 @@ class CustomItemsCommand(private val custom: CustomItems) {
                 Commands.literal("리팩")
                     .executes { ctx -> openPack(ctx.source.sender) }
                     .then(Commands.literal("빌드").executes { ctx -> buildPack(ctx.source.sender) })
-                    .then(Commands.literal("정보").executes { ctx -> packInfo(ctx.source.sender) }),
+                    .then(Commands.literal("정보").executes { ctx -> packInfo(ctx.source.sender) })
+                    .then(Commands.literal("전체적용").executes { ctx ->
+                        val sent = custom.pack.sendAll()
+                        ctx.source.sender.sendMessage(Text.render(if (sent > 0) "<green>접속한 " + sent + "명에게 리소스팩을 다시 보냈습니다.</green>" else "<red>보내지 못했습니다 — 주소(resource-pack.url)를 보세요.</red>"))
+                        1
+                    }),
             )
 
             .then(
@@ -253,7 +258,7 @@ class CustomItemsCommand(private val custom: CustomItems) {
      * 메인에서 압축하면 서버가 몇 초씩 멈춘다.
      */
     private fun buildPack(sender: CommandSender): Int {
-        sender.sendMessage(Text.render("<gray>리소스팩을 만드는 중…</gray>"))
+        sender.sendMessage(Text.render(if (custom.ready) "<gray>리소스팩을 만드는 중…</gray>" else "<gray>아이템을 다 읽으면 리소스팩을 만듭니다…</gray>"))
         custom.pack.build { result ->
             if (!result.ok) {
                 sender.sendMessage(Text.render("<red>실패: " + result.error + "</red>"))
@@ -301,6 +306,7 @@ class CustomItemsCommand(private val custom: CustomItems) {
         } else {
             sender.sendMessage(Text.render("<dark_gray>config.yml 의 resource-pack.url 이 비어 있습니다.</dark_gray>"))
         }
+        for (line in com.inmc.customitems.gui.PackMenu.hostLore(custom)) sender.sendMessage(Text.render(line))
         return 1
     }
 

@@ -278,9 +278,15 @@ data class CustomItem(
     fun slotGroup(): EquipmentSlotGroup = Components.slotGroup(components.equipSlot)
         ?: if (type == ItemType.ACCESSORY || type == ItemType.BACKPACK || material.name == "SHIELD") EquipmentSlotGroup.HAND else slotFor(material)
 
-    /** 장착 칸 밖(가방·손)에서 효과를 내는가. 장착 칸에 끼우는 종류만 [inventoryEffect]·[serverDefault] 를 탄다. */
+    /**
+     * 보석 — 박혀야 효과가 난다(박힌 아이템의 능력치로 더해진다). 손·가방에 든 보석 그 자체는 아무것도 하지 않는다
+     * (테섭 2026-10-02: 보석을 손에 들자 효과가 났다). 보석 설정이 있거나 종류가 보석이면.
+     */
+    val isGem: Boolean get() = gem != null || type == ItemType.GEM
+
+    /** 장착 칸 밖(가방·손)에서 효과를 내는가. 장착 칸에 끼우는 종류만 [inventoryEffect]·[serverDefault] 를 탄다. 보석은 언제나 아니다. */
     fun worksOutsideSlots(serverDefault: Boolean): Boolean =
-        !type.slotted || (inventoryEffect ?: serverDefault)
+        !isGem && (!type.slotted || (inventoryEffect ?: serverDefault))
 
     fun stat(stat: Stat): Double = stats[stat] ?: 0.0
 
