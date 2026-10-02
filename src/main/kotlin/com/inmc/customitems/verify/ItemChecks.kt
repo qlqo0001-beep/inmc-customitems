@@ -230,6 +230,37 @@ object ItemChecks {
                         ?: ok(s.player.inventory.contents.any { s.custom.items.identify(it)?.id == gem.id }, "빼낸 보석이 가방에 없다")
                 }
         },
+        Check("보석은 손·가방에서 아무것도 하지 않는다(박혀야 효과)") { s ->
+            val gem = s.item(CustomItem("zz_verify_heldgem", Material.EMERALD, type = ItemType.GEM, stats = mapOf(Stat.MAX_HEALTH to 4.0, Stat.CRIT_CHANCE to 7.0), gem = GemSpec(GemSpec.ANY, 100.0)))
+            val attribute = s.player.getAttribute(Attribute.MAX_HEALTH)!!
+            val before = attribute.value
+            val stack = s.stack(gem)
+            s.player.inventory.setItemInMainHand(stack)
+            s.player.inventory.setItem(9, s.stack(gem))
+            s.custom.stats.sync(s.player)
+            val held = attribute.value
+            val crit = s.custom.stats.of(s.player).stat(Stat.CRIT_CHANCE)
+            val modifiers = stack.itemMeta.attributeModifiers?.entries()?.filter { it.value.key.namespace == ItemBuilder.NAMESPACE }.orEmpty()
+            s.player.inventory.setItemInMainHand(null)
+            s.custom.stats.sync(s.player)
+            ok(held == before, "보석을 손에 들자 최대 체력 " + before + " → " + held)
+                ?: ok(crit == 0.0, "손·가방의 보석 치명타가 붙었다(" + crit + ")")
+                ?: ok(modifiers.isEmpty(), "보석 아이템에 바닐라 속성이 달렸다: " + modifiers.map { it.key.key })
+        },
+        Check("바닥에 떨어진 커스텀 아이템: 이름(x수량)과 등급색 발광") { s ->
+            val def = s.item(CustomItem("zz_verify_dropped", Material.GOLD_INGOT, displayName = "검증 금괴", tier = Tier.LEGENDARY))
+            val item = s.player.world.dropItem(s.player.location.clone().add(0.0, 2.0, 0.0), s.stack(def, 3))
+            try {
+                val name = item.customName()?.let { Text.plain(it) }.orEmpty()
+                val team = org.bukkit.Bukkit.getScoreboardManager().mainScoreboard.getTeam("inmc_tier_legendary")
+                ok(item.isCustomNameVisible && name.contains("검증 금괴") && name.contains("x3"), "이름이 '" + name + "'(보임 " + item.isCustomNameVisible + ")")
+                    ?: ok(item.isGlowing, "빛나지 않는다")
+                    ?: ok(team != null && team.hasEntity(item), "등급 팀에 없다")
+                    ?: ok(team?.color() == net.kyori.adventure.text.format.NamedTextColor.GOLD, "전설 발광 색이 " + team?.color())
+            } finally {
+                item.remove()
+            }
+        },
         Check("숫돌이 내구도를 고치고 닳는다") { s ->
             val tool = s.item(CustomItem("zz_verify_whetstone", Material.FLINT, consume = ConsumeSpec(uses = 1, repair = 100)))
             s.player.inventory.setItem(9, ItemStack(Material.IRON_SWORD).apply { editMeta(Damageable::class.java) { it.damage = 150 } })

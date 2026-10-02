@@ -731,7 +731,7 @@ plugins/inmc-customitems/pack/
 1. `pack/textures/` 에 png 를 넣는다
 2. 아이템 설정 화면의 **겉모습** 칸에 그 파일 이름을 적는다
 3. `/커스텀아이템 리팩 빌드`
-4. `output/pack.zip` 을 아무 데나 올리고 `config.yml` 의 `resource-pack.url` 에 주소를 적는다
+4. `output/pack.zip` 을 아무 데나 올리거나 `resource-pack.host` 를 켜 이 서버가 내려주게 하고, `config.yml` 의 `resource-pack.url` 에 주소를 적는다
 
 만들어 주는 것:
 
@@ -794,16 +794,24 @@ assets/inmc/items/boss_sword.json          ← item_model 이 가리키는 정�
 
 ### 배포
 
-이 플러그인은 팩을 **만들기만** 합니다. 올리는 것은 관리자 몫입니다 — 서버 안에 HTTP 서버를
-띄우는 것은 포트를 열고 방화벽을 손대고 대역폭을 쓰는 일이라, 아이템 플러그인이 조용히 해도
-되는 일이 아닙니다.
+길은 둘입니다. 팩을 어딘가에 올리고 그 주소를 적거나, **이 서버가 직접 내려주게** 합니다(`resource-pack.host`, 2026-10-02).
+직접 내려주기는 포트를 여는 일이라 **관리자가 켤 때만** 합니다 — 배포 설정은 꺼져 있습니다.
 
 ```yaml
 resource-pack:
-  url: "https://example.com/pack.zip"
+  url: "http://play.example.com:8765/pack.zip"   # 플레이어가 닿는 주소
   auto-send: true
   required: false
+  host:
+    enabled: true
+    bind: "0.0.0.0"     # 127.0.0.1 = 이 PC 만
+    port: 8765
 ```
+
+직접 내려주기([PackHost])는 JDK 내장 HTTP 서버로 `/pack.zip` 하나만 내줍니다(다른 경로 404). 파일을 쥐지 않고 **메모리 사본**에서
+보냅니다 — 윈도우는 열린 파일을 못 지워서, 누가 받는 동안 다시 만들면 새 팩이 안 써집니다. 파일이 바뀌면(크기·수정 시각) 다시 읽으므로
+빌드하면 바로 새 팩이 나갑니다. 포트를 못 열면(다른 프로그램이 쓰는 중) 30초마다 다시 해 봅니다. 리로드로 켜고 끄고 포트를 바꿉니다.
+바깥에서 닿는 주소는 서버가 알 수 없어 `url` 은 늘 관리자가 적습니다.
 
 sha1 은 빌드할 때 저장되고 보낼 때 같이 넘어갑니다 — 클라이언트가 **이미 받은 팩인지
 판단하는 근거**라, 없으면 접속할 때마다 몇 MB 를 다시 받습니다.

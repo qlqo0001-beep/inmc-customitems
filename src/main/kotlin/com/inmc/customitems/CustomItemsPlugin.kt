@@ -45,6 +45,8 @@ class CustomItemsPlugin : JavaPlugin() {
         kr.inmc.core.integration.ExtraInventory.register(custom.equipment)
         // 배낭 안의 것을 가방처럼 센다 — 상점 판매·랜덤박스 열쇠·화폐 실물이 배낭까지 본다.
         kr.inmc.core.integration.CarriedStorage.register(custom.backpacks)
+        // 플레이어 메뉴의 개인 설정 화면에 "배낭 드랍 자동 수납" 을 올린다(core PlayerSettings).
+        CustomItemsSettings.register()
 
         registerListeners()
         CustomItemsCommand(custom).register(this)
@@ -65,6 +67,8 @@ class CustomItemsPlugin : JavaPlugin() {
         ticker.stop()
         passiveTicker.stop()
         metrics.stop()
+        // 포트를 놓는다 — 안 놓으면 리로드한 플러그인이 같은 포트를 못 연다.
+        custom.packHost.shutdown()
         // 캐는 동안 묶어 둔 블록 파괴 속도를 푼다 — 안 풀면 리로드 뒤 그 사람들이 아무것도 못 캔다.
         custom.mining.shutdown()
         // 우리가 내려가면 우리 아이템도 못 만든다. 남겨두면 다른 플러그인이 죽은 공급처에
@@ -72,6 +76,7 @@ class CustomItemsPlugin : JavaPlugin() {
         CustomItemHook.unregister(ItemBuilder.NAMESPACE)
         kr.inmc.core.integration.ExtraInventory.unregister(custom.equipment)
         kr.inmc.core.integration.CarriedStorage.unregister(custom.backpacks)
+        CustomItemsSettings.unregister()
         // 빠지면 역할을 쓰는 플러그인들이 제 파일로 돌아간다(옮긴 뒤라면 빈 목록 — 우리 없이는 우리 아이템도 없다).
         kr.inmc.core.integration.ItemRoles.detach(custom.roleStore)
         custom.items.flushBlocking()
@@ -99,6 +104,7 @@ class CustomItemsPlugin : JavaPlugin() {
         manager.registerEvents(com.inmc.customitems.listener.ResourcePackListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.EquipmentListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.BlockListener(custom), this)
+        manager.registerEvents(custom.droppedItems, this)
         manager.registerEvents(kr.inmc.core.listener.MenuListener(custom), this)
     }
 
@@ -115,6 +121,9 @@ class CustomItemsPlugin : JavaPlugin() {
             custom.io.load(custom.io.file("config.yml")) to custom.io.load(custom.io.file("messages.yml"))
         }) { (configYaml, messagesYaml) ->
             custom.packConfig = com.inmc.customitems.pack.PackConfig.from(configYaml)
+            custom.droppedSettings = com.inmc.customitems.listener.DroppedItemListener.Settings.from(configYaml)
+            // 내려주기를 켜고 끄거나 포트를 바꿨으면 여기서 반영한다(같으면 그대로).
+            custom.packHost.apply(custom.packConfig.host)
             custom.messages = Messages.from(messagesYaml)
 
             // 정의 객체가 교체되므로 열린 화면은 닫는다 - 그대로 두면 버려진 객체를 계속
@@ -139,6 +148,10 @@ class CustomItemsPlugin : JavaPlugin() {
                                 custom.roleAppearance.sweep()
                                 // 팩이 이미 쓰는 블록 상태(새 블록이 피해 간다)와 서버의 갱신 끄기 확인 — 아이템을 다 읽은 뒤에.
                                 custom.blocks.load()
+                                // 바닥의 아이템 — 아이템을 다 읽은 뒤라야 알아본다(낡은 팀 항목도 여기서 비운다).
+                                // 꾸미기가 실패해도 준비는 끝낸다 — 여기서 던지면 `then` 이 안 돌아 플러그인이 "준비 중"에 갇힌다(2026-10-02 테섭).
+                                runCatching { custom.droppedItems.refreshAll() }
+                                    .onFailure { logger.log(java.util.logging.Level.WARNING, "바닥 아이템 꾸미기 실패", it) }
                                 then()
                             }
                         }

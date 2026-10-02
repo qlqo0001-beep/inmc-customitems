@@ -94,6 +94,9 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     /** 리소스팩을 만들어 낸다. */
     val pack = PackService(this)
 
+    /** 만든 팩을 직접 내려준다 — `resource-pack.host` 를 켰을 때만. */
+    val packHost = com.inmc.customitems.pack.PackHost({ pack.outputZip }, logger)
+
     /** 커스텀 블록 — 놓기·알아보기·치우기(블록 상태 방식 둘 + 엔티티 방식). */
     val blocks = com.inmc.customitems.block.CustomBlocks(this)
 
@@ -104,6 +107,12 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     @Volatile
     var packConfig: PackConfig = PackConfig()
 
+    /** 바닥에 떨어진 커스텀 아이템의 이름·등급색 발광(`config.yml` 의 `dropped-items`). */
+    @Volatile
+    var droppedSettings = com.inmc.customitems.listener.DroppedItemListener.Settings()
+
+    val droppedItems = com.inmc.customitems.listener.DroppedItemListener(this)
+
     val prompts = ChatPrompt(this)
 
     @Volatile
@@ -112,5 +121,6 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
 
     fun markReady() {
         ready = true
+        pack.runWaiting()
     }
 }

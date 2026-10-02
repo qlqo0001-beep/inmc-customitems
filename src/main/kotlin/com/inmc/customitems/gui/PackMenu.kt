@@ -30,7 +30,7 @@ class PackMenu(
         set(SLOT_SOURCES, sourcesIcon())
         set(SLOT_MISSING, missingIcon())
         set(SLOT_NUMBERS, numbersIcon())
-        set(SLOT_SEND, sendIcon()) { send() }
+        set(SLOT_SEND, sendIcon()) { event -> if (event.isRightClick) sendAll() else send() }
         set(SLOT_MODELS, Icon.of(Material.ITEM_FRAME, "<yellow>모델 목록</yellow>", listOf(
             "<gray>만든 팩에 들어 있는 모델을 실제 모양으로 봅니다.</gray>",
             "<gray>쓰는 아이템 · 안 쓰는 것 · 이름공간별로.</gray>",
@@ -186,13 +186,14 @@ class PackMenu(
                 if (!config.canSend) {
                     add("<red>config.yml 의 resource-pack.url 이 비어 있습니다.</red>")
                     add("")
-                    add("<gray>이 플러그인은 팩을 <white>만들기만</white> 합니다.</gray>")
-                    add("<gray>올리는 것은 관리자 몫입니다 — 포트를 열고</gray>")
-                    add("<gray>대역폭을 쓰는 일은 아이템 플러그인이</gray>")
-                    add("<gray>조용히 해도 되는 일이 아닙니다.</gray>")
+                    add("<gray>팩을 어딘가에 올리고 그 주소를 적거나,</gray>")
+                    add("<gray>resource-pack.host 를 켜서 이 서버가 직접</gray>")
+                    add("<gray>내려주게 하세요(주소는 그래도 적어야 합니다).</gray>")
+                    addAll(hostLore(custom))
                     return@buildList
                 }
                 add("<gray>" + config.url + "</gray>")
+                addAll(hostLore(custom))
                 add("<gray>자동 보내기: " + Icon.toggle(config.autoSend) + "</gray>")
                 add("<gray>필수: " + Icon.toggle(config.required) + "</gray>")
                 if (custom.pack.sha1.isBlank()) {
@@ -202,8 +203,14 @@ class PackMenu(
                 }
                 add("")
                 add("<yellow>▶ 클릭: 지금 받아보기</yellow>")
+                add("<yellow>▶ 우클릭: 접속한 모두에게 다시 보내기</yellow> <dark_gray>(다시 만든 팩을 재접속 없이)</dark_gray>")
             },
         )
+    }
+
+    private fun sendAll() {
+        val sent = custom.pack.sendAll()
+        viewer.sendMessage(Text.render(if (sent > 0) "<green>접속한 " + sent + "명에게 리소스팩을 다시 보냈습니다.</green>" else "<red>보내지 못했습니다 — 주소(resource-pack.url)를 보세요.</red>"))
     }
 
     private fun size(bytes: Long): String = when {
@@ -258,6 +265,21 @@ class PackMenu(
     }
 
     companion object {
+
+        /** 직접 내려주기의 상태 — 화면과 `/커스텀아이템 리팩` 이 같이 쓴다. */
+        fun hostLore(custom: CustomItems): List<String> {
+            val host = custom.packConfig.host
+            val runner = custom.packHost
+            return when {
+                !host.enabled -> listOf("<dark_gray>직접 내려주기: 꺼짐 (resource-pack.host)</dark_gray>")
+                runner.running -> listOf("<green>직접 내려주는 중</green> <gray>— ${host.bind}:${runner.boundPort}/pack.zip</gray>")
+                else -> listOf(
+                    "<red>직접 내려주기: 포트를 열지 못함</red> <gray>(${host.bind}:${host.port})</gray>",
+                    "<dark_gray>${runner.problem ?: "?"} — 30초마다 다시 해 봅니다.</dark_gray>",
+                )
+            }
+        }
+
         const val SIZE = 27
         const val SLOT_BUILD = 10
         const val SLOT_STATUS = 12

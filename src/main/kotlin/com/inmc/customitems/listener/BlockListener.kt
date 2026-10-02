@@ -181,6 +181,33 @@ class BlockListener(private val custom: CustomItems) : Listener {
     private fun pushesOurs(blocks: List<Block>): Boolean =
         custom.items.hasBlocks && blocks.any { it.type == Material.CHORUS_PLANT && custom.blocks.at(it) != null }
 
+    /**
+     * 휠클릭(블록 고르기)으로 커스텀 블록 — 바닐라는 받침 블록(소리 블록·후렴초·방벽)을 준다. 우리가 막고 그 블록의 아이템으로 같은 일을 한다
+     * (테섭 요청 2026-10-02): 가방에 있으면 단축바로 가져와 들고, 없으면 창작 모드에서만 하나 만들어 쥐어 준다.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onPick(event: io.papermc.paper.event.player.PlayerPickBlockEvent) {
+        if (event.block.type !in HOSTS) return
+        val item = custom.blocks.at(event.block) ?: return
+        event.isCancelled = true
+        val inventory = event.player.inventory
+        val owned = (0 until 36).firstOrNull { custom.items.identify(inventory.getItem(it))?.id == item.id }
+        if (owned != null && owned < 9) {
+            inventory.heldItemSlot = owned
+            return
+        }
+        val target = (0 until 9).firstOrNull { inventory.getItem(it)?.isEmpty != false } ?: inventory.heldItemSlot
+        if (owned != null) {
+            val previous = inventory.getItem(target)
+            inventory.setItem(target, inventory.getItem(owned))
+            inventory.setItem(owned, previous)
+        } else {
+            if (event.player.gameMode != GameMode.CREATIVE) return
+            inventory.setItem(target, custom.items.create(item.id) ?: return)
+        }
+        inventory.heldItemSlot = target
+    }
+
     private companion object {
         /** 우리 블록이 설 수 있는 바닐라 블록. 이것이 아니면 [com.inmc.customitems.block.CustomBlocks.at] 을 부르지도 않는다. */
         val HOSTS = setOf(Material.NOTE_BLOCK, Material.CHORUS_PLANT, Material.BARRIER)

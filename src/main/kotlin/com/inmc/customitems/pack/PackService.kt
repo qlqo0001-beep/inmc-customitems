@@ -113,7 +113,33 @@ class PackService(private val custom: CustomItems) {
      *
      * @param then 메인 스레드에서 불린다.
      */
+    /**
+     * 접속한 사람 모두에게 지금 팩을 다시 보낸다 — 다시 만든 팩을 재접속 없이 받게(테섭 요청 2026-10-02). sha1 이 같으면 클라이언트가
+     * 받지 않고 넘어간다. 보낸 사람 수. 주소가 없으면 0.
+     */
+    fun sendAll(): Int {
+        val config = custom.packConfig
+        if (!config.canSend) return 0
+        var sent = 0
+        for (player in org.bukkit.Bukkit.getOnlinePlayers()) {
+            runCatching {
+                player.setResourcePack(config.url, sha1, config.required, kr.inmc.core.util.Text.render(config.prompt))
+                sent++
+            }.onFailure { custom.logger.warning("리소스팩을 보내지 못했습니다(" + player.name + "): " + it.message) }
+        }
+        return sent
+    }
+
+    /** 아이템을 다 읽기 전에 부탁받은 빌드 — 준비가 끝나면 한 번 만들어 모두에게 알린다. */
+    private val waiting = mutableListOf<(Result) -> Unit>()
+
     fun build(then: (Result) -> Unit) {
+        // 아이템 목록이 비어 있을 때 만들면 아이템 모양이 하나도 없는 팩이 나온다 — 켜질 때 메뉴 플러그인이 부른 빌드가
+        // 아이템보다 8초 먼저 돌아 손의 아이템이 전부 보라·검정이 됐다(2026-10-02 테섭).
+        if (!custom.ready) {
+            waiting += then
+            return
+        }
         if (building) {
             then(failed("이미 만드는 중입니다"))
             return
@@ -143,6 +169,14 @@ class PackService(private val custom: CustomItems) {
             lastReport = result
             then(result)
         }
+    }
+
+    /** 준비가 끝났을 때([CustomItems.markReady]) — 그 전에 부탁받은 빌드를 돈다. */
+    fun runWaiting() {
+        if (waiting.isEmpty()) return
+        val callbacks = waiting.toList()
+        waiting.clear()
+        build { result -> callbacks.forEach { it(result) } }
     }
 
     /** 저장된 sha1 을 읽어 온다. 재시작해도 배포가 이어지게. */
@@ -323,6 +357,10 @@ class PackService(private val custom: CustomItems) {
         )
     }
 
+    /** 재질이 블록이면 그 바닐라 블록 모델(`minecraft:block/<재질>`). 레지스트리를 타서 서버에서만 — 그래서 `PackAssets`(순수)가 아니라 여기. */
+    private fun vanillaBlockModel(item: CustomItem): String? =
+        item.material.takeIf { runCatching { it.isBlock }.getOrDefault(false) }?.let { "minecraft:block/" + it.key.key }
+
     /**
      * 소리블록·후렴초의 blockstates 를 새로 쓴다. 커스텀 상태가 하나도 없으면(우리 것도 소스 것도) 손대지 않는다 — 바닐라 파일 그대로.
      * @return (적은 우리 블록 수, 그릴 모델이 없는 블록)
@@ -335,7 +373,8 @@ class PackService(private val custom: CustomItems) {
             for (item in blockItems) {
                 val spec = item.block ?: continue
                 if (spec.kind != kind || spec.state.isBlank()) continue
-                val model = PackAssets.blockModelFor(item)
+                // 텍스처도 모델도 없으면 그 재질의 바닐라 블록 모습으로(흙이면 흙) — 안 그러면 놓았을 때 비어 보인다(테섭 2026-10-02 "흙인데 왜 이럼").
+                val model = PackAssets.blockModelFor(item) ?: vanillaBlockModel(item)
                 if (model == null) missing += item.id else ours[spec.state] = model
             }
             val path = BlockStates.path(kind)
