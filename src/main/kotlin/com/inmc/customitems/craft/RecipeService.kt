@@ -194,6 +194,19 @@ class RecipeService(private val custom: CustomItems) : Listener {
         event.result = if (ok) fresh(def) else null
     }
 
+    /**
+     * 바닐라 조합법에 우리 아이템이 재료로 들어가면 결과를 막는다.
+     *
+     * 바닐라는 재질로만 고르므로 — 예: 판자로 만든 우리 아이템을 널빤지 칸에 놓으면 막대기·작업대가
+     * 나온다. 우리 조합법이 아니면(`idOf == null`) 매트릭스에 우리 아이템이 하나라도 있으면 빈손이다.
+     * 우리 쌍둥이(`recipe_<id>/any`)는 우리 것으로 판별돼 위(`onPrepareCraft`)가 본다.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onVanillaCraft(event: PrepareItemCraftEvent) {
+        if (idOf(event.recipe) != null) return
+        if (event.inventory.matrix.any { custom.items.identify(it) != null }) event.inventory.result = null
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onSmelt(event: FurnaceSmeltEvent) {
         val def = custom.recipes.get(idOf(event.recipe) ?: return) ?: return

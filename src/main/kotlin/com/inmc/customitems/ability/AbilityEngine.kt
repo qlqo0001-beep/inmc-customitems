@@ -140,7 +140,7 @@ class AbilityEngine(private val custom: CustomItems) {
                 target.addPotionEffect(
                     PotionEffect(
                         type,
-                        (ability.number("seconds") * 20).toInt().coerceAtLeast(1),
+                        passivePotionTicks(ability.trigger, ability.number("seconds"), ability.intervalSeconds),
                         (ability.int("level") - 1).coerceAtLeast(0),
                     ),
                 )
@@ -475,3 +475,22 @@ class Cooldowns {
     private fun key(player: UUID, itemId: String, index: Int): String =
         player.toString() + "|" + itemId + "|" + index
 }
+
+/**
+ * 지속([Trigger.PASSIVE]) 물약의 실제 지속 틱.
+ *
+ * 바닐라는 남은 시간 10초부터 화면을 깜빡인다. 주기마다 다시 걸면 남은 시간이 주기 이하로
+ * 떨어져 영원히 깜빡임 구간에 갇힌다 — 그래서 남은 시간이 절대 11초 아래로 안내려가게
+ * `주기 + 11초`와 설정값 중 큰 것으로 건다. 해제한 뒤에는 최대 주기+11초만 남고 꺼진다.
+ *
+ * 렉과 무관하다. 길이는 숫자에 불과하고(클라 카운트다운), 서버 일은 그대로다 — 1초 틱커와
+ * 기능별 주기(최소 0.5초)가 그대로 돌고, 건 횟수도 같다. 무한으로 두지 않아 추적표도 안 든다.
+ */
+internal fun passivePotionTicks(trigger: Trigger, seconds: Double, intervalSeconds: Double): Int {
+    val configured = (seconds * 20).toInt().coerceAtLeast(1)
+    if (trigger != Trigger.PASSIVE) return configured
+    return maxOf(configured, (intervalSeconds * 20).toInt() + FLICKER_FREE_TICKS)
+}
+
+/** 깜빡임이 시작되는 10초보다 1초 여유 있게. */
+internal const val FLICKER_FREE_TICKS = 220
