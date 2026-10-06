@@ -4,6 +4,7 @@ import com.inmc.customitems.CustomItems
 import com.inmc.customitems.ability.Trigger
 import kr.inmc.core.input.Clicks
 import org.bukkit.event.Event
+import org.bukkit.Material
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
@@ -104,6 +105,19 @@ class InteractListener(private val custom: CustomItems) : Listener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onConsume(event: PlayerItemConsumeEvent) {
         if (custom.items.identify(event.item)?.preventVanillaUse == true || custom.items.isExpired(event.item)) event.isCancelled = true
+    }
+
+    /**
+     * 지식책 바닐라 사용 막기([com.inmc.customitems.item.CustomItem.preventVanillaUse]) — 지식책은 우클릭하면
+     * 레시피를 풀고 **책을 먹는다.** 설치·먹기와 달리 먹는 부품을 뗄 수 없어 설정 전후를 막론하고 여기까지 온다 —
+     * "사용 안 됨"을 켜도 우클릭 한 번에 커스텀 아이템이 통째로 사라졌다. 양손 둘 다 본다(주 손만 보면 왼손 책이 샌다).
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onKnowledgeBook(event: PlayerInteractEvent) {
+        val stack = event.item ?: return
+        if (stack.type != Material.KNOWLEDGE_BOOK) return
+        if (custom.items.identify(stack)?.preventVanillaUse != true) return
+        event.setUseItemInHand(Event.Result.DENY)
     }
 
     /** 나간 사람의 쿨다운은 들고 있을 이유가 없다. */

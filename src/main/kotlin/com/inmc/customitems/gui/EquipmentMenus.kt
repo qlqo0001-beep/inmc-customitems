@@ -45,12 +45,15 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
             for (index in 0 until EquipmentStore.MAX) {
                 val stored = store.get(viewer.uniqueId, group, index)
                 val slot = row * 9 + 1 + index
+                // 잠긴 칸 lore 에는 여는 권한을 적는다 — op 는 전부 열려 잠긴 칸이 안 보이므로,
+                // 잠김 확인은 deop 뒤에 이 권한을 보고 하면 된다.
+                val lockLine = "<dark_gray>해제 권한: <white>" + group.permission(index + 1) + "</white></dark_gray>"
                 set(slot, when {
-                    stored != null && index >= capacity -> Icon.annotate(stored.clone(), lore = listOf("", "<red>잠긴 칸 — 효과가 없습니다. 꺼내기만 됩니다.</red>"))
+                    stored != null && index >= capacity -> Icon.annotate(stored.clone(), lore = listOf("", "<red>잠긴 칸 — 효과가 없습니다. 꺼내기만 됩니다.</red>", lockLine))
                     stored != null && group == Group.BACKPACK && numbers[index] != null ->
                         Icon.annotate(stored.clone(), lore = listOf("", "<gold>/배낭 " + numbers.getValue(index) + "</gold>", "<yellow>▶ 좌클릭: 꺼내기 · 우클릭: 배낭 열기 · Shift: 가방으로</yellow>"))
                     stored != null -> Icon.annotate(stored.clone(), lore = listOf("", "<yellow>▶ 클릭: 꺼내기 · Shift: 가방으로</yellow>"))
-                    index >= capacity -> Icon.of(Material.IRON_BARS, "<dark_gray>잠긴 칸</dark_gray>", listOf("<gray>권한이 있어야 열립니다.</gray>"))
+                    index >= capacity -> Icon.of(Material.IRON_BARS, "<dark_gray>잠긴 칸</dark_gray>", listOf("<gray>권한이 있어야 열립니다.</gray>", lockLine))
                     // 열린 빈 칸은 비워 둔다 — 평범한 빈 칸이 "여기 넣으면 된다"를 가장 잘 말한다.
                     else -> null
                 })

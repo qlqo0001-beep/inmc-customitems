@@ -194,6 +194,19 @@ class RecipeService(private val custom: CustomItems) : Listener {
         event.result = if (ok) fresh(def) else null
     }
 
+    /**
+     * 바닐라 조합법에 우리 아이템이 재료로 들어가면 결과를 막는다.
+     *
+     * 바닐라는 재질로만 고르므로 — 예: 판자로 만든 우리 아이템을 널빤지 칸에 놓으면 막대기·작업대가
+     * 나온다. 우리 조합법이 아니면(`idOf == null`) 매트릭스에 우리 아이템이 하나라도 있으면 빈손이다.
+     * 우리 쌍둥이(`recipe_<id>/any`)는 우리 것으로 판별돼 위(`onPrepareCraft`)가 본다.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onVanillaCraft(event: PrepareItemCraftEvent) {
+        if (idOf(event.recipe) != null) return
+        if (event.inventory.matrix.any { custom.items.identify(it) != null }) event.inventory.result = null
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onSmelt(event: FurnaceSmeltEvent) {
         val def = custom.recipes.get(idOf(event.recipe) ?: return) ?: return
@@ -202,5 +215,105 @@ class RecipeService(private val custom: CustomItems) : Listener {
             return
         }
         fresh(def)?.let { event.result = it }
+    }
+
+    /**
+     * 바닐라 대장장이법에 우리 아이템이 재료로 들어가면 결과를 막는다. 조합대와 같은 결이다 —
+     * 바닐라는 재질로만 고르므로 다이아 재질의 우리 갑옷이 네더라이트 업그레이드에 먹힌다.
+     * 우리 대장장이법은 위(`onPrepareSmithing`)가 본다.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onVanillaSmithing(event: PrepareSmithingEvent) {
+        if (idOf(event.inventory.recipe) != null) return
+        val inventory = event.inventory
+        if (listOf(inventory.inputTemplate, inventory.inputEquipment, inventory.inputMineral)
+                .any { custom.items.identify(it) != null }
+        ) {
+            event.result = null
+        }
+    }
+
+    /**
+     * 화로에 우리 아이템이 재료·연료로 들어가면 들어가는 길에서 막는다.
+     *
+     * 시작 사건(`FurnaceStartSmeltEvent`)은 취소가 안 되고, 결과 사건(`FurnaceSmeltEvent`) 때 막으면
+     * 재료가 이미 타서 아이템만 사라진다. 그래서 클릭·드래그·호퍼를 막는다. 용광로·훈연기도
+     * 화로(`Furnace`)라 같이 막힌다. 우리 굽기법의 재료는 통과, 결과 칸(2번)은 꺼내기라 통과,
+     * 바닐라 재료는 손대지 않는다.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onFurnaceClick(event: org.bukkit.event.inventory.InventoryClickEvent) {
+        if (event.inventory.holder !is org.bukkit.block.Furnace) return
+        val top = event.inventory.size
+        val raw = event.rawSlot
+        // 아래 가방에서 Shift — 화로로 들어가는 것만 막는다(꺼내는 Shift 는 통과).
+        if (raw >= top) {
+            if (!event.isShiftClick) return
+            val moving = event.currentItem ?: return
+            if (custom.items.identify(moving) == null || isOurCookInput(moving)) return
+            event.isCancelled = true
+            return
+        }
+        // 위 칸: 0 재료 · 1 연료 · 2 결과(꺼내기만). 놓이는 것만 본다.
+        if (raw != 0 && raw != 1) return
+        val landing: ItemStack? = when (event.action) {
+            org.bukkit.event.inventory.InventoryAction.PLACE_ALL,
+            org.bukkit.event.inventory.InventoryAction.PLACE_SOME,
+            org.bukkit.event.inventory.InventoryAction.PLACE_ONE,
+            org.bukkit.event.inventory.InventoryAction.SWAP_WITH_CURSOR ->
+                event.view.cursor.takeUnless { it.type.isAir }
+            // 숫자키(0~8 가방, 40 왼손) — F 키도 여기(40)로 온다.
+            org.bukkit.event.inventory.InventoryAction.HOTBAR_SWAP ->
+                if (event.hotbarButton == 40) {
+                    event.view.player.inventory.itemInOffHand.takeUnless { it.type.isAir }
+                } else {
+                    event.view.bottomInventory.getItem(event.hotbarButton)
+                }
+            else -> null
+        } ?: return
+        if (custom.items.identify(landing) == null) return
+        if (raw == 0 && isOurCookInput(landing)) return
+        event.isCancelled = true
+    }
+
+    /** 드래그로 화로 재료·연료 칸에 밀어넣기. 용광로·훈연기도 화로다. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onFurnaceDrag(event: org.bukkit.event.inventory.InventoryDragEvent) {
+        if (event.inventory.holder !is org.bukkit.block.Furnace) return
+        val cursor = event.oldCursor
+        if (custom.items.identify(cursor) == null) return
+        val hitsInput = event.rawSlots.any { it == 0 }
+        val hitsFuel = event.rawSlots.any { it == 1 }
+        if (hitsInput && !isOurCookInput(cursor)) {
+            event.isCancelled = true
+            return
+        }
+        if (hitsFuel) event.isCancelled = true
+    }
+
+    /** 호퍼로 화로에 밀어넣기 — 클릭을 거치지 않는다. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onHopperToFurnace(event: org.bukkit.event.inventory.InventoryMoveItemEvent) {
+        if (event.destination.holder !is org.bukkit.block.Furnace) return
+        val stack = event.item
+        if (custom.items.identify(stack) == null || isOurCookInput(stack)) return
+        event.isCancelled = true
+    }
+
+    /**
+     * 화로 연료에 우리 아이템이 들어가면 태우지 않는다. 연료로 쓰라고 만든 기능이 없고,
+     * 태우면 아이템이 재가 되어 사라진다.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onFurnaceBurn(event: org.bukkit.event.inventory.FurnaceBurnEvent) {
+        if (custom.items.identify(event.fuel) != null) event.isCancelled = true
+    }
+
+    /** 우리 굽기법(화로·용광로·훈연기·모닥불) 중 이 재료를 쓰는 것이 있는가. */
+    private fun isOurCookInput(stack: ItemStack?): Boolean {
+        if (stack == null || stack.type.isAir) return false
+        return custom.recipes.all().any { def ->
+            def.kind.cooking && matches(stack, def.slot(0))
+        }
     }
 }

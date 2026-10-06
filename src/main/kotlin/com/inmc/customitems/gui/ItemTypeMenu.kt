@@ -91,6 +91,9 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
             "<gray>만든 종류 <white>" + custom.types.custom().size + "</white>개</gray>",
             "", "<yellow>▶ 클릭</yellow>",
         ))) { TypeListMenu(custom, viewer).open(viewer) }
+        set(SLOT_HUB, Icon.of(Material.COMPASS, "<gold>어드민 메뉴로</gold>", listOf(
+            "<gray>각 플러그인 설정 허브로 돌아갑니다.</gray>",
+        ))) { viewer.performCommand("메뉴 어드민") }
         set(SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
         fillEmpty(Icon.EDGE)
     }
@@ -137,6 +140,9 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
          */
         val TYPE_SLOTS = listOf(10, 11, 12, 14, 28, 30, 32, 34, 15, 16, 20, 24)
         const val SLOT_ALL = 22
+
+        /** 어드민 메뉴 허브 — 3행 우측 끝. 종류 칸·하단 줄과 무충돌. */
+        const val SLOT_HUB = 26
 
         /** 만든 종류 칸 — 아홉까지. 넘치면 마지막 칸이 "나머지 종류" 고르기(거기서 넘친 종류의 서랍을 연다). */
         val CUSTOM_SLOTS = (36..44).toList()
