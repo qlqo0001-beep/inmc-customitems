@@ -61,6 +61,7 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "equip-wrong-type" to "<red>이 줄에는 {value} 만 넣을 수 있습니다.</red>",
             "equip-full" to "<red>{value} 칸이 가득 찼습니다.</red>",
             "equip-bag-full" to "<red>가방이 가득 찼습니다.</red>",
+            "equip-first-hint" to "<yellow>장착한 장신구·부적·유물은 <gold>/acc</gold> 에서 보고 바꿀 수 있습니다.</yellow>",
             "backpack-one" to "<red>배낭은 한 개씩 들어야 열립니다.</red>",
             "backpack-busy" to "<red>다른 사람이 이 배낭을 보고 있습니다.</red>",
             "backpack-nested" to "<red>배낭 안에 배낭은 넣을 수 없습니다.</red>",

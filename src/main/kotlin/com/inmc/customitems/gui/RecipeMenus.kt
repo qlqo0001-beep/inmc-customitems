@@ -81,14 +81,21 @@ class RecipeEditMenu(custom: CustomItems, private val viewer: Player, private va
         recipe.result?.let { inventory.setItem(SLOT_RESULT, custom.crafting.resolver.icon(it.item).stack.clone().also { s -> s.amount = it.amount }) }
 
         set(SLOT_ARROW, Icon.of(Material.ARROW, "<gray>→ 결과</gray>", listOf("<gray>" + recipe.kind.label + "</gray>")))
-        set(SLOT_KIND, Icon.of(Material.CRAFTING_TABLE, "<yellow>종류: <white>" + recipe.kind.label + "</white></yellow>",
-            Editors.optionList(RecipeKind.entries, recipe.kind) { it.label } + Editors.cycleHint)) { event ->
+        set(SLOT_KIND, Icon.of(Material.CRAFTING_TABLE, "<yellow>종류: <white>" + recipe.kind.label + "</white></yellow>", Editors.pickHint)) {
             saveSlots()
-            val next = Editors.cycle(event, RecipeKind.entries, recipe.kind)
-            // 칸 수가 다른 종류로 바꾸면 넘치는 재료는 버린다.
-            val current = recipe() ?: return@set
-            custom.recipes.put(current.copy(kind = next, grid = List(next.slots) { current.slot(it) }))
-            refresh()
+            // 종류 8개 — 고르는 화면으로(2026-10-08).
+            ChoiceMenu(
+                custom, viewer, "조합법 종류 고르기",
+                options = { RecipeKind.entries.map { it.name to Icon.of(Material.CRAFTING_TABLE, "<yellow>" + it.label + "</yellow>", listOf("<gray>재료 칸 " + it.slots + "개</gray>")) } },
+                selected = { setOf(recipe.kind.name) },
+                back = { open(viewer) },
+            ) { picked ->
+                val next = RecipeKind.valueOf(picked)
+                // 칸 수가 다른 종류로 바꾸면 넘치는 재료는 버린다.
+                val current = recipe() ?: return@ChoiceMenu
+                custom.recipes.put(current.copy(kind = next, grid = List(next.slots) { current.slot(it) }))
+                open(viewer)
+            }.open(viewer)
         }
         if (recipe.kind.cooking) {
             set(SLOT_COOK, Editors.numberIcon(Material.CLOCK, "<yellow>굽는 시간</yellow>", recipe.cookSeconds, unit = "초")) { event ->

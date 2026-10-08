@@ -150,6 +150,48 @@ class EquipmentMenu(custom: CustomItems, private val viewer: Player) :
     }
 }
 
+/**
+ * 남의 장착 칸 보기(`/장비 <플레이어>`, 사용자 요청 2026-10-07) — **읽기 전용**, [EquipmentMenu] 와 같은 배치.
+ * 오프라인인 사람도 파일에서 읽어 보인다([EquipmentStore.peek]). 잠긴 칸은 권한을 물을 수 있는 접속 중인 사람만 표시한다.
+ * 창의 아이템은 사본이라 **모든 클릭을 막는다** — 가방 쪽 두 번 클릭(모으기)까지. 사본이 커서로 오면 그대로 복사다.
+ */
+class EquipmentViewMenu(
+    custom: CustomItems,
+    private val viewer: Player,
+    private val target: java.util.UUID,
+    targetName: String,
+) : Menu(custom, 54, Text.renderFlat("<dark_gray>" + targetName + " 님의 장비</dark_gray>")) {
+
+    override fun draw() {
+        clear()
+        val online = org.bukkit.Bukkit.getPlayer(target)
+        val slots = custom.equipment.peek(target)
+        for (group in Group.entries) {
+            val row = EquipmentMenu.ROWS.getValue(group)
+            val capacity = online?.let { custom.equipment.capacity(it, group) }
+            set(row * 9, Icon.of(group.icon, "<gold>" + group.display + "</gold>",
+                listOfNotNull(capacity?.let { "<gray>열린 칸 <white>" + it + "</white> / " + EquipmentStore.MAX + "</gray>" })))
+            for (index in 0 until EquipmentStore.MAX) {
+                val stored = slots.getValue(group)[index]
+                val locked = capacity != null && index >= capacity
+                set(row * 9 + 1 + index, when {
+                    stored != null && locked -> Icon.annotate(stored, lore = listOf("", "<red>잠긴 칸 — 효과가 없습니다.</red>"))
+                    stored != null -> stored
+                    locked -> Icon.of(Material.IRON_BARS, "<dark_gray>잠긴 칸</dark_gray>")
+                    else -> null
+                })
+            }
+        }
+        for (row in listOf(3, 5)) for (column in 0 until 9) set(row * 9 + column, Icon.EDGE)
+        set(EquipmentMenu.SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
+    }
+
+    override fun handleClick(event: InventoryClickEvent) {
+        event.isCancelled = true
+        if (event.rawSlot in 0 until size) super.handleClick(event)
+    }
+}
+
 /** 장착 칸의 기본 수(관리). */
 class EquipmentSettingsMenu(custom: CustomItems, private val viewer: Player) :
     Menu(custom, 27, Text.renderFlat("<dark_gray>장착 칸 설정</dark_gray>")) {

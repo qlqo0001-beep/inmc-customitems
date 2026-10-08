@@ -229,16 +229,21 @@ class AbilityEditMenu(
         }
         fillEmpty(Icon.EDGE)
 
+        // 발동 15개·효과 25개 — 좌/우클릭으로 돌리기엔 많아 고르는 화면으로(2026-10-08, 종류 칸과 같은 손짓).
         set(
             SLOT_TRIGGER,
             Icon.of(
                 ability.trigger.icon,
                 "<yellow>발동: <white>" + ability.trigger.display + "</white></yellow>",
-                Editors.optionList(Trigger.entries.toList(), ability.trigger) { it.display } +
-                    listOf("", "<gray>" + ability.trigger.hint + "</gray>") + Editors.cycleHint,
+                listOf("<gray>" + ability.trigger.hint + "</gray>") + Editors.pickHint,
             ),
-        ) { event ->
-            mutate { it.copy(trigger = Editors.cycle(event, Trigger.entries.toList(), it.trigger)) }
+        ) {
+            ChoiceMenu(
+                custom, viewer, "발동 조건 고르기",
+                options = { Trigger.entries.map { it.name to Icon.of(it.icon, "<yellow>" + it.display + "</yellow>", listOf("<gray>" + it.hint + "</gray>")) } },
+                selected = { setOf(ability.trigger.name) },
+                back = { open(viewer) },
+            ) { picked -> mutate(reopen = false) { it.copy(trigger = Trigger.valueOf(picked)) } }.open(viewer)
         }
 
         set(
@@ -246,14 +251,23 @@ class AbilityEditMenu(
             Icon.of(
                 ability.effect.icon,
                 "<yellow>효과: <white>" + ability.effect.display + "</white></yellow>",
-                Editors.optionList(EffectType.entries.toList(), ability.effect) { it.display } +
-                    listOf("", "<red>바꾸면 설정값이 초기화됩니다.</red>") + Editors.cycleHint,
+                listOf("<red>바꾸면 설정값이 초기화됩니다.</red>") + Editors.pickHint,
             ),
-        ) { event ->
-            val next = Editors.cycle(event, EffectType.entries.toList(), ability.effect)
-            if (next == ability.effect) return@set
-            // 값의 뜻이 효과마다 달라 그대로 옮길 수 없다. 새 효과의 기본값으로 시작한다.
-            mutate { it.copy(effect = next, values = next.defaults()) }
+        ) {
+            ChoiceMenu(
+                custom, viewer, "효과 고르기",
+                options = {
+                    EffectType.entries.map { effect ->
+                        effect.name to Icon.of(effect.icon, "<yellow>" + effect.display + "</yellow>", effect.params.map { "<dark_gray>" + it.display + "</dark_gray>" })
+                    }
+                },
+                selected = { setOf(ability.effect.name) },
+                back = { open(viewer) },
+            ) { picked ->
+                val next = EffectType.valueOf(picked)
+                // 값의 뜻이 효과마다 달라 그대로 옮길 수 없다. 새 효과의 기본값으로 시작한다.
+                mutate(reopen = false) { if (next == it.effect) it else it.copy(effect = next, values = next.defaults()) }
+            }.open(viewer)
         }
 
         set(

@@ -37,7 +37,16 @@ class Verifier(private val custom: CustomItems) {
     data class Result(val name: String, val failure: String?)
 
     fun run(player: Player, mode: Mode) {
-        val results = mode.checks().map { check -> Result(check.name, runOne(player, check)) }
+        // 서버의 "가방·손에서도 효과" — 검사는 기본값(켜짐)에서 돈다. 관리자가 꺼 둬도 부적 검사가 틀리지 않게.
+        // **검증 전체에서 한 번만** 켜고 되돌린다 — 바꿀 때마다 모든 아이템의 지문을 다시 떠서, 검사마다 켰다 껐다 하면
+        // 검사 수 × 아이템 수만큼 메인 스레드가 멈췄다(테섭 2026-10-08, 42개 검사에 15초 넘게).
+        val inventoryEffects = custom.equipmentSettings.inventoryEffects
+        custom.equipmentSettings.setInventoryEffects(true)
+        val results = try {
+            mode.checks().map { check -> Result(check.name, runOne(player, check)) }
+        } finally {
+            custom.equipmentSettings.setInventoryEffects(inventoryEffects)
+        }
         val failures = results.filter { it.failure != null }
         custom.messages.send(player, "verify-done", Ph.of().value(mode.label).amount(results.size - failures.size).count(failures.size))
         for (failure in failures) custom.messages.send(player, "verify-failure", Ph.of().item(failure.name).value(failure.failure.orEmpty()))
@@ -91,8 +100,6 @@ class Verifier(private val custom: CustomItems) {
         }.also { saved ->
             for ((group, slots) in saved) for ((index, stack) in slots.withIndex()) if (stack != null) custom.equipment.put(player.uniqueId, group, index, null)
         }
-        /** 서버의 "가방·손에서도 효과" — 검사는 기본값(켜짐)에서 돈다. 관리자가 꺼 둬도 부적 검사가 틀리지 않게. */
-        private val inventoryEffects = custom.equipmentSettings.inventoryEffects.also { custom.equipmentSettings.setInventoryEffects(true) }
         private val health = player.health
         private val food = player.foodLevel
         private val saturation = player.saturation
@@ -104,7 +111,6 @@ class Verifier(private val custom: CustomItems) {
             player.setItemOnCursor(null)
             player.inventory.contents = contents
             for ((group, slots) in equipment) for ((index, stack) in slots.withIndex()) if (stack != null) custom.equipment.put(player.uniqueId, group, index, stack)
-            custom.equipmentSettings.setInventoryEffects(inventoryEffects)
             for (effect in player.activePotionEffects) player.removePotionEffect(effect.type)
             player.addPotionEffects(effects)
             player.health = health.coerceAtMost(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: health)

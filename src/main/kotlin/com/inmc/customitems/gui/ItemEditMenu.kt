@@ -102,7 +102,15 @@ class ItemEditMenu(
         // --- 능력: 무엇을 하나 · 무엇이 붙나 · 언제·어디서 ---
         EditButton.STATS -> btn(statsIcon(item)) { StatsMenu(custom, viewer, id).open(viewer) }
         EditButton.ABILITIES -> btn(abilitiesIcon(item)) { AbilityListMenu(custom, viewer, id).open(viewer) }
-        EditButton.STYLE -> btn(styleIcon(item)) { event -> mutate { it.copy(style = Editors.cycle(event, AttackStyle.entries.toList(), it.style)) } }
+        EditButton.STYLE -> btn(styleIcon(item)) {
+            // 공격 방식 8개 — 고르는 화면으로(2026-10-08).
+            ChoiceMenu(
+                custom, viewer, "공격 방식 고르기",
+                options = { AttackStyle.entries.map { it.name to Icon.of(it.icon, "<yellow>" + it.display + "</yellow>", listOf("<gray>" + it.description + "</gray>")) } },
+                selected = { setOf(item.style.name) },
+                back = { open(viewer) },
+            ) { picked -> mutate(reopen = false) { it.copy(style = AttackStyle.valueOf(picked)) } }.open(viewer)
+        }
         EditButton.UPGRADE -> btn(upgradeIcon(item)) { ItemUpgradeMenu(custom, viewer, id).open(viewer) }
         EditButton.MINING_TIER -> {
             val vanilla = ToolGrades.vanillaTier(item.material) ?: 0
@@ -418,9 +426,8 @@ class ItemEditMenu(
     private fun styleIcon(item: CustomItem) = Icon.of(
         item.style.icon,
         "<yellow>공격 방식: <white>" + item.style.display + "</white></yellow>",
-        listOf("<gray>" + item.style.description + "</gray>", "") +
-            Editors.optionList(AttackStyle.entries.toList(), item.style) { it.display } +
-            listOf("", "<dark_gray>원거리 방식의 피해는 공격력 속성에서, 간격은 공격 속도에서.</dark_gray>") + Editors.cycleHint,
+        listOf("<gray>" + item.style.description + "</gray>") +
+            listOf("", "<dark_gray>원거리 방식의 피해는 공격력 속성에서, 간격은 공격 속도에서.</dark_gray>") + Editors.pickHint,
     )
 
     private fun statsIcon(item: CustomItem) = Icon.of(

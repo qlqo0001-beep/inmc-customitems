@@ -94,7 +94,10 @@ object MenuChecks {
         },
         Check("허브의 전환 버튼이 정의를 바꾼다") { s ->
             s.scratch()
-            s.press(EditButton.GLOW) ?: s.press(EditButton.STYLE) ?: s.press(EditButton.UNIDENTIFIED) ?: run {
+            s.press(EditButton.GLOW) ?: s.press(EditButton.STYLE) ?: run {
+                // 공격 방식은 순환이 아니라 고르는 화면(core PickMenu, 2026-10-08) — 둘째 칸(단검)을 고른다.
+                ok(s.top() is kr.inmc.core.gui.PickMenu<*>, "공격 방식 → 고르는 화면 대신 ${s.topName()}") ?: run { s.click(1); null }
+            } ?: s.press(EditButton.UNIDENTIFIED) ?: run {
                 val item = s.current()
                 ok(item.glow, "빛나게가 안 켜졌다") ?: ok(item.style != AttackStyle.NONE, "공격 방식이 안 바뀌었다") ?: ok(item.unidentified, "미확인이 안 켜졌다")
             }
@@ -227,6 +230,26 @@ object MenuChecks {
                 ?: ok(s.custom.items.identify(placed)?.id == charm.id, "부적이 안 들어갔다")
                 ?: ok(cursorAfter.type.isAir, "넣은 뒤에도 커서에 남았다(복사)")
                 ?: ok(removed == null && back, "Shift 로 가방에 안 돌아왔다")
+        },
+        Check("남의 장비 보기: 읽기 전용 — 클릭·Shift·두 번 클릭 모으기로 꺼내지 못한다") { s ->
+            // 창의 아이템은 사본이라 하나라도 새면 복사다. 자기 것을 보기 화면으로 열어 본다(남의 것과 같은 화면).
+            val charm = s.item(CustomItem("zz_verify_eqview", Material.PAPER, type = ItemType.TALISMAN))
+            val group = com.inmc.customitems.player.EquipmentStore.Group.TALISMAN
+            val cell = EquipmentMenu.ROWS.getValue(group) * 9 + 1
+            s.custom.equipment.put(s.player.uniqueId, group, 0, s.stack(charm))
+            com.inmc.customitems.gui.EquipmentViewMenu(s.custom, s.player, s.player.uniqueId, s.player.name).open(s.player)
+            val shown = s.custom.items.identify(s.player.openInventory.topInventory.getItem(cell))?.id == charm.id
+            val clicked = s.click(cell)
+            val shifted = s.click(cell, org.bukkit.event.inventory.ClickType.SHIFT_LEFT)
+            val collect = org.bukkit.event.inventory.InventoryClickEvent(
+                s.player.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, 54 + 9,
+                org.bukkit.event.inventory.ClickType.DOUBLE_CLICK, org.bukkit.event.inventory.InventoryAction.COLLECT_TO_CURSOR,
+            ).also { org.bukkit.Bukkit.getPluginManager().callEvent(it) }.isCancelled
+            val still = s.custom.items.identify(s.custom.equipment.get(s.player.uniqueId, group, 0))?.id == charm.id
+            s.custom.equipment.put(s.player.uniqueId, group, 0, null)
+            ok(shown, "보기 화면에 부적이 안 보인다")
+                ?: ok(clicked && shifted && collect, "막히지 않은 클릭: " + listOfNotNull("클릭".takeIf { !clicked }, "Shift".takeIf { !shifted }, "모으기".takeIf { !collect }))
+                ?: ok(still, "보기만 했는데 칸이 바뀌었다")
         },
         Check("기능 추가 → 발동 조건을 전부 고를 수 있다") { s ->
             s.scratch()

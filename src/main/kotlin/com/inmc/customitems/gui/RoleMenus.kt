@@ -116,11 +116,26 @@ class RoleEditMenu(custom: CustomItems, private val viewer: Player, private val 
                 is ItemRoles.Choice -> {
                     val options = field.options()
                     val current = options.firstOrNull { it.first == raw }
+                    // 보기가 많으면(역할이 주는 목록은 가변) 고르는 화면, 적으면 좌/우클릭 순환.
+                    val many = options.size >= Editors.PICK_FROM
                     set(slot, Icon.of(Material.BOOK, "<yellow>" + field.label + ": <white>" + (current?.second ?: raw.ifBlank { "없음" }) + "</white></yellow>",
-                        (if (options.isEmpty()) listOf("<gray>고를 것이 없습니다.</gray>") else Editors.optionList(options, current ?: options.first()) { it.second }) + Editors.cycleHint)) { event ->
+                        when {
+                            options.isEmpty() -> listOf("<gray>고를 것이 없습니다.</gray>")
+                            many -> Editors.pickHint
+                            else -> Editors.optionList(options, current ?: options.first()) { it.second } + Editors.cycleHint
+                        })) { event ->
                         if (options.isEmpty()) return@set
-                        put(field.key, Editors.cycle(event, options, current ?: options.first()).first)
-                        refresh()
+                        if (many) {
+                            ChoiceMenu(
+                                custom, viewer, field.label + " 고르기",
+                                options = { options.map { it.first to Icon.of(Material.PAPER, "<yellow>" + it.second + "</yellow>", emptyList()) } },
+                                selected = { setOfNotNull(current?.first) },
+                                back = { open(viewer) },
+                            ) { picked -> put(field.key, picked); open(viewer) }.open(viewer)
+                        } else {
+                            put(field.key, Editors.cycle(event, options, current ?: options.first()).first)
+                            refresh()
+                        }
                     }
                 }
                 is ItemRoles.Text -> {

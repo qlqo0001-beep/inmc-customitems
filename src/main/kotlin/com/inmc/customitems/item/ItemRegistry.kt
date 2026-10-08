@@ -256,6 +256,8 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         plugin.types.of(item).takeIf { it != TypeDef.of(item.type) }?.save(yaml.createSection("__type"))
         // 로어의 종류 줄이 소분류 이름일 때만 적는다 — 소분류를 켜고 끄거나 이름을 바꾸면 그 아이템들이 다시 그려진다.
         plugin.categories.of(item)?.takeIf { item.typeLabel.showsCategory(it) }?.let { yaml.set("__label", it.name) }
+        // 배낭 로어의 "칸수" 줄(2026-10-07) — 배낭만 지문을 한 번 바꿔 이미 나간 배낭도 다시 그려지게.
+        if (item.isBackpack) yaml.set("__slots_line", true)
         return java.util.zip.CRC32().apply { update(yaml.saveToString().toByteArray(Charsets.UTF_8)) }.value
     }
 

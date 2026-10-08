@@ -90,6 +90,26 @@ class CustomItemsCommand(private val custom: CustomItems) {
                 com.inmc.customitems.gui.EquipmentMenu(custom, player).open(player)
                 1
             }
+            // `/장비 <플레이어>` — 남의 장착 칸 보기(읽기 전용). 오프라인은 서버에 들어온 적 있는 이름만(웹 조회를 하지 않는다).
+            .then(
+                Commands.argument("플레이어", StringArgumentType.word())
+                    .requires { it.sender.hasPermission(EQUIPMENT_OTHER) }
+                    .suggests { _, builder ->
+                        Bukkit.getOnlinePlayers().forEach { builder.suggest(it.name) }
+                        builder.buildFuture()
+                    }
+                    .executes { ctx ->
+                        val player = ctx.source.executor as? Player ?: ctx.source.sender as? Player
+                            ?: return@executes 0.also { custom.messages.send(ctx.source.sender, "player-only") }
+                        if (!custom.ready) return@executes 0.also { custom.messages.send(player, "not-ready") }
+                        val raw = StringArgumentType.getString(ctx, "플레이어")
+                        val target = Bukkit.getPlayerExact(raw) ?: Bukkit.getOfflinePlayerIfCached(raw)
+                            ?: return@executes 0.also { custom.messages.send(player, "player-not-found", Ph.of().player(raw)) }
+                        if (target.uniqueId == player.uniqueId) com.inmc.customitems.gui.EquipmentMenu(custom, player).open(player)
+                        else com.inmc.customitems.gui.EquipmentViewMenu(custom, player, target.uniqueId, target.name ?: raw).open(player)
+                        1
+                    },
+            )
 
     /** `/배낭` — 장착 칸에 끼운 배낭. 하나면 곧바로, 여럿이면 고르는 화면. 손에 든 배낭은 우클릭으로 연다. */
     /** `/배낭` = 1번, `/배낭 <번호>` — 번호는 장착 칸 배낭 줄의 앞 칸부터(사용자 결정 2026-09-30). */
@@ -360,6 +380,7 @@ class CustomItemsCommand(private val custom: CustomItems) {
         /** 제작대를 쓰는 권한. 누구나. */
         const val CRAFT = "incustomitems.craft"
         const val EQUIPMENT = "incustomitems.equipment"
+        const val EQUIPMENT_OTHER = "incustomitems.equipment.other"
         const val BACKPACK = "incustomitems.backpack"
     }
 }

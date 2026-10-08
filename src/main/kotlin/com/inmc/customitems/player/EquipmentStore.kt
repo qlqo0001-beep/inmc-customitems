@@ -55,6 +55,13 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
 
     fun get(player: UUID, group: Group, index: Int): ItemStack? = slots(player, group).getOrNull(index)
 
+    /**
+     * 보기 전용 사본(남의 장비 보기). 읽어 둔 것이 없으면 파일에서 읽되 **붙들지 않는다** — 오프라인인 사람 것을 볼 때마다
+     * 메모리에 쌓이지 않게. 사본이라 고쳐도 칸은 안 바뀐다.
+     */
+    fun peek(player: UUID): Map<Group, List<ItemStack?>> =
+        (loaded[player] ?: read(player)).mapValues { (_, slots) -> slots.map { it?.clone() } }
+
     /** [index] 칸을 바꾸고 곧바로 파일에 쓴다. */
     fun put(player: UUID, group: Group, index: Int, stack: ItemStack?) {
         if (index !in 0 until MAX) return

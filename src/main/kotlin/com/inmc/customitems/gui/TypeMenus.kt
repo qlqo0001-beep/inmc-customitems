@@ -102,14 +102,21 @@ class TypeEditMenu(custom: CustomItems, private val viewer: Player, private val 
         }
         if (!type.builtin) {
             set(SLOT_BASE, Icon.of(type.base.icon, "<yellow>동작 기준: <white>" + type.base.display + "</white></yellow>",
-                Editors.optionList(ItemType.entries.toList(), type.base) { it.display } +
-                    listOf("", "<gray>이 종류의 아이템은 이 기본 종류처럼 동작합니다</gray>", "<gray>(부적이면 가방에서 효과, 장신구면 장착 칸 …).</gray>") + Editors.cycleHint,
-            )) { event ->
-                val next = Editors.cycle(event, ItemType.entries.toList(), type.base)
-                custom.types.put(type.copy(base = next))
-                // 아이템의 동작도 같이 옮긴다 — 안 그러면 기준이 어긋나 기본 종류로 보인다(TypeRegistry.of).
-                for (item in custom.items.all().filter { it.customType == type.id }) custom.items.put(item.copy(type = next))
-                refresh()
+                listOf("<gray>이 종류의 아이템은 이 기본 종류처럼 동작합니다</gray>", "<gray>(부적이면 가방에서 효과, 장신구면 장착 칸 …).</gray>") + Editors.pickHint,
+            )) {
+                // 기본 종류 12개 — 고르는 화면으로(2026-10-08).
+                ChoiceMenu(
+                    custom, viewer, "동작 기준 고르기",
+                    options = { ItemType.entries.map { it.name to Icon.of(it.icon, "<yellow>" + it.display + "</yellow>", emptyList()) } },
+                    selected = { setOf(type.base.name) },
+                    back = { open(viewer) },
+                ) { picked ->
+                    val next = ItemType.valueOf(picked)
+                    custom.types.put(type.copy(base = next))
+                    // 아이템의 동작도 같이 옮긴다 — 안 그러면 기준이 어긋나 기본 종류로 보인다(TypeRegistry.of).
+                    for (item in custom.items.all().filter { it.customType == type.id }) custom.items.put(item.copy(type = next))
+                    open(viewer)
+                }.open(viewer)
             }
             set(SLOT_DELETE, Icon.of(Material.LAVA_BUCKET, "<red>지우기</red>", listOf(
                 "<gray>아이템은 지워지지 않고 <white>" + type.base.display + "</white> 로 돌아갑니다.</gray>",

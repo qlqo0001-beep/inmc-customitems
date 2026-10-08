@@ -78,10 +78,8 @@ class Backpacks(private val custom: CustomItems) : CarriedStorage.Provider {
     // --- 크기·자동 수납(강화·보석이 더한다) --------------------------------------------------
 
     /** 이 배낭 한 개의 칸 수 — 기본 크기 + 강화 단계들이 더한 칸([com.inmc.customitems.item.UpgradeTable.backpackAt]). */
-    fun size(definition: CustomItem, stack: ItemStack?): Int {
-        val bonus = definition.upgrade.table(custom.items.lookup)?.backpackAt(ItemInstance.read(stack).level) ?: 0
-        return (definition.backpack + bonus).coerceIn(1, BackpackLayout.MAX)
-    }
+    fun size(definition: CustomItem, stack: ItemStack?): Int =
+        BackpackLayout.size(definition, ItemInstance.read(stack).level, custom.items.lookup)
 
     /** 드랍 자동 수납이 켜졌나 — 배낭의 기본 옵션 · 강화 단계 · 박힌 보석 가운데 하나라도(사용자 요청 2026-09-30). */
     fun autoPickup(definition: CustomItem, stack: ItemStack?): Boolean {
@@ -404,6 +402,12 @@ object BackpackLayout {
 
     /** 한 배낭의 최대 크기(20페이지). 파일을 바꿀 때마다 통째로 쓰므로 끝없이 키우지 않는다. */
     const val MAX = PER_PAGE * 20
+
+    /** 배낭 한 개의 칸 수 — 기본 크기 + 강화 단계가 더한 칸. 창([Backpacks.size])과 로어의 "칸수"가 같은 값을 쓴다. */
+    fun size(definition: CustomItem, level: Int, lookup: com.inmc.customitems.item.Lookup): Int {
+        val bonus = definition.upgrade.table(lookup)?.backpackAt(level) ?: 0
+        return (definition.backpack + bonus).coerceIn(1, MAX)
+    }
 
     /** 보이는 칸 수 — 정한 크기와, 들어 있는 가장 뒤 칸까지 중 큰 것. */
     fun capacity(size: Int, highestUsed: Int?): Int = maxOf(size.coerceIn(1, MAX), (highestUsed ?: -1) + 1)

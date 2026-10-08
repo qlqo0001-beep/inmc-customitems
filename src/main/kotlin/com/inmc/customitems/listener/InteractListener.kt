@@ -2,6 +2,7 @@ package com.inmc.customitems.listener
 
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.ability.Trigger
+import com.inmc.customitems.player.EquipmentStore
 import kr.inmc.core.input.Clicks
 import org.bukkit.event.Event
 import org.bukkit.Material
@@ -23,6 +24,8 @@ import org.bukkit.inventory.EquipmentSlot
  * ([com.inmc.customitems.item.CustomItem.preventVanillaUse] — [onPlace]·[onConsume]).
  */
 class InteractListener(private val custom: CustomItems) : Listener {
+
+    private val quickEquip = com.inmc.customitems.player.QuickEquip(custom)
 
     /** 허공 클릭은 처음부터 '취소됨'으로 태어난다(클릭한 블록이 없어 블록 사용이 DENY) — `ignoreCancelled` 로 받으면 허공 클릭이 통째로 빠진다. 다른 플러그인이 막았는지는 아이템 사용 쪽을 본다. */
     @EventHandler(priority = EventPriority.NORMAL)
@@ -57,6 +60,17 @@ class InteractListener(private val custom: CustomItems) : Listener {
             custom.backpacks.openHand(player)
             return
         }
+        // 장신구·부적·유물은 우클릭이 장착이다(사용자 요청 2026-10-07 — 배낭은 위에서 연다). 손에서도 효과가 나면서 우클릭 기능이
+        // 붙은 것은 기능이 먼저고(장착은 /acc), 소모품도 그대로. 상자·문을 누르면 그 블록이 먼저다.
+        if (trigger == Trigger.RIGHT_CLICK && item.consume == null && !opensBlock(event)) {
+            val group = EquipmentStore.Group.of(item.type)?.takeIf { it != EquipmentStore.Group.BACKPACK }
+            if (group != null && player.hasPermission(com.inmc.customitems.command.CustomItemsCommand.EQUIPMENT) && !rightClickAbility(item, player)) {
+                event.setUseItemInHand(Event.Result.DENY)
+                event.setUseInteractedBlock(Event.Result.DENY)
+                quickEquip.equip(player, group)
+                return
+            }
+        }
         // 장착 칸에서만 효과가 나는 장신구·부적·유물은 손에 들고 눌러도 아무 일이 없다.
         if (!custom.equipmentSettings.worksOutside(item)) return
         if (!custom.requirements.check(player, item)) return
@@ -80,6 +94,11 @@ class InteractListener(private val custom: CustomItems) : Listener {
         }
         custom.abilities.fire(player, item, trigger)
     }
+
+    /** 손에 든 채 우클릭하면 도는 기능이 있는가 — 장착 칸에서만 효과가 나는 것은 손에서 기능이 안 돌므로 없는 셈. */
+    private fun rightClickAbility(item: com.inmc.customitems.item.CustomItem, player: org.bukkit.entity.Player): Boolean =
+        custom.equipmentSettings.worksOutside(item) &&
+            item.abilities.any { it.trigger == Trigger.RIGHT_CLICK || (player.isSneaking && it.trigger == Trigger.SHIFT_RIGHT_CLICK) }
 
     /** 웅크리지 않고 상자·문처럼 여는 블록을 눌렀는가 — 그러면 배낭보다 그 블록이 먼저다(바닐라와 같다). */
     @Suppress("DEPRECATION")

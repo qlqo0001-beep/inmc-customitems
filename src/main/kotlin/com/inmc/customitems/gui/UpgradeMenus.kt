@@ -258,10 +258,17 @@ class UpgradeStepMenu(
             }
         }
         val tiers = listOf<Tier?>(null) + Tier.entries
-        set(SLOT_TIER, Icon.of(Material.NETHER_STAR, "<yellow>이 단계부터 등급: " + (step.tier?.let { it.color + it.display } ?: "<white>그대로</white>") + "</yellow>",
-            Editors.optionList(tiers, step.tier) { it?.let { t -> t.color + t.display } ?: "그대로" } + Editors.cycleHint)) { event ->
-            change { it.copy(tier = Editors.cycle(event, tiers, it.tier)) }
-            refresh()
+        set(SLOT_TIER, Icon.of(Material.NETHER_STAR, "<yellow>이 단계부터 등급: " + (step.tier?.let { it.color + it.display } ?: "<white>그대로</white>") + "</yellow>", Editors.pickHint)) {
+            // "그대로" + 등급 6 = 7 — 고르는 화면으로(2026-10-08).
+            ChoiceMenu(
+                custom, viewer, "이 단계부터 등급",
+                options = { tiers.map { (it?.name ?: "") to Icon.of(Material.NETHER_STAR, it?.let { t -> t.color + t.display } ?: "<white>그대로</white>", emptyList()) } },
+                selected = { setOf(step.tier?.name ?: "") },
+                back = { open(viewer) },
+            ) { picked ->
+                change { it.copy(tier = picked.takeIf { p -> p.isNotEmpty() }?.let(Tier::valueOf)) }
+                open(viewer)
+            }.open(viewer)
         }
         // 아이템 설정의 겉모습과 같은 손짓(사용자 요청 2026-09-30 — 여기서도 모델을 고르게).
         set(SLOT_TEXTURE, Icon.of(Material.PAINTING, "<yellow>이 단계부터 겉모습: <white>" + step.model.ifBlank { step.texture }.ifBlank { "그대로" } + "</white></yellow>", listOf(
@@ -455,9 +462,20 @@ class ItemUpgradeMenu(custom: CustomItems, viewer: Player, id: String) :
             set(SLOT_BY_STATION, Icon.of(Icon.toggleMaterial(evolution.byStation), "<light_purple>제작대에서: " + Icon.toggle(evolution.byStation) + "</light_purple>",
                 listOf("<gray>제작대의 <white>진화</white> 화면에서 재료를 내고 진화합니다.</gray>"))) { changeEvolution { it.copy(byStation = !it.byStation) } }
             val stations = listOf("") + custom.stations.all().map { it.id }
+            // 제작대 수는 가변 — 많으면 고르는 화면, 적으면 좌/우클릭 순환.
+            val manyStations = stations.size >= Editors.PICK_FROM
             set(SLOT_STATION, Icon.of(Material.SMITHING_TABLE, "<light_purple>제작대: <white>" + (custom.stations.get(evolution.station)?.name ?: "아무 제작대") + "</white></light_purple>",
-                Editors.optionList(stations, evolution.station) { custom.stations.get(it)?.name ?: "아무 제작대" } + Editors.cycleHint)) { event ->
-                changeEvolution { it.copy(station = Editors.cycle(event, stations, it.station)) }
+                if (manyStations) Editors.pickHint else Editors.optionList(stations, evolution.station) { custom.stations.get(it)?.name ?: "아무 제작대" } + Editors.cycleHint)) { event ->
+                if (manyStations) {
+                    ChoiceMenu(
+                        custom, viewer, "진화 제작대 고르기",
+                        options = { stations.map { it to Icon.of(Material.SMITHING_TABLE, "<light_purple>" + (custom.stations.get(it)?.name ?: "아무 제작대") + "</light_purple>", emptyList()) } },
+                        selected = { setOf(evolution.station) },
+                        back = { open(viewer) },
+                    ) { picked -> changeEvolution { it.copy(station = picked) }; open(viewer) }.open(viewer)
+                } else {
+                    changeEvolution { it.copy(station = Editors.cycle(event, stations, it.station)) }
+                }
             }
             set(SLOT_MATERIALS, Icon.of(Material.BUNDLE, "<light_purple>제작대 진화 재료 <white>" + evolution.materials.size + "</white>종</light_purple>", listOf(
                 "<gray>진화석으로 진화할 때는 들지 않습니다.</gray>", "", "<yellow>▶ 클릭: 칸에 넣어 정하기</yellow>",

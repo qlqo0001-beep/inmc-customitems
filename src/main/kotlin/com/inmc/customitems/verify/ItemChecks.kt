@@ -161,6 +161,62 @@ object ItemChecks {
                 ?: ok(crit == 6.0, "장착한 부적 치명타 " + crit)
                 ?: ok(attribute.value == before, "빼고 나서도 최대 체력이 " + attribute.value)
         },
+        Check("드랍 자동 수납: 자동 수납 배낭을 끼면 주운 것이 배낭으로 간다") { s ->
+            // 테섭 2026-10-08 — 끼운 배낭이 있는데 주운 조약돌이 가방으로 갔다. 진짜 줍기 사건(PlayerAttemptPickupItemEvent)을 쏘아 어느 단계인지 본다.
+            // 우리 리스너는 배낭에 넣으면 사건을 취소하고 바닥 아이템을 지운다. 안 넣었으면 둘 다 그대로다.
+            val group = com.inmc.customitems.player.EquipmentStore.Group.BACKPACK
+            if (s.custom.equipment.capacity(s.player, group) <= 0) return@Check "배낭 칸이 하나도 안 열려 있다(관리 → 장착 칸)"
+            if (!kr.inmc.core.integration.PlayerSettings.enabled(s.player, com.inmc.customitems.CustomItemsSettings.AUTO_PICKUP)) return@Check "개인 설정 '배낭 드랍 자동 수납' 이 꺼져 있다"
+            val bag = s.item(CustomItem("zz_verify_auto_bag", Material.BUNDLE, type = ItemType.BACKPACK, backpack = 9, autoPickup = true))
+            s.equip(group, 0, s.stack(bag))
+            val found = s.custom.backpacks.carried(s.player).firstOrNull { it.definition.id == bag.id }
+                ?: return@Check "끼운 배낭을 carried() 가 못 찾는다(장착 칸 배낭 ${s.custom.backpacks.equipped(s.player).size}개)"
+            if (!s.custom.backpacks.autoPickup(found.definition, found.stack)) return@Check "autoPickup 판정이 거짓이다"
+            val probe = ItemStack(Material.COBBLESTONE, 3)
+            if (!s.custom.backpacks.hasRoom(s.player, probe)) return@Check "hasRoom 이 거짓이다(빈 배낭인데)"
+            val drop = s.player.world.dropItem(s.player.location, probe) { it.pickupDelay = 0; it.setCanMobPickup(false) }
+            val attempt = org.bukkit.event.player.PlayerAttemptPickupItemEvent(s.player, drop, 0)
+            attempt.callEvent()
+            val stored = attempt.isCancelled && drop.isDead
+            val leftInBag = s.custom.equipment.get(s.player.uniqueId, group, 0)?.let { s.custom.backpacks.idOf(it) }?.let { s.custom.backpacks.load(it).values.sumOf { v -> v.amount } } ?: 0
+            if (!drop.isDead) drop.remove()
+            s.custom.equipment.get(s.player.uniqueId, group, 0)?.let { s.custom.backpacks.idOf(it) }?.let { s.custom.backpacks.save(it, HashMap()) }
+            if (stored && leftInBag == 3) return@Check null
+            val pickupListeners = org.bukkit.event.entity.EntityPickupItemEvent.getHandlerList().registeredListeners.map { it.plugin.name }.distinct()
+            val attemptListeners = org.bukkit.event.player.PlayerAttemptPickupItemEvent.getHandlerList().registeredListeners.map { it.plugin.name }.distinct()
+            "배낭으로 안 들어갔다(취소 ${attempt.isCancelled} · 바닥 아이템 ${if (drop.isDead) "지워짐" else "그대로"} · 배낭 속 $leftInBag) — " +
+                "EntityPickupItemEvent 듣는 플러그인: ${pickupListeners.joinToString(", ")} / PlayerAttemptPickupItemEvent: ${attemptListeners.joinToString(", ")}"
+        },
+        Check("우클릭 장착: 빈 칸에 넣고, 다 차면 마지막 칸과 맞바꾸고, 배낭은 안 끼운다") { s ->
+            val group = com.inmc.customitems.player.EquipmentStore.Group.TALISMAN
+            val store = s.custom.equipment
+            val capacity = store.capacity(s.player, group)
+            if (capacity <= 0) return@Check "부적 칸이 하나도 안 열려 있다(관리 → 장착 칸)"
+            val players = kr.inmc.core.CorePlugin.get().players
+            val hinted = players.getLong(s.player.uniqueId, com.inmc.customitems.player.QuickEquip.NAMESPACE, com.inmc.customitems.player.QuickEquip.HINTED)
+            val a = s.item(CustomItem("zz_verify_quick_a", Material.PAPER, type = ItemType.TALISMAN))
+            val b = s.item(CustomItem("zz_verify_quick_b", Material.PAPER, type = ItemType.TALISMAN))
+            val bag = s.item(CustomItem("zz_verify_quick_bag", Material.BUNDLE, type = ItemType.BACKPACK, backpack = 9))
+            s.player.inventory.setItemInMainHand(s.stack(a))
+            s.interact(Action.RIGHT_CLICK_AIR)
+            val first = store.get(s.player.uniqueId, group, 0)
+            val emptied = s.player.inventory.itemInMainHand.type.isAir
+            for (i in 0 until capacity) store.put(s.player.uniqueId, group, i, s.stack(a))
+            s.player.inventory.setItemInMainHand(s.stack(b))
+            s.interact(Action.RIGHT_CLICK_AIR)
+            val last = store.get(s.player.uniqueId, group, capacity - 1)
+            val back = s.player.inventory.itemInMainHand
+            s.player.inventory.setItemInMainHand(s.stack(bag))
+            s.interact(Action.RIGHT_CLICK_AIR)
+            s.player.closeInventory()
+            val bagStayed = s.custom.items.identify(s.player.inventory.itemInMainHand)?.id == bag.id &&
+                store.slots(s.player.uniqueId, com.inmc.customitems.player.EquipmentStore.Group.BACKPACK).all { it == null }
+            if (hinted <= 0L) players.set(s.player.uniqueId, com.inmc.customitems.player.QuickEquip.NAMESPACE, com.inmc.customitems.player.QuickEquip.HINTED, null)
+            ok(s.custom.items.identify(first)?.id == a.id && emptied, "빈 칸에 안 들어갔다")
+                ?: ok(s.custom.items.identify(last)?.id == b.id, "다 찼는데 마지막 칸이 안 바뀌었다")
+                ?: ok(s.custom.items.identify(back)?.id == a.id, "빼낸 부적이 손으로 안 왔다")
+                ?: ok(bagStayed, "배낭이 장착됐다")
+        },
         Check("장착 칸에서만: 서버 설정·아이템 설정대로 가방·손의 것은 멈춘다") { s ->
             val charm = s.item(CustomItem("zz_verify_slotonly", Material.PAPER, type = ItemType.TALISMAN, stats = mapOf(Stat.CRIT_CHANCE to 5.0)))
             val free = s.item(CustomItem("zz_verify_anywhere", Material.PAPER, type = ItemType.TALISMAN, inventoryEffect = true, stats = mapOf(Stat.LIFESTEAL to 3.0)))

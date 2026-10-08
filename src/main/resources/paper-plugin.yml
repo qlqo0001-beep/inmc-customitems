@@ -26,6 +26,9 @@ permissions:
   incustomitems.equipment:
     description: 장착 칸 쓰기 (/장비)
     default: true
+  incustomitems.equipment.other:
+    description: 다른 사람의 장착 칸 보기 (/장비 <플레이어>, 읽기 전용 · 오프라인도)
+    default: true
   incustomitems.backpack:
     description: 장착 칸에 끼운 배낭 열기 (/배낭). 손에 든 배낭은 권한 없이 우클릭으로 열린다
     default: true

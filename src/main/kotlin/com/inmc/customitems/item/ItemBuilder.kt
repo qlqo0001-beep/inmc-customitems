@@ -335,6 +335,10 @@ object ItemBuilder {
     ): List<String> = buildList {
         add(typeHeader(definition, lookup))
         addAll(periodLines(definition, instance, now))
+        // 배낭은 칸 수 — 강화로 늘어난 칸까지(사용자 요청 2026-10-07 "칸수 : n칸").
+        if (definition.isBackpack) {
+            add("<gray>칸수 : <white>" + com.inmc.customitems.player.BackpackLayout.size(definition, instance.level, lookup) + "칸</white></gray>")
+        }
         addAll(enchantLines)
 
         // 능력치는 목록 순서가 아니라 enum 순서로. 칼마다 공격력이 다른 줄에 있으면 읽기 어렵다.
