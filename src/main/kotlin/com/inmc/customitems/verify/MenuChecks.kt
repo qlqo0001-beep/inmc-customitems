@@ -96,7 +96,7 @@ object MenuChecks {
             s.scratch()
             s.press(EditButton.GLOW) ?: s.press(EditButton.STYLE) ?: run {
                 // 공격 방식은 순환이 아니라 고르는 화면(core PickMenu, 2026-10-08) — 둘째 칸(단검)을 고른다.
-                ok(s.top() is kr.inmc.core.gui.PickMenu<*>, "공격 방식 → 고르는 화면 대신 ${s.topName()}") ?: run { s.click(1); null }
+                ok(s.top() is kr.inmc.core.gui.PickMenu<*> || s.top() is com.inmc.customitems.gui.ChoiceMenu, "공격 방식 → 고르는 화면 대신 ${s.topName()}") ?: run { s.click(1); null }
             } ?: s.press(EditButton.UNIDENTIFIED) ?: run {
                 val item = s.current()
                 ok(item.glow, "빛나게가 안 켜졌다") ?: ok(item.style != AttackStyle.NONE, "공격 방식이 안 바뀌었다") ?: ok(item.unidentified, "미확인이 안 켜졌다")
