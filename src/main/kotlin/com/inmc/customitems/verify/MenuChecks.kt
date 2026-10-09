@@ -73,6 +73,20 @@ object MenuChecks {
     }
 
     val ALL: List<Check> = listOf(
+        Check("블록 설정 → 월드 생성 → 켜기(지금 월드) → 뒤로(2026-10-09)") { s ->
+            val id = "zz_verify_genmenu"
+            val kind = com.inmc.customitems.item.BlockKind.SOLID
+            val state = s.custom.blocks.allocate(kind, id) ?: return@Check "꽉 찬 블록의 빈 상태가 없다"
+            s.item(com.inmc.customitems.item.CustomItem(id, org.bukkit.Material.PAPER, block = com.inmc.customitems.item.BlockSpec(kind, state)))
+            com.inmc.customitems.gui.BlockMenu(s.custom, s.player, id).open(s.player)
+            s.goes(com.inmc.customitems.gui.BlockMenu.SLOT_GENERATION, com.inmc.customitems.gui.BlockGenMenu::class)
+                ?: run {
+                    s.click(com.inmc.customitems.gui.BlockGenMenu.SLOT_TOGGLE)
+                    val gen = s.custom.items.get(id)?.block?.generation
+                    ok(gen != null && gen.inWorld(s.player.world.name), "켜기 뒤 월드 생성이 $gen")
+                }
+                ?: s.goes(Paging.SLOT_BACK, com.inmc.customitems.gui.BlockMenu::class)
+        },
         Check("편집 허브 → 세부 화면 → 뒤로(보던 탭으로)") { s ->
             s.scratch()
             val targets = listOf(

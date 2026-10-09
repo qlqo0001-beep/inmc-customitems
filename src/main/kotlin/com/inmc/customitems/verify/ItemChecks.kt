@@ -506,6 +506,34 @@ object ItemChecks {
             @Suppress("DEPRECATION")
             ok(Bukkit.getRecipe(NamespacedKey(ItemBuilder.NAMESPACE, "recipe_zz_verify_recipe")) != null, "조합법이 서버에 없다")
         },
+        Check("월드 생성: 바꿀 블록 자리에만 심고, 심은 블록을 알아본다(꽉 찬 · 투명, 2026-10-09)") { s ->
+            // 머리 위 세 칸·네 칸을 잠깐 돌·유리로 바꿔 심어 보고 되돌린다(같은 청크 — 위아래로만 움직인다).
+            val top = s.player.location.block.getRelative(0, 3, 0)
+            val other = top.getRelative(0, 1, 0)
+            val savedTop = top.blockData.clone()
+            val savedOther = other.blockData.clone()
+            try {
+                listOf(com.inmc.customitems.item.BlockKind.SOLID, com.inmc.customitems.item.BlockKind.TRANSPARENT).firstNotNullOfOrNull { kind ->
+                    val id = "zz_verify_ore_" + kind.id
+                    val state = s.custom.blocks.allocate(kind, id) ?: return@firstNotNullOfOrNull "${kind.label} 의 빈 상태가 없다"
+                    val item = s.item(CustomItem(id, Material.PAPER, block = com.inmc.customitems.item.BlockSpec(kind, state,
+                        generation = com.inmc.customitems.block.OreGen(worlds = listOf(s.player.world.name)))))
+                    top.setType(Material.STONE, false)
+                    other.setType(Material.GLASS, false)
+                    val placed = s.custom.blocks.placeGenerated(top.chunk, item,
+                        listOf(Triple(top.x and 15, top.y, top.z and 15), Triple(other.x and 15, other.y, other.z and 15)), setOf(Material.STONE))
+                    val seen = s.custom.blocks.at(top)?.id
+                    s.custom.blocks.clear(top)
+                    ok(placed == 1, "${kind.label}: 심은 칸 $placed (1 이어야)")
+                        ?: ok(seen == id, "${kind.label}: 심은 자리를 $seen 로 알아봄")
+                        ?: ok(other.type == Material.GLASS, "${kind.label}: 바꿀 블록이 아닌 자리가 ${other.type} 로 바뀜")
+                        ?: ok(id in s.custom.items.generators, "${kind.label}: 월드 생성 목록에 없음")
+                }
+            } finally {
+                top.setBlockData(savedTop, false)
+                other.setBlockData(savedOther, false)
+            }
+        },
         Check("바깥 능력치 출처 — core 에 등록된 출처의 값이 내 능력치에 더해진다(2026-10-09)") { s ->
             val hook = kr.inmc.core.integration.CustomItemHook
             s.custom.stats.invalidate(s.player)

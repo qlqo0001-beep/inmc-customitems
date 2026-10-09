@@ -19,7 +19,7 @@ import org.bukkit.entity.Player
 
 /**
  * 아이템 한 개의 블록 설정 — 놓는 방식(끔 · 꽉 찬 · 투명 · 엔티티), 캐기(단단함 · 맞는 도구 · 등급 · 도구 규칙), 나오는 것(블록 자신 ·
- * 드랍 표 · 섬세한 손길 · 행운 · 경험치).
+ * 드랍 표 · 섬세한 손길 · 행운 · 경험치), 월드 생성(광맥 — [BlockGenMenu]).
  *
  * 블록 상태 방식을 고르면 **빈 상태를 그 자리에서 골라 적는다**(`CustomBlocks.allocate`). 다시 고르지 않는다 — 바꾸면 이미 놓인 블록이
  * 다른 블록으로 보인다. 같은 방식을 다시 눌러도 상태는 그대로다. 방식을 바꿔도 캐기·나오는 것 설정은 그대로 간다.
@@ -80,6 +80,7 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         if (spec != null) {
             drawMining(spec)
             drawYield(spec)
+            drawGeneration(spec)
         }
 
         set(Paging.SLOT_BACK, Icon.back()) { back?.invoke() ?: ItemEditMenu(custom, viewer, id).open(viewer) }
@@ -201,6 +202,22 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         }
     }
 
+    // --- 월드 생성 ---------------------------------------------------------------------
+
+    private fun drawGeneration(spec: BlockSpec) {
+        val rule = spec.generation
+        set(SLOT_GENERATION, Icon.of(if (rule != null) Material.DIAMOND_ORE else Material.STONE, "<gold>월드 생성(광맥): " + Icon.toggle(rule != null) + "</gold>", buildList {
+            add("<gray>처음 만들어지는 청크에 광석처럼 심습니다.</gray>")
+            if (rule != null) {
+                add("<gray>월드 <white>" + rule.worlds.joinToString(", ").ifBlank { "없음" } + "</white> · 높이 <white>" + rule.minY + " ~ " + rule.maxY + "</white></gray>")
+                add("<gray>청크 확률 <white>" + kr.inmc.core.util.Numbers.chance(rule.chunkChance) + "%</white> · 광맥 <white>" + rule.veins + "</white>개 × <white>" + rule.veinSize + "</white>칸</gray>")
+            }
+            if (!spec.kind.usesState) add("<red>엔티티 방식은 월드 생성을 못 합니다.</red>")
+            add("")
+            add("<yellow>▶ 클릭: 월드 생성 설정</yellow>")
+        })) { BlockGenMenu(custom, viewer, id) { open(viewer) }.open(viewer) }
+    }
+
     private fun change(reopen: Boolean = true, update: (BlockSpec) -> BlockSpec) =
         mutate(reopen) { current -> current.copy(block = current.block?.let(update)) }
 
@@ -241,6 +258,7 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         const val SLOT_DROPS = 38
         const val SLOT_SILK = 39
         const val SLOT_FORTUNE = 40
+        const val SLOT_GENERATION = 42
 
         const val MAX_EXP = 10_000
 

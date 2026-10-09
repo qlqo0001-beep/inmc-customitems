@@ -135,6 +135,31 @@ class CustomBlocks(private val custom: CustomItems) {
         return true
     }
 
+    /**
+     * 월드 생성([OreGenerator]) — [chunk] 의 [positions](청크 안 x·z, 실제 y) 가운데 [replace] 블록인 자리에만 [item] 을 심는다. 메인 스레드.
+     * 사건·이웃 갱신 없이(바닐라 광석처럼), 후렴초 표시는 청크에 한 번에 적는다. 블록 상태 방식만 — 엔티티 방식은 0. 심은 칸 수.
+     */
+    fun placeGenerated(chunk: org.bukkit.Chunk, item: CustomItem, positions: List<Triple<Int, Int, Int>>, replace: Set<Material>): Int {
+        val spec = item.block ?: return 0
+        if (!spec.kind.usesState || spec.state.isBlank()) return 0
+        val data = Bukkit.createBlockData(BlockStates.blockData(spec.kind, spec.state))
+        val marks = ArrayList<Int>()
+        var placed = 0
+        for ((x, y, z) in positions) {
+            val block = chunk.getBlock(x, y, z)
+            if (block.type !in replace) continue
+            block.setBlockData(data, false)
+            if (spec.kind == BlockKind.TRANSPARENT) marks += packed(block)
+            placed++
+        }
+        if (marks.isNotEmpty()) {
+            val pdc = chunk.persistentDataContainer
+            val current = pdc.get(CHUNK_KEY, PersistentDataType.INTEGER_ARRAY) ?: IntArray(0)
+            pdc.set(CHUNK_KEY, PersistentDataType.INTEGER_ARRAY, (current.asList() + marks).distinct().toIntArray())
+        }
+        return placed
+    }
+
     /** 이 자리에 우리가 둔 곁것(엔티티 모델·후렴초 표시)을 치운다. 블록은 부르는 쪽이 정한다. 무언가 치웠으면 true. */
     fun clear(block: Block): Boolean {
         val displays = displays(block)
@@ -205,7 +230,15 @@ class CustomBlocks(private val custom: CustomItems) {
 
     // --- 옛 ItemsAdder 블록 옮기기 -------------------------------------------------------
 
-    data class ImportReport(val added: List<String>, val skipped: List<String>, val noState: List<String>, val unsupported: List<String>, val contentsFound: Boolean)
+    data class ImportReport(
+        val added: List<String>,
+        val skipped: List<String>,
+        val noState: List<String>,
+        val unsupported: List<String>,
+        val contentsFound: Boolean,
+        /** 광석 생성을 옮긴 블록(새로 옮긴 것 + 전에 옮겨 둔 것 가운데 월드 생성이 아직 없던 것). */
+        val generation: List<String> = emptyList(),
+    )
 
     /**
      * `plugins/ItemsAdder/contents` 의 블록 정의(REAL_NOTE·REAL_TRANSPARENT)를 우리 아이템으로 — 상태는 `sources/` 의 팩이 그 모델에 준 것
@@ -247,7 +280,16 @@ class CustomBlocks(private val custom: CustomItems) {
                     }
                 }
             }
-            then(ImportReport(added, skipped, scan.noState, scan.unsupported, contents.isDirectory))
+            // 광석 생성 — 이번에 옮긴 것과 전에 옮겨 둔 것 모두. 이미 월드 생성을 정한 블록은 건드리지 않는다(관리자가 고친 것).
+            val generation = ArrayList<String>()
+            for ((id, gen) in scan.populators) {
+                val item = custom.items.get(id) ?: continue
+                val block = item.block ?: continue
+                if (!block.kind.usesState || block.generation != null) continue
+                custom.items.put(item.copy(block = block.copy(generation = gen)))
+                generation += id
+            }
+            then(ImportReport(added, skipped, scan.noState, scan.unsupported, contents.isDirectory, generation))
         }
     }
 

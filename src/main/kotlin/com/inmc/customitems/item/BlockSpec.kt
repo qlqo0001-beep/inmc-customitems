@@ -44,6 +44,7 @@ enum class BlockKind(val id: String, val label: String, val base: org.bukkit.Mat
  * @param drops 부수면 나오는 것(확률·개수). [drop] 과 따로 — 광석처럼 블록 대신 다른 것을 주려면 [drop] 을 끄고 여기에 적는다.
  * @param silkTouch 섬세한 손길 도구로 캐면 [drops] 대신 블록 자신이 나온다(바닐라 광석).
  * @param fortune 행운이 [drops] 의 개수를 늘린다(바닐라 광석 공식).
+ * @param generation 월드 생성(광맥) — 처음 만들어지는 청크에 심는다([com.inmc.customitems.block.OreGenerator]). 엔티티 방식은 안 된다. 지문에서 뺀다.
  */
 data class BlockSpec(
     val kind: BlockKind,
@@ -58,6 +59,7 @@ data class BlockSpec(
     val fortune: Boolean = false,
     val expMin: Int = 0,
     val expMax: Int = 0,
+    val generation: com.inmc.customitems.block.OreGen? = null,
 ) {
 
     /** 기본값은 적지 않는다 — 적으면 이 칸이 생긴 것만으로 모든 블록 아이템의 지문이 바뀌어 다시 그린다. */
@@ -79,6 +81,7 @@ data class BlockSpec(
             section.set("exp-min", expMin)
             section.set("exp-max", expMax)
         }
+        generation?.save(section.createSection("generation"))
     }
 
     companion object {
@@ -109,6 +112,7 @@ data class BlockSpec(
                 fortune = section.getBoolean("fortune", false),
                 expMin = section.getInt("exp-min", 0).coerceIn(0, expMax),
                 expMax = expMax,
+                generation = if (kind.usesState) com.inmc.customitems.block.OreGen.load(section.getConfigurationSection("generation")) else null,
             )
         }
     }

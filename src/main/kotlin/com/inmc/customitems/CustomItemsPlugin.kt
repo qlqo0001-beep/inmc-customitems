@@ -104,6 +104,7 @@ class CustomItemsPlugin : JavaPlugin() {
         manager.registerEvents(com.inmc.customitems.listener.ResourcePackListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.EquipmentListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.BlockListener(custom), this)
+        manager.registerEvents(custom.oreGenerator, this)
         manager.registerEvents(custom.droppedItems, this)
         manager.registerEvents(kr.inmc.core.listener.MenuListener(custom), this)
     }

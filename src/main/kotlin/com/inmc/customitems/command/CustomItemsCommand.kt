@@ -142,6 +142,12 @@ class CustomItemsCommand(private val custom: CustomItems) {
             .then(Commands.literal("관리").executes { ctx -> open(ctx.source.sender) })
             .then(Commands.literal("리로드").executes { ctx -> reload(ctx.source.sender) })
             .then(Commands.literal("갱신").executes { ctx -> refresh(ctx.source.sender) })
+            // 월드 생성(광맥, 2026-10-09) — 켜진 블록과 이번에 켜진 뒤 심은 수 · 옛 ItemsAdder 광석 생성 옮기기(콘솔에서도).
+            .then(
+                Commands.literal("광맥")
+                    .executes { ctx -> oreStats(ctx.source.sender) }
+                    .then(Commands.literal("옮기기").executes { ctx -> oreImport(ctx.source.sender) }),
+            )
             .then(
                 Commands.literal("검증")
                     .executes { ctx -> verify(ctx.source, Verifier.Mode.ALL) }
@@ -219,6 +225,40 @@ class CustomItemsCommand(private val custom: CustomItems) {
         val player = source.executor as? Player ?: source.sender as? Player ?: return 0.also { custom.messages.send(source.sender, "player-only") }
         if (!custom.ready) return 0.also { custom.messages.send(player, "not-ready") }
         Verifier(custom).run(player, mode)
+        return 1
+    }
+
+    /** `/커스텀아이템 광맥` — 월드 생성이 켜진 블록마다 규칙과 이번에 켜진 뒤 심은 칸·청크. */
+    private fun oreStats(sender: CommandSender): Int {
+        val ids = custom.items.generators
+        if (ids.isEmpty()) {
+            sender.sendMessage(Text.render("<gray>월드 생성이 켜진 블록이 없습니다. 블록 설정 화면의 <white>월드 생성</white>에서 켭니다.</gray>"))
+            return 1
+        }
+        sender.sendMessage(Text.render("<gold>월드 생성(광맥) <white>" + ids.size + "</white>개</gold> <gray>— 처음 만들어지는 청크에만</gray>"))
+        for (id in ids) {
+            val rule = custom.items.get(id)?.block?.generation ?: continue
+            val (blocks, chunks) = custom.oreGenerator.stats(id)
+            sender.sendMessage(Text.render(
+                "<aqua>$id</aqua> <gray>월드 <white>" + rule.worlds.joinToString(",").ifBlank { "없음" } + "</white> · 높이 <white>" + rule.minY + "~" + rule.maxY +
+                    "</white> · <white>" + kr.inmc.core.util.Numbers.chance(rule.chunkChance) + "%</white> · <white>" + rule.veins + "×" + rule.veinSize +
+                    "</white> · 심은 것 <white>$blocks</white>칸/<white>$chunks</white>청크</gray>",
+            ))
+        }
+        return 1
+    }
+
+    /** `/커스텀아이템 광맥 옮기기` — 옛 ItemsAdder 의 블록과 광석 생성을 옮긴다(블록 화면의 버튼과 같다). */
+    private fun oreImport(sender: CommandSender): Int {
+        sender.sendMessage(Text.render("<gray>옛 ItemsAdder 블록·광석 생성을 읽는 중…</gray>"))
+        custom.blocks.importItemsAdder { report ->
+            if (!report.contentsFound) {
+                sender.sendMessage(Text.render("<red>plugins/ItemsAdder/contents 폴더가 없습니다.</red>"))
+                return@importItemsAdder
+            }
+            sender.sendMessage(Text.render("<green>블록 <white>" + report.added.size + "</white>개 · 광석 생성 <white>" + report.generation.size + "</white>개를 옮겼습니다.</green>" +
+                (if (report.generation.isNotEmpty()) " <gray>(" + report.generation.joinToString(", ") + ")</gray>" else "")))
+        }
         return 1
     }
 

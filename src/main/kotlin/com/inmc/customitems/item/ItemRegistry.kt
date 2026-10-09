@@ -185,6 +185,7 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         hasPeriod = byId.values.any { it.period > 0 }
         hasBackpacks = byId.values.any { it.isBackpack }
         hasBlocks = byId.values.any { it.block != null }
+        generators = byId.values.filter { it.block?.generation != null && it.block.kind.usesState }.map { it.id }
         blockStates = byId.values.mapNotNull { item ->
             item.block?.takeIf { it.kind.usesState && it.state.isNotBlank() }?.let { it.kind.id + "|" + it.state to item.id }
         }.toMap()
@@ -203,6 +204,11 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
     /** 블록으로 놓이는 아이템이 하나라도 있는가. 없으면 블록 리스너가 사건마다 곧바로 돌아간다. */
     @Volatile
     var hasBlocks: Boolean = false
+        private set
+
+    /** 월드 생성(광맥)이 켜진 블록 아이템 id. 비면 새 청크 사건이 곧바로 돌아간다. */
+    @Volatile
+    var generators: List<String> = emptyList()
         private set
 
     /** (방식|상태) → 아이템 id. 놓인 블록의 상태로 어느 아이템인지 찾는다. */
@@ -248,6 +254,8 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
     private fun fingerprint(item: CustomItem): Long {
         val yaml = YamlConfiguration()
         item.save(yaml.createSection(item.id))
+        // 월드 생성은 아이템 모습과 상관없다 — 고칠 때마다 나간 블록 아이템이 다시 그려지지 않게 뺀다(2026-10-09).
+        yaml.set(item.id + ".block.generation", null)
         plugin.sets.get(item.set)?.save(yaml.createSection("__set"))
         if (item.upgrade.own == null) plugin.upgrades.get(item.upgrade.template)?.save(yaml.createSection("__upgrade"))
         // 켜져 있을 때(기본)는 적지 않는다 — 적으면 이 설정이 생긴 것만으로 모든 장신구·부적·유물을 다시 그린다.

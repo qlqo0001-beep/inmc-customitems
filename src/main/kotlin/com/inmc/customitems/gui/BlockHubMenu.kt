@@ -75,7 +75,8 @@ class BlockHubMenu(custom: CustomItems, private val viewer: Player, private var 
             "<gray>옛 블록이 새 아이템으로 이어집니다.</gray>",
             "<gray>단단함과 캘 수 있는 도구(break_tools_whitelist)도 옮깁니다.</gray>",
             "<dark_gray>같은 이름이 있으면 건너뜁니다 — 여러 번 눌러도 됩니다.</dark_gray>",
-            "<dark_gray>소리·부술 때 명령어·광석 생성은 안 옮깁니다.</dark_gray>",
+            "<gray>광석 생성(worlds_populators)도 그 블록의 월드 생성으로 옮깁니다.</gray>",
+            "<dark_gray>소리·부술 때 명령어는 안 옮깁니다.</dark_gray>",
             "", "<yellow>▶ 클릭: 옮기기</yellow>",
         ))) { importItemsAdder() }
         set(Paging.SLOT_BACK, Icon.back()) { ItemTypeMenu(custom, viewer).open(viewer) }
@@ -93,6 +94,7 @@ class BlockHubMenu(custom: CustomItems, private val viewer: Player, private var 
                 if (spec.drop) add("블록 자신")
                 if (spec.drops.isNotEmpty()) add("드랍 표 " + spec.drops.size + "종")
             }.ifEmpty { listOf("없음") }.joinToString(" · ") + "</gray>")
+            spec.generation?.let { add("<gold>월드 생성: <white>" + it.worlds.joinToString(", ").ifBlank { "월드 없음" } + "</white> · " + it.minY + "~" + it.maxY + "</gold>") }
             add("")
             add("<yellow>▶ 클릭: 블록 설정</yellow>")
         })
@@ -106,6 +108,7 @@ class BlockHubMenu(custom: CustomItems, private val viewer: Player, private var 
                 return@importItemsAdder
             }
             viewer.sendMessage(Text.render("<green>블록 <white>" + report.added.size + "</white>개를 옮겼습니다.</green> <gray>리소스팩을 다시 만드세요.</gray>"))
+            if (report.generation.isNotEmpty()) viewer.sendMessage(Text.render("<green>광석 생성 <white>" + report.generation.size + "</white>개를 옮겼습니다: <white>" + report.generation.take(6).joinToString(", ") + "</white></green>"))
             if (report.skipped.isNotEmpty()) viewer.sendMessage(Text.render("<gray>건너뜀 " + report.skipped.size + "개: <white>" + report.skipped.take(6).joinToString(", ") + (if (report.skipped.size > 6) " …" else "") + "</white></gray>"))
             if (report.noState.isNotEmpty()) viewer.sendMessage(Text.render("<yellow>팩에서 상태를 못 찾음 " + report.noState.size + "개: <white>" + report.noState.take(6).joinToString(", ") + "</white></yellow>"))
             if (report.unsupported.isNotEmpty()) viewer.sendMessage(Text.render("<yellow>이 방식은 없음 " + report.unsupported.size + "개: <white>" + report.unsupported.take(6).joinToString(", ") + "</white></yellow>"))
