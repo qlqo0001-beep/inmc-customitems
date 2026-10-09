@@ -506,5 +506,19 @@ object ItemChecks {
             @Suppress("DEPRECATION")
             ok(Bukkit.getRecipe(NamespacedKey(ItemBuilder.NAMESPACE, "recipe_zz_verify_recipe")) != null, "조합법이 서버에 없다")
         },
+        Check("바깥 능력치 출처 — core 에 등록된 출처의 값이 내 능력치에 더해진다(2026-10-09)") { s ->
+            val hook = kr.inmc.core.integration.CustomItemHook
+            s.custom.stats.invalidate(s.player)
+            val before = s.custom.stats.of(s.player).stat(Stat.CRIT_CHANCE)
+            hook.registerStatSource("zz_verify") { id -> if (id == s.player.uniqueId) mapOf(Stat.CRIT_CHANCE.id to 7.0) else emptyMap() }
+            try {
+                s.custom.stats.invalidate(s.player)
+                val during = s.custom.stats.of(s.player).stat(Stat.CRIT_CHANCE)
+                ok(during == before + 7.0, "치명타 확률 $before → $during (7 이 더해져야)")
+            } finally {
+                hook.unregisterStatSource("zz_verify")
+                s.custom.stats.invalidate(s.player)
+            }
+        },
     )
 }

@@ -74,4 +74,16 @@ class InmcItemProvider(private val plugin: CustomItems) : CustomItemHook.Provide
 
     /** 엔티티 모델·후렴초 표시를 치운다. 블록 자체는 부른 쪽(랜덤박스의 원래 블록 되돌리기)이 정한다. */
     override fun removeBlock(block: org.bukkit.block.Block): Boolean = plugin.blocks.clear(block)
+
+    /** 우리 아이템의 최종 능력치(id → 값, 2026-10-09) — 몬스터가 입힌 장비를 읽는다. 미확인·만료는 `usable` 이 거른다. */
+    override fun stats(stack: ItemStack): Map<String, Double> {
+        val definition = plugin.items.usable(stack) ?: return emptyMap()
+        val totals = com.inmc.customitems.item.StatCalc.total(definition, com.inmc.customitems.item.ItemInstance.read(stack), plugin.items.lookup)
+        return totals.entries.associate { (stat, value) -> stat.id to value }
+    }
+
+    /** 바깥 능력치 출처(타이틀포지 칭호)가 바뀌었다 — 그 사람의 능력치 캐시를 버린다. 1초 틱의 `sync` 가 다시 센다. */
+    override fun invalidateStats(playerId: java.util.UUID) {
+        org.bukkit.Bukkit.getPlayer(playerId)?.let { plugin.stats.invalidate(it) }
+    }
 }

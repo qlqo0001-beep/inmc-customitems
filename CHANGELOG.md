@@ -2,6 +2,12 @@
 
 ---
 
+## 미배포 — 능력치 다리: 아이템 능력치 내주기 · 바깥 출처 더하기(2026-10-09)
+
+- `InmcItemProvider.stats(stack)` — 우리 아이템의 최종 능력치(`Stat.id` → 값, `usable` 기준). 몬스터가 입힌 장비를 읽는다.
+- `StatService.compute` 가 core `CustomItemHook.externalStats`(타이틀포지 칭호 능력치)를 더한다 — 바닐라 속성은 뺀다. `invalidateStats` 가 그 사람의 캐시를 버린다.
+- `/커스텀아이템 검증` 에 "바깥 능력치 출처" 검사 — 임시 출처 `zz_verify` 를 꽂고 내 치명타 확률에 7 이 더해지는지.
+
 ## 미배포 — 검증기: 드랍 자동 수납 검사 · 전환 버튼은 고르는 화면 기준(2026-10-08)
 
 - `/커스텀아이템 검증` 에 **"드랍 자동 수납"** 검사 — 자동 수납 배낭을 장착 칸에 끼우고 진짜 줍기 사건(`PlayerAttemptPickupItemEvent`)을 쏘아 배낭으로 들어가는지 본다.

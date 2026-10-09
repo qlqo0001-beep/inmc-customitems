@@ -120,6 +120,12 @@ class StatService(private val custom: CustomItems) {
             set.active(count).filter { it.second.effects.isNotEmpty() }.map { (pieces, bonus) -> CustomItemHook.SetEffects(set.id, set.name, pieces, bonus.effects) }
         }
         for (bonus in bonuses) for ((stat, value) in bonus.stats) totals[stat] = (totals[stat] ?: 0.0) + value
+        // 바깥 출처(타이틀포지 칭호 능력치 — core `CustomItemHook.registerStatSource`, 2026-10-09). 바닐라 속성은 출처가 직접 거니 여기선 뺀다.
+        for ((id, value) in CustomItemHook.externalStats(player.uniqueId)) {
+            val stat = Stat.of(id) ?: continue
+            if (stat.isVanilla) continue
+            totals[stat] = (totals[stat] ?: 0.0) + value
+        }
         val vanilla = LinkedHashMap<Stat, Double>()
         for (item in carried) for ((stat, value) in item.totals) if (stat.isVanilla) vanilla[stat] = (vanilla[stat] ?: 0.0) + value
         return Snapshot(equipped, totals, sets, bonuses, vanilla, effects)
