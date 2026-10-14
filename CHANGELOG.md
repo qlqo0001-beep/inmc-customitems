@@ -2,6 +2,21 @@
 
 ---
 
+## 미배포 — 지급: 개수 잘림 고침 · 오프라인·전원 대상 · 넘친 것은 우편(2026-10-10)
+
+- **`/커스텀아이템 지급` 이 개수를 한 묶음에서 자르던 것**: 칼 10개를 주면 1개만 나가고 "10개"라고 알렸다(`ItemBuilder.create` 가 개수를 한 묶음으로 자름).
+  이제 남은 수만큼 묶음을 거듭 만든다(`command/Give.split` — 못 만들거나 크기 0 이면 멈춤). 묶음마다 새로 굴린다.
+- **대상**(지급·세트지급 둘 다): 이름 — 접속 중이면 가방, **접속하지 않았지만 들어온 적 있는 사람은 우편**("우편으로 보냈습니다"), 모르는 이름은 그대로 "찾을 수 없음".
+  `*` = 지금 접속한 사람 전원. `**` = 최근 N일 안에 들어온 사람 전원(`config.yml` 의 `give.recent-days`, 기본 30) — 접속한 사람은 바로, 나머지는 우편.
+  우편(inmc-essentials)이 없으면 오프라인 대상과 `**` 는 거절한다.
+- **가방이 차면 바닥 대신 우편으로**(우편이 없으면 지금처럼 발밑). 한 사람에게 두 길로 주지 않는다.
+- 지급 대상 제안에서 투명인 사람은 볼 수 있는 사람에게만 보인다(`/장비 <플레이어>` 도).
+- core `CustomItemHook.Provider.ids()` — 만들 수 있는 아이템 id 전부(essentials `/지급` 의 제안·검증).
+- 메시지 6개(`inventory-full-mail` · `given-mail` · `given-all` · `given-recent` · `mail-unavailable` · `mail-failed`). `GiveTest` 7개.
+- 2차(같은 날): `**` 의 "최근 접속자" 찾기(`Bukkit.getOfflinePlayers()`·`lastSeen` — playerdata 파일 읽기)는 **I/O 워커**에서(`custom.io.async`), 찾는 동안 `give-recent-searching`.
+  지급은 틱마다 `Give.TICK_BUDGET`(200묶음) 몫씩 나눠 돈다(`CustomItemsCommand.drip` — 칼 2304개 × 300명을 한 틱에 만들면 서버가 멈춘다, 하나가 던져도 나머지는 계속).
+  메시지 셋 더: `mail-skipped`(우편에 넣을 수 없는 묶음 — 서버 로그 참고) · `set-empty`(세트에 든 아이템이 없음) · `give-recent-searching`.
+
 ## 미배포 — 커스텀 블록 월드 생성(광맥)(2026-10-09)
 
 - 블록 설정 화면에 **월드 생성** 버튼 → `BlockGenMenu`: 켜기 · 월드(여럿) · 바꿀 블록(여럿 + 손에 든 블록) · 높이 · 청크 확률 · 광맥 수 · 광맥 크기 · 이 청크에 지금 심어 보기.

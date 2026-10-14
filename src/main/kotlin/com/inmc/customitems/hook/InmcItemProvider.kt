@@ -34,6 +34,9 @@ class InmcItemProvider(private val plugin: CustomItems) : CustomItemHook.Provide
         return plugin.items.create(ref.id)
     }
 
+    /** 만들 수 있는 아이템 id 전부 — 다른 플러그인의 지급 명령(essentials `/지급`)이 제안·검증에 쓴다. 정의를 다 읽기 전에는 빈 목록. */
+    override fun ids(): Collection<String> = plugin.items.ids()
+
     /**
      * 다른 플러그인이 읽을 값들.
      *

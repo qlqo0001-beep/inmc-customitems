@@ -19,6 +19,7 @@ already-exists: "<red>'{item}' 은(는) 이미 있습니다.</red>"
 invalid-name: "<red>이름 규칙에 맞지 않습니다: {item}</red>"
 unknown-item: "<red>'{item}' 라는 아이템이 없습니다.</red>"
 unknown-set: "<red>'{item}' 라는 세트가 없습니다.</red>"
+set-empty: "<red>'{item}' 세트에 든 아이템이 없습니다.</red>"
 hand-empty: "<red>손에 아이템을 들고 있어야 합니다.</red>"
 
 # --- 지급 ---
@@ -26,6 +27,20 @@ given: "<green>{player} 에게 {item} {amount}개를 지급했습니다.</green>
 received: "<green>{item} {amount}개를 받았습니다.</green>"
 player-not-found: "<red>'{player}' 을(를) 찾을 수 없습니다.</red>"
 inventory-full: "<yellow>인벤토리가 가득 차 바닥에 떨어뜨렸습니다.</yellow>"
+# 우편(inmc-essentials)이 있으면 넘친 것은 바닥 대신 우편으로 갑니다.
+inventory-full-mail: "<yellow>인벤토리가 가득 차 남은 것을 우편으로 보냈습니다.</yellow>"
+# 접속하지 않은 사람 — 우편으로 보냅니다.
+given-mail: "<green>{player} 은(는) 접속해 있지 않아 {item} {amount}개를 우편으로 보냈습니다.</green>"
+# 대상 * (접속자 전원)
+given-all: "<green>접속한 {count}명에게 {item} {amount}개씩 지급했습니다.</green>"
+# 대상 ** (최근 접속자 전원, config.yml 의 give.recent-days) — {value} = 우편으로 보낸 사람 수
+given-recent: "<green>{count}명에게 {item} {amount}개씩 지급했습니다.</green> <gray>접속하지 않은 {value}명은 우편으로.</gray>"
+mail-unavailable: "<red>우편함이 없어 접속하지 않은 사람에게는 줄 수 없습니다.</red>"
+mail-failed: "<red>우편에 넣지 못했습니다: {player}</red>"
+# 우편에 넣을 바이트로 바꾸지 못한 묶음 — 보내지 않고 알린다(접속해 있으면 발밑에 떨굽니다).
+mail-skipped: "<yellow>우편에 넣을 수 없는 아이템 {count}묶음은 보내지 못했습니다(서버 로그 참고): {player}</yellow>"
+# 대상 ** — 최근 접속자를 찾는 동안(워커에서 찾고, 틱에 나눠 줍니다). {value} = 날 수
+give-recent-searching: "<gray>최근 {value}일 안에 들어온 사람을 찾는 중…</gray>"
 
 # --- 갱신 ---
 refreshed: "<green>손에 든 아이템을 최신 정의로 다시 만들었습니다.</green>"

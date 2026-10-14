@@ -122,6 +122,10 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
     var ready: Boolean = false
         private set
 
+    /** `/커스텀아이템 지급 **` 의 "최근" — 이 날 수 안에 들어온 사람(`config.yml` 의 `give.recent-days`). */
+    @Volatile
+    var giveRecentDays: Int = 30
+
     fun markReady() {
         ready = true
         pack.runWaiting()

@@ -27,6 +27,7 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "invalid-name" to "<red>이름 규칙에 맞지 않습니다: {item}</red>",
             "unknown-item" to "<red>'{item}' 라는 아이템이 없습니다.</red>",
             "unknown-set" to "<red>'{item}' 라는 세트가 없습니다.</red>",
+            "set-empty" to "<red>'{item}' 세트에 든 아이템이 없습니다.</red>",
             "hand-empty" to "<red>손에 아이템을 들고 있어야 합니다.</red>",
 
             // --- 지급 ---------------------------------------------------------------
@@ -34,6 +35,14 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "received" to "<green>{item} {amount}개를 받았습니다.</green>",
             "player-not-found" to "<red>'{player}' 을(를) 찾을 수 없습니다.</red>",
             "inventory-full" to "<yellow>인벤토리가 가득 차 바닥에 떨어뜨렸습니다.</yellow>",
+            "inventory-full-mail" to "<yellow>인벤토리가 가득 차 남은 것을 우편으로 보냈습니다.</yellow>",
+            "given-mail" to "<green>{player} 은(는) 접속해 있지 않아 {item} {amount}개를 우편으로 보냈습니다.</green>",
+            "given-all" to "<green>접속한 {count}명에게 {item} {amount}개씩 지급했습니다.</green>",
+            "given-recent" to "<green>{count}명에게 {item} {amount}개씩 지급했습니다.</green> <gray>접속하지 않은 {value}명은 우편으로.</gray>",
+            "mail-unavailable" to "<red>우편함이 없어 접속하지 않은 사람에게는 줄 수 없습니다.</red>",
+            "mail-failed" to "<red>우편에 넣지 못했습니다: {player}</red>",
+            "mail-skipped" to "<yellow>우편에 넣을 수 없는 아이템 {count}묶음은 보내지 못했습니다(서버 로그 참고): {player}</yellow>",
+            "give-recent-searching" to "<gray>최근 {value}일 안에 들어온 사람을 찾는 중…</gray>",
 
             // --- 갱신 ---------------------------------------------------------------
             "refreshed" to "<green>손에 든 아이템을 최신 정의로 다시 만들었습니다.</green>",

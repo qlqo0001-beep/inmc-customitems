@@ -127,6 +127,7 @@ class CustomItemsPlugin : JavaPlugin() {
             custom.packHost.apply(custom.packConfig.host)
             custom.messages = Messages.from(messagesYaml)
 
+            custom.giveRecentDays = configYaml.getInt("give.recent-days", 30).coerceAtLeast(1)
             // 정의 객체가 교체되므로 열린 화면은 닫는다 - 그대로 두면 버려진 객체를 계속
             // 편집하게 되고, 저장은 되는데 반영이 안 된다.
             closeOpenMenus()
