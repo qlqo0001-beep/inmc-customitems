@@ -3,6 +3,7 @@ package com.inmc.customitems.player
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.item.ItemType
 import kr.inmc.core.integration.ExtraInventory
+import kr.inmc.core.integration.Realms
 import kr.inmc.core.store.YamlFileStore
 import org.bukkit.Material
 import org.bukkit.configuration.file.YamlConfiguration
@@ -27,6 +28,11 @@ import java.util.concurrent.ConcurrentHashMap
  * 뜻이 없어진다 — 이 워크스페이스에서 메인 스레드 디스크 쓰기를 일부러 하는 자리다(업적 `ClaimStore` 와 같은 이유).
  *
  * 죽을 때는 가방과 같이 다뤄진다 — core [ExtraInventory] 로 인벤키퍼에게 칸을 알린다.
+ *
+ * ## 모드마다 따로 (2026-10-15, core [Realms] — inmc-worlds)
+ * 칸은 `(사람, scope)` 마다 하나다 — scope 는 `Realms.scope(`[FEATURE]`, uuid)`(같이 쓰기·모드 없음이면 `""` = 옛 파일 `<uuid>.yml`, 아니면 `<uuid>@<모드>.yml`).
+ * 부를 때마다 scope 를 다시 묻는다 — 모드가 바뀌거나 관리자가 토글을 켠 채 바꿔도 다음 조회가 새 칸을 본다(재시작 없이). 배낭 줄도 여기 있으므로
+ * `/배낭 N` 도 모드를 따른다(배낭 내용물은 배낭 아이템 번호를 따라간다).
  */
 class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider {
 
@@ -46,7 +52,14 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
         }
     }
 
-    private val loaded = ConcurrentHashMap<UUID, EnumMap<Group, Array<ItemStack?>>>()
+    /** 칸 하나의 주인 — 사람과 scope(모드). */
+    private data class Key(val player: UUID, val scope: String) {
+        val file: String get() = Realms.key(player.toString(), scope) + ".yml"
+    }
+
+    private fun key(player: UUID): Key = Key(player, Realms.scope(FEATURE, player))
+
+    private val loaded = ConcurrentHashMap<Key, EnumMap<Group, Array<ItemStack?>>>()
 
     private val folder: File get() = custom.io.file("equipment")
 
@@ -60,20 +73,22 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
      * 메모리에 쌓이지 않게. 사본이라 고쳐도 칸은 안 바뀐다.
      */
     fun peek(player: UUID): Map<Group, List<ItemStack?>> =
-        (loaded[player] ?: read(player)).mapValues { (_, slots) -> slots.map { it?.clone() } }
+        key(player).let { k -> loaded[k] ?: read(k) }.mapValues { (_, slots) -> slots.map { it?.clone() } }
 
     /** [index] 칸을 바꾸고 곧바로 파일에 쓴다. */
     fun put(player: UUID, group: Group, index: Int, stack: ItemStack?) {
         if (index !in 0 until MAX) return
-        slots(player, group)[index] = stack?.takeIf { !it.type.isAir }?.clone()
-        save(player)
+        val k = key(player)
+        equipment(k).getValue(group)[index] = stack?.takeIf { !it.type.isAir }?.clone()
+        save(k)
     }
 
     /** 옛 정의로 그려진 것을 다시 그린다(접속할 때·규칙이 바뀔 때). 바뀐 것이 있을 때만 쓴다. */
     fun refresh(player: UUID) {
+        val k = key(player)
         var changed = false
-        for (group in Group.entries) for (stack in slots(player, group)) if (stack != null && custom.items.refresh(stack)) changed = true
-        if (changed) save(player)
+        for (group in Group.entries) for (stack in equipment(k).getValue(group)) if (stack != null && custom.items.refresh(stack)) changed = true
+        if (changed) save(k)
     }
 
     /** 열린 칸 수 — 기본값과 권한 가운데 큰 것. 권한은 `incustomitems.slots.<종류>.<수>`. */
@@ -83,19 +98,23 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
     }
 
     fun load(player: UUID) {
-        equipment(player)
+        equipment(key(player))
     }
 
+    /** 나갈 때 — 이 사람의 칸을 모드 가리지 않고 잊는다(전부 바꿀 때마다 파일에 썼다). */
     fun forget(player: UUID) {
-        loaded.remove(player)
+        loaded.keys.removeIf { it.player == player }
     }
 
-    private fun equipment(player: UUID): EnumMap<Group, Array<ItemStack?>> = loaded.getOrPut(player) { read(player) }
+    private fun equipment(player: UUID): EnumMap<Group, Array<ItemStack?>> = equipment(key(player))
 
-    private fun read(player: UUID): EnumMap<Group, Array<ItemStack?>> {
+    private fun equipment(k: Key): EnumMap<Group, Array<ItemStack?>> = loaded.getOrPut(k) { read(k) }
+
+    private fun read(k: Key): EnumMap<Group, Array<ItemStack?>> {
+        val player = k.player
         val out = EnumMap<Group, Array<ItemStack?>>(Group::class.java)
         for (group in Group.entries) out[group] = arrayOfNulls(MAX)
-        val file = File(folder, "$player.yml")
+        val file = File(folder, k.file)
         if (!file.isFile) return out
         val yaml = YamlConfiguration.loadConfiguration(file)
         for (group in Group.entries) {
@@ -111,8 +130,8 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
         return out
     }
 
-    private fun save(player: UUID) {
-        val equipment = loaded[player] ?: return
+    private fun save(k: Key) {
+        val equipment = loaded[k] ?: return
         val yaml = YamlConfiguration()
         for ((group, slots) in equipment) {
             for ((index, stack) in slots.withIndex()) {
@@ -121,8 +140,8 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
             }
         }
         folder.mkdirs()
-        val target = File(folder, "$player.yml")
-        val temp = File(folder, "$player.yml.tmp")
+        val target = File(folder, k.file)
+        val temp = File(folder, k.file + ".tmp")
         temp.writeText(yaml.saveToString(), Charsets.UTF_8)
         try {
             Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
@@ -143,6 +162,9 @@ class EquipmentStore(private val custom: CustomItems) : ExtraInventory.Provider 
     companion object {
         /** 한 종류의 칸은 장착 화면 한 줄(8칸)이 전부다. */
         const val MAX = 8
+
+        /** core [Realms] 기능 열쇠 — 장착 칸(배낭 줄 포함)을 모드마다 따로 둘지. */
+        const val FEATURE = "customitems.equipment"
     }
 }
 

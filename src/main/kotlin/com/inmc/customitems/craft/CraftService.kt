@@ -60,19 +60,26 @@ class CraftService(private val custom: CustomItems) {
             return Outcome.CRAFTED
         }
         val subject = station.id + "#" + slot
-        players.set(player.uniqueId, NAMESPACE, subject, "recipe", recipe.id)
-        players.set(player.uniqueId, NAMESPACE, subject, "done", now + recipe.seconds * 1000L)
+        val ns = namespace(player.uniqueId)
+        players.set(player.uniqueId, ns, subject, "recipe", recipe.id)
+        players.set(player.uniqueId, ns, subject, "done", now + recipe.seconds * 1000L)
         return Outcome.QUEUED
     }
 
     /** 이 제작대의 대기열. 번호 순. */
-    fun queue(player: UUID, station: String): List<Queued> =
-        players.subjects(player, NAMESPACE).mapNotNull { subject ->
+    fun queue(player: UUID, station: String): List<Queued> {
+        val ns = namespace(player)
+        return players.subjects(player, ns).mapNotNull { subject ->
             if (!subject.startsWith("$station#")) return@mapNotNull null
             val index = subject.substringAfter('#').toIntOrNull() ?: return@mapNotNull null
-            val recipe = players.getString(player, NAMESPACE, subject, "recipe") ?: return@mapNotNull null
-            Queued(index, recipe, players.getLong(player, NAMESPACE, subject, "done", 0L))
+            val recipe = players.getString(player, ns, subject, "recipe") ?: return@mapNotNull null
+            Queued(index, recipe, players.getLong(player, ns, subject, "done", 0L))
         }.sortedBy { it.index }
+    }
+
+    /** 이 사람의 대기열 네임스페이스 — 모드마다 따로면 `inmc_craft@<모드>`(core `Realms`, 2026-10-15). 재료를 거둔 모드에서만 받는다. */
+    private fun namespace(player: UUID): String =
+        kr.inmc.core.integration.Realms.key(NAMESPACE, kr.inmc.core.integration.Realms.scope(FEATURE, player))
 
     /**
      * 다 된 것을 받는다. 조합법이 그 사이 지워졌으면 결과를 줄 수 없으니 **재료를 돌려주지도 못한다** —
@@ -82,7 +89,7 @@ class CraftService(private val custom: CustomItems) {
         val entry = queue(player.uniqueId, station.id).firstOrNull { it.index == index } ?: return false
         if (entry.doneAt > now) return false
         station.recipe(entry.recipe)?.let { give(player, it.results) }
-        players.clearSubject(player.uniqueId, NAMESPACE, station.id + "#" + index)
+        players.clearSubject(player.uniqueId, namespace(player.uniqueId), station.id + "#" + index)
         return true
     }
 
@@ -121,6 +128,9 @@ class CraftService(private val custom: CustomItems) {
 
     companion object {
         const val NAMESPACE = "inmc_craft"
+
+        /** core `Realms` 기능 열쇠 — 제작 대기열을 모드마다 따로 둘지. */
+        const val FEATURE = "customitems.craft"
         const val QUEUE = 9
     }
 }

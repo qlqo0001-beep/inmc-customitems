@@ -47,6 +47,7 @@ class CustomItemsPlugin : JavaPlugin() {
         kr.inmc.core.integration.CarriedStorage.register(custom.backpacks)
         // 플레이어 메뉴의 개인 설정 화면에 "배낭 드랍 자동 수납" 을 올린다(core PlayerSettings).
         CustomItemsSettings.register()
+        com.inmc.customitems.listener.RealmListener.registerFeatures()
 
         registerListeners()
         CustomItemsCommand(custom).register(this)
@@ -79,6 +80,7 @@ class CustomItemsPlugin : JavaPlugin() {
         kr.inmc.core.integration.ExtraInventory.unregister(custom.equipment)
         kr.inmc.core.integration.CarriedStorage.unregister(custom.backpacks)
         CustomItemsSettings.unregister()
+        kr.inmc.core.integration.Realms.unregisterAll(com.inmc.customitems.listener.RealmListener.OWNER)
         // 빠지면 역할을 쓰는 플러그인들이 제 파일로 돌아간다(옮긴 뒤라면 빈 목록 — 우리 없이는 우리 아이템도 없다).
         kr.inmc.core.integration.ItemRoles.detach(custom.roleStore)
         custom.items.flushBlocking()
@@ -107,6 +109,7 @@ class CustomItemsPlugin : JavaPlugin() {
         manager.registerEvents(com.inmc.customitems.listener.InteractListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.ResourcePackListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.EquipmentListener(custom), this)
+        manager.registerEvents(com.inmc.customitems.listener.RealmListener(custom), this)
         manager.registerEvents(com.inmc.customitems.listener.BlockListener(custom), this)
         manager.registerEvents(custom.oreGenerator, this)
         manager.registerEvents(custom.droppedItems, this)
