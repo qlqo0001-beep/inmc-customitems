@@ -91,6 +91,16 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
             "<gray>만든 종류 <white>" + custom.types.custom().size + "</white>개</gray>",
             "", "<yellow>▶ 클릭</yellow>",
         ))) { TypeListMenu(custom, viewer).open(viewer) }
+        set(SLOT_TIERS, Icon.of(Material.NETHER_STAR, "<yellow>등급 관리 <white>" + custom.tiers.all().size + "</white>개</yellow>", listOf(
+            "<gray>아이템 이름 색 · 로어 맨 아래 배지 · 높낮이</gray>",
+            custom.tiers.all().take(12).joinToString(" ") { it.color + it.name }.ifBlank { "<gray>없음" },
+            "", "<yellow>▶ 클릭</yellow>",
+        ))) { TierListMenu(custom, viewer).open(viewer) }
+        set(SLOT_ELEMENTS, Icon.of(Material.BLAZE_POWDER, "<yellow>속성 관리 <white>" + custom.elements.all().size + "</white>개</yellow>", listOf(
+            "<gray>속성마다 피해 · 저항% 능력치가 생깁니다</gray>",
+            "<gray>" + custom.elements.all().joinToString(" · ") { it.name }.ifBlank { "없음" } + "</gray>",
+            "", "<yellow>▶ 클릭</yellow>",
+        ))) { ElementListMenu(custom, viewer).open(viewer) }
         set(SLOT_HUB, Icon.of(Material.COMPASS, "<gold>어드민 메뉴로</gold>", listOf(
             "<gray>각 플러그인 설정 허브로 돌아갑니다.</gray>",
         ))) { viewer.performCommand("메뉴 어드민") }
@@ -146,7 +156,9 @@ class ItemTypeMenu(custom: CustomItems, private val viewer: Player) :
 
         /** 만든 종류 칸 — 아홉까지. 넘치면 마지막 칸이 "나머지 종류" 고르기(거기서 넘친 종류의 서랍을 연다). */
         val CUSTOM_SLOTS = (36..44).toList()
+        const val SLOT_TIERS = 3
         const val SLOT_TYPES = 4
+        const val SLOT_ELEMENTS = 5
         const val SLOT_BLOCKS = 8
 
         const val SLOT_REGISTER = 45

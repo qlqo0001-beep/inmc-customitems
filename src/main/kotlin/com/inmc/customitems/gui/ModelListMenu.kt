@@ -148,10 +148,12 @@ class ModelListMenu private constructor(
         set(Paging.SLOT_CLOSE, Icon.close()) { viewer.closeInventory() }
     }
 
-    /** 이름을 묻고, 그 모델로 새 아이템을 만든 뒤 설정 화면으로. 재질은 손에 든 것(빈손이면 종이) — 모델과 재질은 따로다. */
+    /**
+     * 이름을 묻고, 그 모델로 새 아이템을 만든 뒤 설정 화면으로. 재질은 종이 — 모델과 재질은 따로라 설정 화면의 재질 칸에서 바꾼다
+     * (전에는 손에 든 것의 재질이었다 — 손에 들지 않게, 사용자 요청 2026-10-14).
+     */
     private fun create(model: String) {
-        val hand = viewer.inventory.itemInMainHand.type
-        val material = if (hand.isAir) Material.PAPER else hand
+        val material = Material.PAPER
         var created: String? = null
         Editors.promptText(
             custom.prompts, viewer, "새 아이템 이름",

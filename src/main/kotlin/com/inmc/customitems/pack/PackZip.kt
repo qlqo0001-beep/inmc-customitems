@@ -2,6 +2,8 @@ package com.inmc.customitems.pack
 
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
@@ -25,6 +27,9 @@ object PackZip {
      * 때마다 클라이언트가 몇 MB 를 다시 받는다.
      *
      * **다 쓴 뒤에 바꿔 끼운다.** 쓰는 도중에 누가 받아 가면 깨진 팩을 받는다.
+     *
+     * **못 바꿔 끼우면 던진다.** 윈도우는 다른 프로그램이 열어 둔 파일을 지우지도 덮지도 못한다 — `delete`·`renameTo` 의 false 를 안 보던 때는
+     * 옛 팩이 그대로 남고 빌드는 "성공"이었다(2026-10-10, inmc-discord 그림 엔진이 `pack.zip` 을 열어 둔 채라 10-07 부터 리팩이 하나도 안 들어갔다).
      */
     fun write(target: File, entries: Map<String, ByteArray>) {
         val temp = File(target.parentFile, target.name + ".tmp")
@@ -41,8 +46,13 @@ object PackZip {
             }
         }
 
-        if (target.exists()) target.delete()
-        temp.renameTo(target)
+        try {
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: java.io.IOException) {
+            throw java.io.IOException(
+                "새 팩(${temp.name})을 ${target.name} 로 바꾸지 못했습니다 — 다른 프로그램이 ${target.name} 을 열어 두었을 수 있습니다: ${e.message}", e,
+            )
+        }
     }
 
     /** 클라이언트가 **이미 받은 팩인지 판단하는 근거**. 40자 소문자 16진수. */

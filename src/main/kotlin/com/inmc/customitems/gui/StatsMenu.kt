@@ -75,7 +75,7 @@ class StatsMenu(
         return Stat.entries.filter { category == null || it.category == category }.sortedWith(
             compareBy(
                 { if (it in suggested) 0 else 1 },
-                { it.ordinal },
+                { it.index },
             ),
         )
     }

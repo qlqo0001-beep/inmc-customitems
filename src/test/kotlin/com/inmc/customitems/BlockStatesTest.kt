@@ -98,9 +98,13 @@ class BlockStatesTest {
     fun `후렴초 파일은 커스텀 상태에 제 모델 하나만 바닐라 상태에 바닐라 조각 여섯만 그린다`() {
         val custom = mapOf(chest to "inmc:fuben/block/chest/chest", BlockStates.chorusKey(40) to "inmc:x")
         val parts = JsonParser.parseString(BlockStates.json(BlockKind.TRANSPARENT, custom)).asJsonObject.getAsJsonArray("multipart")
+        // 첫 조각은 모든 상태의 빈 파편 모델 — 클라이언트가 파편 그림을 첫 조각에서만 가져간다(2026-10-10).
+        val first = parts[0].asJsonObject
+        assertEquals(BlockStates.NO_PARTICLE_MODEL, model(first["apply"]))
+        assertNull(first["when"], "첫 조각은 조건 없이 모든 상태")
         for (mask in 0 until 64) {
             val state = BlockStates.chorusKey(mask).split(',').associate { it.substringBefore('=') to it.substringAfter('=') }
-            val applied = parts.map { it.asJsonObject }.filter { matches(it["when"], state) }.map { model(it["apply"]) }
+            val applied = parts.map { it.asJsonObject }.filter { matches(it["when"], state) }.map { model(it["apply"]) }.filter { it != BlockStates.NO_PARTICLE_MODEL }
             val key = BlockStates.chorusKey(mask)
             if (key in custom) {
                 assertEquals(listOf(custom.getValue(key)), applied, "커스텀 상태 $mask 에 바닐라 조각이 겹친다")

@@ -25,9 +25,12 @@ import java.util.zip.ZipFile
  * - 후렴초([BlockKind.TRANSPARENT]): 상태 + **우리가 놓았다는 표시**(청크 PDC `inmc:blocks`). 후렴초는 엔드와 후렴초 농장에서 저절로 자라
  *   아무 상태나 되므로 상태만 믿으면 농장이 상자 아이템을 찍어 낸다. 표시가 없으면 **아무것에도 붙지 않은 것**(옛 IA 가 놓은 블록)만 우리 것으로 친다 —
  *   저절로 자란 후렴초는 늘 줄기·꽃·아래의 엔드 돌에 붙어 있다.
- * - 엔티티([BlockKind.ENTITY]): 그 자리의 방벽 + 우리 표시(`inmc:block` = 아이템 id)가 붙은 ItemDisplay.
+ * - 엔티티([BlockKind.ENTITY]): 그 자리의 방벽 + 우리 표시(`inmc:block` = 아이템 id)가 붙은 ItemDisplay. BetterModel 모델([BlockSpec.model])이면
+ *   그 ItemDisplay 가 모델의 기준점이고 아이템은 비운다([BlockModels]).
  */
 class CustomBlocks(private val custom: CustomItems) {
+
+    val models = BlockModels(custom.logger)
 
     /** `sources/` 의 팩이 이미 쓰는 커스텀 상태(열쇠 → 모델). 새 블록이 피해 가고, 옛 IA 블록을 옮길 때 짝을 찾는다. 워커에서 읽는다. */
     @Volatile
@@ -123,16 +126,43 @@ class CustomBlocks(private val custom: CustomItems) {
                 clear(block)
                 block.setType(Material.BARRIER, false)
                 val stack = custom.items.create(item.id) ?: ItemStack(item.material)
-                block.world.spawn(block.location.add(0.5, 0.5, 0.5), ItemDisplay::class.java) { display ->
+                // BetterModel 모델은 기준점이 곧 모델의 원점이다 — 천장 것은 칸의 윗면(위에 매달린 모델), 나머지는 바닥.
+                // 칸 안쪽에 둬야 [displays] 가 이 칸의 것으로 찾는다(윗면 그대로면 위 칸의 좌표가 된다).
+                val anchor = when {
+                    spec.model.isBlank() -> block.location.add(0.5, 0.5, 0.5)
+                    spec.surface == com.inmc.customitems.item.Surface.CEILING -> block.location.add(0.5, 1.0 - INSIDE, 0.5)
+                    else -> block.location.add(0.5, INSIDE, 0.5)
+                }
+                val display = block.world.spawn(anchor, ItemDisplay::class.java) { display ->
                     display.setItemStack(stack)
                     // 변형 없이 — 블록 모델(0~16)이 그 칸을 꼭 채운다.
                     display.itemDisplayTransform = ItemDisplay.ItemDisplayTransform.NONE
                     display.isPersistent = true
                     display.persistentDataContainer.set(DISPLAY_KEY, PersistentDataType.STRING, item.id)
                 }
+                // 붙였으면 아이템은 비운다 — 같은 틱이라 아이템 모양은 아무에게도 안 간다. 못 붙였으면(BetterModel 없음·모델 없음) 아이템 모양으로 남는다.
+                if (spec.model.isNotBlank() && models.attach(display, spec.model)) display.setItemStack(null)
             }
         }
+        light(block, spec)
         return true
+    }
+
+    /** [spec] 의 빛을 켠다 — 빈 칸(공기)에만. 사람이 놓은 블록을 덮지 않는다. */
+    private fun light(block: Block, spec: BlockSpec) {
+        for (light in spec.lights) {
+            val spot = block.getRelative(light.dx, light.dy, light.dz)
+            if (spot.y < block.world.minHeight || spot.y >= block.world.maxHeight || !spot.type.isAir) continue
+            spot.setBlockData(Material.LIGHT.createBlockData { (it as org.bukkit.block.data.Levelled).level = light.level }, false)
+        }
+    }
+
+    /** [spec] 의 빛을 끈다 — 그 자리가 아직 빛 블록일 때만. */
+    private fun unlight(block: Block, spec: BlockSpec) {
+        for (light in spec.lights) {
+            val spot = block.getRelative(light.dx, light.dy, light.dz)
+            if (spot.type == Material.LIGHT) spot.setType(Material.AIR, false)
+        }
     }
 
     /**
@@ -160,10 +190,56 @@ class CustomBlocks(private val custom: CustomItems) {
         return placed
     }
 
-    /** 이 자리에 우리가 둔 곁것(엔티티 모델·후렴초 표시)을 치운다. 블록은 부르는 쪽이 정한다. 무언가 치웠으면 true. */
+    /**
+     * 부서질 때의 파편(2026-10-10 사용자 요청 "그 블록 모양의 잔해"). 꽉 찬 방식은 그 상태의 블록 파편 — 팩이 상태마다 모델을 주니 클라이언트가
+     * 제 텍스처로 그린다. **투명·엔티티는 아이템 모양 파편** — 후렴초는 여러 조각 블록이라 클라이언트가 파편 그림을 상태와 상관없이 첫 조각에서
+     * 하나만 쓰고(26.2 `MultiPartModel.SharedBakedState`), 방벽은 파편이 없다. 그래서 팩의 후렴초 첫 조각을 빈 파편으로 두고 여기서 대신 뿌린다.
+     */
+    fun burst(block: Block, item: CustomItem, look: org.bukkit.block.data.BlockData) {
+        val center = block.location.add(0.5, 0.5, 0.5)
+        if (item.block?.kind == BlockKind.SOLID) {
+            block.world.spawnParticle(org.bukkit.Particle.BLOCK, center, 40, 0.25, 0.25, 0.25, 0.0, look)
+            return
+        }
+        val stack = debrisStack(item) ?: return
+        block.world.spawnParticle(org.bukkit.Particle.ITEM, center, 24, 0.25, 0.25, 0.25, 0.05, stack)
+    }
+
+    /**
+     * 투명·엔티티 블록의 파편으로 뿌릴 아이템. BetterModel 모델을 단 엔티티 블록은 **그 모델의 뼈 아이템**(모델 텍스처) — 손에 드는 아이템 모양은
+     * 놓인 모양과 다를 수 있다(설계도 아이콘으로 놓는 선풍기 — 보라 파편, 테섭 2026-10-10). 뼈를 못 찾으면 아이템 자신.
+     */
+    fun debrisStack(item: CustomItem): ItemStack? {
+        val spec = item.block
+        if (spec != null && spec.kind == BlockKind.ENTITY && spec.model.isNotBlank()) {
+            val bone = boneOf(spec.model)?.let(NamespacedKey::fromString)
+            if (bone != null) return ItemStack(Material.PAPER).apply { editMeta { it.setItemModel(bone) } }
+        }
+        return custom.items.create(item.id)
+    }
+
+    /** 모델 → 뼈 아이템. 팩을 다시 만들면([PackService.boneItems] 가 바뀌면) 처음부터 — 메인 스레드에서만 부른다. */
+    private fun boneOf(model: String): String? {
+        val items = custom.pack.boneItems
+        if (items !== boneSource) {
+            boneSource = items
+            bones.clear()
+        }
+        if (model in bones) return bones[model]
+        return com.inmc.customitems.pack.PackAssets.boneItemFor(model, items, models.known()).also { bones[model] = it }
+    }
+
+    private var boneSource: List<String> = emptyList()
+    private val bones = HashMap<String, String?>()
+
+    /** 이 자리에 우리가 둔 곁것(엔티티 모델·후렴초 표시·빛)을 치운다. 블록은 부르는 쪽이 정한다. 무언가 치웠으면 true. */
     fun clear(block: Block): Boolean {
+        at(block)?.block?.let { unlight(block, it) }
         val displays = displays(block)
-        for (display in displays) display.remove()
+        for (display in displays) {
+            models.detach(display)
+            display.remove()
+        }
         return unmark(block) or displays.isNotEmpty()
     }
 
@@ -340,6 +416,9 @@ class CustomBlocks(private val custom: CustomItems) {
 
         /** 청크에 적는 "우리가 놓은 후렴초" 자리들. */
         val CHUNK_KEY = NamespacedKey(ItemBuilder.NAMESPACE, "blocks")
+
+        /** 모델 기준점을 칸 안으로 들이는 거리 — 눈에 안 보이고, 칸 좌표가 옆 칸으로 넘어가지 않을 만큼. */
+        private const val INSIDE = 1.0 / 1024
 
         private val FACES = listOf(BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)
     }

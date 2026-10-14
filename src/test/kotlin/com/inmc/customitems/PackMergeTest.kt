@@ -405,6 +405,9 @@ class PackMergeTest {
         assertEquals("itemsadder:auto_generated/coin", PackAssets.listedModel("assets/itemsadder/models/auto_generated/coin.json"))
         assertNull(PackAssets.listedModel("assets/minecraft/models/item/paper.json"), "바닐라 모델은 목록에 없다")
         assertNull(PackAssets.listedModel("assets/_iainternal/models/entity/player/phead_0.json"), "IA 내부")
+        assertNull(PackAssets.listedModel("assets/bettermodel/models/b/drb.json"), "BetterModel 의 뼈 모델(2026-10-10)")
+        assertNull(PackAssets.listedModel("assets/modelengine/models/x/bone.json"), "ModelEngine 의 뼈 모델")
+        assertNull(PackAssets.listedModel("assets/inmc/models/block/no_particle.json"), "후렴초 파편을 지우는 빈 모델")
         assertNull(PackAssets.listedModel("ia_overlay_1_21_6_plus/assets/itemsadder/models/x.json"), "오버레이 사본")
         assertNull(PackAssets.listedModel("assets/itemsadder/textures/x.png"))
 
@@ -413,6 +416,36 @@ class PackMergeTest {
         assertEquals("inmc:preview/1_splatus/item/blaze_staff", PackAssets.previewKey(model))
         assertEquals(model, PackAssets.previewModel(PackAssets.previewPath(model)), "만든 팩을 읽어 목록을 되살린다")
         assertNull(PackAssets.previewModel("assets/inmc/items/sword.json"), "우리 아이템 정의는 미리보기가 아니다")
+    }
+
+    @Test
+    fun `파편 그림이 없는 모델은 첫 텍스처를 파편 그림으로 쓴다 — 없으면 보라 파편(2026-10-10)`() {
+        // Blockbench 모델 — 텍스처 열쇠가 숫자, particle 없음.
+        val blueprint = """{"textures":{"2":"workshop_six:item/blueprint","3":"#2"},"elements":[{"from":[0,0,0],"to":[16,1,16]}]}"""
+        val patched = assertNotNull(PackAssets.withParticle(blueprint))
+        assertEquals("workshop_six:item/blueprint", JsonParser.parseString(patched).asJsonObject.getAsJsonObject("textures")["particle"].asString)
+
+        val ref = """{"textures":{"a":"#b","b":"x:block/stone"},"elements":[]}"""
+        assertEquals("x:block/stone", JsonParser.parseString(PackAssets.withParticle(ref)!!).asJsonObject.getAsJsonObject("textures")["particle"].asString, "# 참조는 푼다")
+
+        assertNull(PackAssets.withParticle("""{"textures":{"particle":"a:b","0":"a:c"},"elements":[]}"""), "이미 있으면 그대로")
+        assertNull(PackAssets.withParticle("""{"parent":"item/generated","textures":{"layer0":"a:b"}}"""), "요소가 없으면 부모의 파편 그림을 쓴다")
+        assertNull(PackAssets.withParticle("""{"textures":{"0":"#nowhere"},"elements":[]}"""), "풀리지 않으면 건드리지 않는다")
+        assertNull(PackAssets.withParticle("{"), "못 읽는 json")
+    }
+
+    @Test
+    fun `BetterModel 모델의 뼈 아이템을 찾는다 — 엔티티 블록의 파편 그림`() {
+        assertEquals("bettermodel:c/ceiling_fan_iron_bone", PackAssets.boneItem("assets/bettermodel/items/c/ceiling_fan_iron_bone.json"))
+        assertNull(PackAssets.boneItem("assets/bettermodel/models/c/7.json"))
+        assertNull(PackAssets.boneItem("assets/inmc/items/sword.json"))
+
+        val items = listOf("bettermodel:c/fan_iron_blade", "bettermodel:c/fan_base", "bettermodel:c/fan_iron_base", "bettermodel:d/door_left")
+        val known = setOf("fan", "fan_iron", "door")
+        assertEquals("bettermodel:c/fan_base", PackAssets.boneItemFor("fan", items, known), "fan_iron 의 뼈는 fan 의 것이 아니다")
+        assertEquals("bettermodel:c/fan_iron_base", PackAssets.boneItemFor("fan_iron", items, known), "이름 순 첫 뼈")
+        assertEquals("bettermodel:d/door_left", PackAssets.boneItemFor("door", items, known))
+        assertNull(PackAssets.boneItemFor("chair", items, known))
     }
 
     @Test

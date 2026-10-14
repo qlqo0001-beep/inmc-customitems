@@ -20,6 +20,8 @@ class Ticker(private val custom: CustomItems) : TickerBase(custom.plugin) {
         step("prompts") { custom.prompts.tick(now) }
         step("flush") {
             custom.items.flush()
+            custom.tiers.flush()
+            custom.elements.flush()
             custom.sets.flush()
             custom.categories.flush()
             custom.upgrades.flush()

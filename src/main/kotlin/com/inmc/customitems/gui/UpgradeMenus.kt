@@ -259,14 +259,14 @@ class UpgradeStepMenu(
         }
         val tiers = listOf<Tier?>(null) + Tier.entries
         set(SLOT_TIER, Icon.of(Material.NETHER_STAR, "<yellow>이 단계부터 등급: " + (step.tier?.let { it.color + it.display } ?: "<white>그대로</white>") + "</yellow>", Editors.pickHint)) {
-            // "그대로" + 등급 6 = 7 — 고르는 화면으로(2026-10-08).
+            // "그대로" + 등급 목록 — 고르는 화면으로(2026-10-08). 등급은 관리자가 늘린다(2026-10-13).
             ChoiceMenu(
                 custom, viewer, "이 단계부터 등급",
-                options = { tiers.map { (it?.name ?: "") to Icon.of(Material.NETHER_STAR, it?.let { t -> t.color + t.display } ?: "<white>그대로</white>", emptyList()) } },
-                selected = { setOf(step.tier?.name ?: "") },
+                options = { tiers.map { (it?.id ?: "") to Icon.of(Material.NETHER_STAR, it?.let { t -> t.color + t.display } ?: "<white>그대로</white>", emptyList()) } },
+                selected = { setOf(step.tier?.id ?: "") },
                 back = { open(viewer) },
             ) { picked ->
-                change { it.copy(tier = picked.takeIf { p -> p.isNotEmpty() }?.let(Tier::valueOf)) }
+                change { it.copy(tier = picked.takeIf { p -> p.isNotEmpty() }?.let(::Tier)) }
                 open(viewer)
             }.open(viewer)
         }
@@ -559,7 +559,7 @@ class UpgradeStoneMenu(custom: CustomItems, viewer: Player, id: String) :
             change { it.copy(chance = (it.chance + Editors.step(event, 5.0)).coerceIn(0.0, 100.0)) }
         }
         set(SLOT_TIERS, Icon.of(Material.NETHER_STAR, "<yellow>대상 등급별 확률 <white>" + (if (stone.chances.isEmpty()) "없음" else stone.chances.size.toString() + "개") + "</white></yellow>",
-            stone.chances.entries.sortedBy { it.key.ordinal }.map { "<gray>" + it.key.color + it.key.display + " <white>" + kr.inmc.core.util.Numbers.chance(it.value) + "%</white></gray>" } + listOf(
+            stone.chances.entries.sortedBy { it.key.rank }.map { "<gray>" + it.key.color + it.key.display + " <white>" + kr.inmc.core.util.Numbers.chance(it.value) + "%</white></gray>" } + listOf(
                 "", "<gray>있으면 위의 확률보다 먼저 씁니다(\"일반 10% · 희귀 8%…\").</gray>", "<yellow>▶ 클릭: 설정</yellow>",
             ))) { TierChanceMenu(custom, viewer, id).open(viewer) }
         set(SLOT_BONUS, Editors.numberIcon(Material.RABBIT_FOOT, "<yellow>성공 확률 보너스</yellow>", stone.bonus, unit = "%p", extra = listOf("<gray>위에서 정해진 확률에 더합니다(음수면 뺍니다).</gray>"))) { event ->
@@ -599,9 +599,11 @@ class TierChanceMenu(custom: CustomItems, viewer: Player, id: String) :
     override fun draw() {
         clear()
         val stone = item()?.consume?.upgrade ?: return ItemTypeMenu(custom, viewer).open(viewer)
-        for ((index, tier) in Tier.entries.withIndex()) {
+        // 지운 등급에 남은 확률도 보인다 — 안 보이면 0 으로 뺄 길이 없다.
+        val tiers = (Tier.entries + stone.chances.keys).distinct()
+        for ((index, tier) in tiers.take(SLOTS.size).withIndex()) {
             val value = stone.chances[tier] ?: 0.0
-            set(FIRST + index, Editors.numberIcon(Material.NETHER_STAR, "<yellow>" + tier.color + tier.display + "</yellow> <yellow>등급 대상</yellow>", value, unit = "%", stepLabel = "1",
+            set(SLOTS[index], Editors.numberIcon(Material.NETHER_STAR, "<yellow>" + tier.color + tier.display + "</yellow> <yellow>등급 대상</yellow>", value, unit = "%", stepLabel = "1",
                 extra = listOf("<gray>0 이면 표에서 뺍니다.</gray>"))) { event ->
                 if (Editors.isPrompt(event)) {
                     Editors.promptDouble(custom.prompts, viewer, tier.display + " 확률(%)", 0.0, 100.0, reopen = { open(viewer) }) { v -> change(tier, v) }
@@ -615,7 +617,8 @@ class TierChanceMenu(custom: CustomItems, viewer: Player, id: String) :
     }
 
     private companion object {
-        const val FIRST = 10
+        /** 테두리를 남긴 안쪽 네 줄 — 등급이 많아도 아래 줄(뒤로·닫기)을 안 덮는다. */
+        val SLOTS = (1..4).flatMap { row -> (1..7).map { row * 9 + it } }
     }
 }
 

@@ -136,8 +136,11 @@ object ItemChecks {
             s.player.inventory.setItem(10, s.leveled(charm, 2))
             s.custom.stats.invalidate(s.player)
             val single = s.custom.stats.of(s.player).stat(Stat.CRIT_CHANCE)
-            val a = s.item(CustomItem("zz_verify_relic_a", Material.HEART_OF_THE_SEA, type = ItemType.RELIC, tier = Tier.RARE, stats = mapOf(Stat.LIFESTEAL to 3.0)))
-            val b = s.item(CustomItem("zz_verify_relic_b", Material.HEART_OF_THE_SEA, type = ItemType.RELIC, tier = Tier.LEGENDARY, stats = mapOf(Stat.LIFESTEAL to 11.0)))
+            // 등급은 서버가 정한다(2026-10-13) — 목록의 가장 아래와 가장 위로. 하나뿐이면 검사용 등급을 위에 더한다.
+            val low = Tier.entries.firstOrNull() ?: s.tier(com.inmc.customitems.item.TierDef("zz_verify_low", "검증 아래"))
+            val high = Tier.entries.lastOrNull()?.takeIf { it != low } ?: s.tier(com.inmc.customitems.item.TierDef("zz_verify_high", "검증 위"))
+            val a = s.item(CustomItem("zz_verify_relic_a", Material.HEART_OF_THE_SEA, type = ItemType.RELIC, tier = low, stats = mapOf(Stat.LIFESTEAL to 3.0)))
+            val b = s.item(CustomItem("zz_verify_relic_b", Material.HEART_OF_THE_SEA, type = ItemType.RELIC, tier = high, stats = mapOf(Stat.LIFESTEAL to 11.0)))
             s.player.inventory.setItem(11, s.stack(a))
             s.player.inventory.setItem(12, s.stack(b))
             s.custom.stats.invalidate(s.player)
@@ -311,18 +314,51 @@ object ItemChecks {
                 ?: ok(modifiers.isEmpty(), "보석 아이템에 바닐라 속성이 달렸다: " + modifiers.map { it.key.key })
         },
         Check("바닥에 떨어진 커스텀 아이템: 이름(x수량)과 등급색 발광") { s ->
-            val def = s.item(CustomItem("zz_verify_dropped", Material.GOLD_INGOT, displayName = "검증 금괴", tier = Tier.LEGENDARY))
+            // 등급은 서버가 정한다(2026-10-13) — 검사용 금색 등급으로.
+            val tier = s.tier(com.inmc.customitems.item.TierDef("zz_verify_gold", "검증 금빛", "<gold>"))
+            val def = s.item(CustomItem("zz_verify_dropped", Material.GOLD_INGOT, displayName = "검증 금괴", tier = tier))
             val item = s.player.world.dropItem(s.player.location.clone().add(0.0, 2.0, 0.0), s.stack(def, 3))
             try {
                 val name = item.customName()?.let { Text.plain(it) }.orEmpty()
-                val team = org.bukkit.Bukkit.getScoreboardManager().mainScoreboard.getTeam("inmc_tier_legendary")
+                val team = org.bukkit.Bukkit.getScoreboardManager().mainScoreboard.getTeam("inmc_tier_" + tier.id)
                 ok(item.isCustomNameVisible && name.contains("검증 금괴") && name.contains("x3"), "이름이 '" + name + "'(보임 " + item.isCustomNameVisible + ")")
                     ?: ok(item.isGlowing, "빛나지 않는다")
                     ?: ok(team != null && team.hasEntity(item), "등급 팀에 없다")
-                    ?: ok(team?.color() == net.kyori.adventure.text.format.NamedTextColor.GOLD, "전설 발광 색이 " + team?.color())
+                    ?: ok(team?.color() == net.kyori.adventure.text.format.NamedTextColor.GOLD, "금색 등급의 발광 색이 " + team?.color())
             } finally {
                 item.remove()
             }
+        },
+        Check("관리자가 만든 등급: 이름 색·배지가 그려지고, 지우면 배지 없이(2026-10-13)") { s ->
+            val tier = s.tier(com.inmc.customitems.item.TierDef("zz_verify_tier", "검증등급", "<#123456>", "#ABCDEF", "#FEDCBA"))
+            val def = s.item(CustomItem("zz_verify_tiered", Material.IRON_INGOT, displayName = "검증 주괴", tier = tier))
+            val stack = s.stack(def)
+            val color = stack.itemMeta.displayName()?.color()?.asHexString()
+            val lore = stack.lore().orEmpty().map { Text.plain(it) }
+            s.custom.tiers.remove(tier.id)
+            val refreshed = s.custom.items.refresh(stack)
+            val after = stack.lore().orEmpty().map { Text.plain(it) }
+            ok(color == "#123456", "이름 색이 " + color)
+                ?: ok(lore.any { "검증등급" in it }, "배지가 없다: " + lore)
+                ?: ok(refreshed, "등급을 지웠는데 다시 그리지 않았다(지문)")
+                ?: ok(after.none { "검증등급" in it }, "지운 등급의 배지가 남았다: " + after)
+                ?: ok(s.custom.items.get(def.id)?.tier?.id == tier.id, "지운 등급의 id 가 아이템에서 사라졌다")
+        },
+        Check("관리자가 만든 속성: 피해가 더해지고 맞힐 때 효과가 걸리고, 로어에 그 이름(2026-10-13)") { s ->
+            val element = s.element(com.inmc.customitems.item.ElementDef("zzverify", "검증속성", burn = 60))
+            val sword = s.item(CustomItem("zz_verify_element", Material.IRON_SWORD, stats = mapOf(Stat.elementDamage(element.id) to 5.0)))
+            val stack = s.stack(sword)
+            val lore = stack.lore().orEmpty().map { Text.plain(it) }
+            s.player.inventory.setItemInMainHand(stack)
+            s.custom.stats.invalidate(s.player)
+            val pig = s.pig(s.groundAhead(3.0))
+            val before = pig.health
+            pig.damage(1.0, s.player)
+            val lost = before - pig.health
+            ok(lore.any { "검증속성 피해" in it }, "로어에 속성 줄이 없다: " + lore)
+                ?: ok(lost >= 5.9, "속성 피해가 안 더해졌다(1 + 5 이어야, 잃은 체력 " + lost + ")")
+                ?: ok(pig.fireTicks > 0, "맞힐 때 효과(태우기)가 안 걸렸다")
+                ?: ok(Stat.elementDamage(element.id) in Stat.entries, "능력치 목록에 속성 칸이 없다")
         },
         Check("숫돌이 내구도를 고치고 닳는다") { s ->
             val tool = s.item(CustomItem("zz_verify_whetstone", Material.FLINT, consume = ConsumeSpec(uses = 1, repair = 100)))
@@ -532,6 +568,46 @@ object ItemChecks {
             } finally {
                 top.setBlockData(savedTop, false)
                 other.setBlockData(savedOther, false)
+            }
+        },
+        Check("가구: 천장 전용 · 빛 · BetterModel 모델 — 진짜 우클릭으로(2026-10-09)") { s ->
+            // 머리 칸(빛) · 그 위(놓일 자리) · 그 위(천장 돌) · 그 위(틀린 면으로 놓일 자리) — 위아래로만, 같은 청크. 끝나면 되돌린다.
+            val light = s.player.location.block.getRelative(0, 1, 0)
+            val target = light.getRelative(BlockFace.UP)
+            val ceiling = target.getRelative(BlockFace.UP)
+            val above = ceiling.getRelative(BlockFace.UP)
+            val saved = listOf(light, target, ceiling, above).associateWith { it.blockData.clone() }
+            val model = s.custom.blocks.models.known().sorted().firstOrNull().orEmpty()
+            try {
+                light.setType(Material.AIR, false)
+                target.setType(Material.AIR, false)
+                ceiling.setType(Material.STONE, false)
+                above.setType(Material.AIR, false)
+                val fan = s.item(CustomItem("zz_verify_fan", Material.PAPER, block = com.inmc.customitems.item.BlockSpec(
+                    com.inmc.customitems.item.BlockKind.ENTITY, hardness = 0.0, model = model,
+                    surface = com.inmc.customitems.item.Surface.CEILING, lights = listOf(com.inmc.customitems.item.BlockLight(0, -1, 0, 12)),
+                )))
+                fun click(face: BlockFace) {
+                    s.player.inventory.setItemInMainHand(s.stack(fan))
+                    Bukkit.getPluginManager().callEvent(PlayerInteractEvent(s.player, Action.RIGHT_CLICK_BLOCK, s.player.inventory.itemInMainHand, ceiling, face, EquipmentSlot.HAND))
+                }
+                click(BlockFace.UP)
+                val wrong = s.custom.blocks.at(above)?.id
+                click(BlockFace.DOWN)
+                val placed = s.custom.blocks.at(target)?.id
+                val level = (light.blockData as? org.bukkit.block.data.Levelled)?.takeIf { light.type == Material.LIGHT }?.level
+                val shown = target.world.getNearbyEntitiesByType(org.bukkit.entity.ItemDisplay::class.java, target.location.add(0.5, 0.5, 0.5), 0.5)
+                    .firstOrNull { it.persistentDataContainer.has(com.inmc.customitems.block.CustomBlocks.DISPLAY_KEY) }?.itemStack
+                s.custom.blocks.clear(target)
+                target.setType(Material.AIR, false)
+                ok(wrong == null, "천장 전용인데 윗면을 눌러 놓였다")
+                    ?: ok(placed == fan.id, "아랫면을 눌렀는데 안 놓였다 — 땅 보호가 이 자리를 막는지 보세요 (알아본 것: $placed)")
+                    ?: ok(level == 12, "아래 칸의 빛: ${light.type} 밝기 $level (LIGHT 12 여야)")
+                    ?: ok(model.isEmpty() || shown == null || shown.isEmpty, "BetterModel 모델 '$model' 을 못 붙여 아이템 모양으로 떠 있다")
+                    ?: ok(light.type != Material.LIGHT, "치웠는데 빛이 남았다")
+            } finally {
+                s.custom.blocks.clear(target)
+                for ((block, data) in saved) block.setBlockData(data, false)
             }
         },
         Check("바깥 능력치 출처 — core 에 등록된 출처의 값이 내 능력치에 더해진다(2026-10-09)") { s ->

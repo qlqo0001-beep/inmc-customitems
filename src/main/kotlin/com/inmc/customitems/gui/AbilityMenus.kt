@@ -81,6 +81,9 @@ class AbilityListMenu(
         return when (param.kind) {
             Param.Kind.TARGET -> Target.of(raw).display
             Param.Kind.TEXT -> raw.ifBlank { "(비어 있음)" }
+            // 고른 값의 한국어 이름(2026-10-14) — 물약은 게임 번역, 입자는 core 의 표.
+            Param.Kind.POTION -> kr.inmc.core.util.PotionEffects.lang(raw)
+            Param.Kind.PARTICLE -> kr.inmc.core.util.Particles.name(raw)
             else -> raw
         }
     }
@@ -339,7 +342,17 @@ class AbilityEditMenu(
                 ),
             )
 
-            Param.Kind.POTION, Param.Kind.SOUND, Param.Kind.PARTICLE -> Icon.of(
+            Param.Kind.POTION, Param.Kind.PARTICLE -> Icon.of(
+                if (param.kind == Param.Kind.PARTICLE) kr.inmc.core.util.Particles.of(raw)?.let(kr.inmc.core.util.Particles::icon) ?: Material.FIREWORK_STAR else Material.POTION,
+                "<yellow>" + param.display + ": <white>" + (if (param.kind == Param.Kind.PARTICLE) kr.inmc.core.util.Particles.name(raw) else kr.inmc.core.util.PotionEffects.lang(raw)) + "</white></yellow>",
+                listOf(
+                    "<gray>" + (if (param.kind == Param.Kind.PARTICLE) "모든 입자를 한국어 이름으로 — 우클릭으로 미리보기" else "모든 효과를 한국어 이름으로 — 우클릭으로 걸어 보기") + "</gray>",
+                    "",
+                    "<yellow>▶ 클릭: 고르기</yellow>",
+                ),
+            )
+
+            Param.Kind.SOUND -> Icon.of(
                 iconFor(param.kind),
                 "<yellow>" + param.display + ": <white>" + raw + "</white></yellow>",
                 listOf(
@@ -380,7 +393,20 @@ class AbilityEditMenu(
                 setValue(param.key, next.id)
             }
 
-            Param.Kind.TEXT, Param.Kind.POTION, Param.Kind.SOUND, Param.Kind.PARTICLE ->
+            // 물약·입자는 고르는 화면으로(2026-10-14, 사용자 요청 — 영어 이름을 치던 것 대신 한국어 이름 · 미리보기).
+            Param.Kind.POTION ->
+                kr.inmc.core.gui.PotionPickMenu(custom, viewer, current = ability.value(param.key), back = { open(viewer) }) { type ->
+                    setValue(param.key, kr.inmc.core.util.PotionEffects.id(type), reopen = false)
+                    open(viewer)
+                }.show()
+
+            Param.Kind.PARTICLE ->
+                kr.inmc.core.gui.ParticlePickMenu(custom, custom.plugin, viewer, current = ability.value(param.key), back = { open(viewer) }) { particle ->
+                    setValue(param.key, kr.inmc.core.util.Particles.id(particle), reopen = false)
+                    open(viewer)
+                }.show()
+
+            Param.Kind.TEXT, Param.Kind.SOUND ->
                 Editors.promptText(
                     custom.prompts, viewer, param.display,
                     listOf("<gray>" + hintFor(param.kind) + "</gray>"),

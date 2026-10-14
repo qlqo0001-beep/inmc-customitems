@@ -91,6 +91,14 @@ class PackService(private val custom: CustomItems) {
     val outputDir: File get() = File(root, "output")
     val outputZip: File get() = File(outputDir, "pack.zip")
 
+    /** 마지막 빌드가 쓴 재료의 지문([PackSync.inputs]) — 켜질 때 지금 재료와 견준다. */
+    private val inputsFile: File get() = File(outputDir, "pack.inputs")
+
+    /** 마지막 확인([ensureInSync])의 결과 — 어긋난 까닭들(비면 맞음). 확인 전이면 null. */
+    @Volatile
+    var lastSync: List<String>? = null
+        private set
+
     /**
      * 폴더 구조를 만들어 둔다. 관리자가 어디에 넣어야 하는지 알 수 있어야 한다.
      *
@@ -146,9 +154,46 @@ class PackService(private val custom: CustomItems) {
         }
         building = true
 
-        // 아이템 목록은 **메인에서** 스냅샷으로 뜬다. 워커에서 레지스트리를 훑으면 그 사이
-        // 관리자가 GUI 로 고친 것과 섞인다.
-        // 강화표도 같이 뜬다 — 단계별 모양이 있는 아이템은 기본 모양이 없어도 넣는다.
+        val (items, tables, blockItems, numbered, shared) = snapshot()
+        custom.io.async({ runCatching { assemble(items, tables, blockItems, numbered, shared) } }) { outcome ->
+            building = false
+            val result = outcome.getOrElse { failed(it.message ?: it.javaClass.simpleName) }
+            if (result.ok) {
+                sha1 = result.sha1
+                applyMigration(result.migrated)
+                guiIcons = hasTypeIcons()
+                boneItems = readBoneItems()
+                // 번호를 옮긴 **뒤의** 정의로 적는다 — 옮기기 전 것으로 적으면 다음 확인이 어긋났다고 보고 한 번 더 만든다(같은 팩이다).
+                recordInputs()
+                lastSync = emptyList()
+            }
+            lastReport = result
+            then(result)
+        }
+    }
+
+    /** 빌드가 읽는 것 — 메인에서 뜬다([build] · [ensureInSync] 가 같은 것을 본다). */
+    private data class Snapshot(
+        val items: List<CustomItem>,
+        val tables: Map<String, com.inmc.customitems.item.UpgradeTable?>,
+        val blockItems: List<CustomItem>,
+        val numbered: List<CustomItem>,
+        val shared: Map<com.inmc.customitems.item.UpgradeTable, List<CustomItem>>,
+    ) {
+        /** 팩에 들어가는 정의 통째(아이템 id 순) — 재료 지문의 아이템 몫. */
+        fun text(): String {
+            val yaml = org.bukkit.configuration.file.YamlConfiguration()
+            for (item in (items + blockItems + numbered).distinctBy { it.id }.sortedBy { it.id }) item.save(yaml.createSection("items." + item.id))
+            for (table in (tables.values.filterNotNull() + shared.keys).distinctBy { it.id }.sortedBy { it.id }) table.save(yaml.createSection("tables." + table.id))
+            return yaml.saveToString()
+        }
+    }
+
+    /**
+     * 아이템 목록은 **메인에서** 스냅샷으로 뜬다. 워커에서 레지스트리를 훑으면 그 사이 관리자가 GUI 로 고친 것과 섞인다.
+     * 강화표도 같이 뜬다 — 단계별 모양이 있는 아이템은 기본 모양이 없어도 넣는다.
+     */
+    private fun snapshot(): Snapshot {
         val tables = custom.items.all().associate { it.id to it.upgrade.table(custom.items.lookup)?.takeIf { table -> table.hasLevelModels } }
         val items = custom.items.all().filter { PackAssets.needsPack(it) || tables[it.id] != null }
         val blockItems = custom.items.all().filter { it.block?.kind?.usesState == true }
@@ -157,17 +202,89 @@ class PackService(private val custom: CustomItems) {
         val shared = custom.upgrades.all().filter { table -> table.steps.any { it.customModelData > 0 } }.associateWith { table ->
             custom.items.all().filter { it.upgrade.own == null && it.upgrade.template.equals(table.id, ignoreCase = true) }
         }
+        return Snapshot(items, tables, blockItems, numbered, shared)
+    }
 
-        custom.io.async({ runCatching { assemble(items, tables, blockItems, numbered, shared) } }) { outcome ->
-            building = false
-            val result = outcome.getOrElse { failed(it.message ?: it.javaClass.simpleName) }
-            if (result.ok) {
-                sha1 = result.sha1
-                applyMigration(result.migrated)
-                guiIcons = hasTypeIcons()
+    /** 재료 지문의 파일 몫 — 팩 소스 · 텍스처 · 모델 · 아이템 정의 폴더. 워커에서(소스가 수십 MB). */
+    private fun filesKey(): String = PackSync.filesKey(mapOf("sources" to sourcesDir, "textures" to texturesDir, "models" to modelsDir, "items" to itemsDir))
+
+    /** 이 jar — 크기와 시각. 코드가 바뀌면(배포) 팩을 만드는 방식도 바뀌었을 수 있다. */
+    private fun pluginKey(): String = runCatching {
+        val jar = File(custom.plugin.javaClass.protectionDomain.codeSource.location.toURI())
+        jar.name + "|" + jar.length() + "|" + jar.lastModified()
+    }.getOrDefault("unknown")
+
+    /** 지금 재료의 지문을 `pack.inputs` 에 적는다 — 아이템 몫은 지금(메인), 파일 몫은 워커. */
+    private fun recordInputs() {
+        val text = snapshot().text()
+        val plugin = pluginKey()
+        val description = description()
+        custom.io.asyncRun {
+            runCatching { kr.inmc.core.util.AtomicFiles.write(inputsFile, PackSync.inputs(text, filesKey(), plugin, description)) }
+                .onFailure { custom.logger.warning("리소스팩 재료 기록을 못 썼습니다: " + it.message) }
+        }
+    }
+
+    /**
+     * 켜질 때·리로드 때 — 지금 팩이 **지금 아이템·팩 재료로 만든 것인가**를 보고([PackSync]), 아니면 다시 만들어 접속한 모두에게 보낸다
+     * (사용자 요청 2026-10-14). 같은 재료면 팩이 바이트까지 같게 나와 sha1 이 그대로라, 넉넉하게 다시 만들어도 클라이언트는 다시 받지 않는다.
+     * 다른 빌드가 돌거나 기다리는 중이면 그 빌드가 재료를 적으므로 건너뛴다.
+     *
+     * @param then 메인 스레드에서 — 어긋났던 까닭(비면 맞았음)과, 다시 만들었으면 그 결과.
+     */
+    fun ensureInSync(then: (List<String>, Result?) -> Unit = { _, _ -> }) {
+        if (!custom.ready || building || waiting.isNotEmpty()) {
+            custom.logger.info("리소스팩 확인: 다른 빌드가 돌고 있어 그 빌드에 맡깁니다")
+            return
+        }
+        val snapshot = snapshot()
+        val text = snapshot.text()
+        val expected = PackSync.expectedEntries(snapshot.items, snapshot.tables)
+        val numbered = snapshot.numbered.sumOf { item -> (if (item.customModelData > 0) 1 else 0) + (item.upgrade.own?.steps?.count { it.customModelData > 0 } ?: 0) } +
+            snapshot.shared.keys.sumOf { table -> table.steps.count { it.customModelData > 0 } }
+        val recordedSha1 = sha1
+        val plugin = pluginKey()
+        val description = description()
+        custom.io.async({
+            runCatching {
+                val zip = outputZip.takeIf { it.isFile }
+                val entries = zip?.let { java.util.zip.ZipFile(it).use { file -> file.entries().asSequence().map { e -> e.name }.toHashSet() } }
+                PackSync.problems(
+                    zipEntries = entries,
+                    recordedSha1 = recordedSha1,
+                    actualSha1 = zip?.let(PackZip::sha1),
+                    expected = expected,
+                    numbered = numbered,
+                    recordedInputs = inputsFile.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim(),
+                    currentInputs = PackSync.inputs(text, filesKey(), plugin, description),
+                )
+            }.getOrElse { listOf("팩을 읽지 못했습니다: " + (it.message ?: it.javaClass.simpleName)) }
+        }) { problems ->
+            lastSync = problems
+            if (problems.isEmpty()) {
+                custom.logger.info("리소스팩 확인: 지금 아이템·팩 재료와 맞습니다(모양 정의 " + expected.size + "개 · sha1 " + recordedSha1.take(10) + ")")
+                then(problems, null)
+                return@async
             }
-            lastReport = result
-            then(result)
+            // 재료 기록만 다르면(능력치를 고쳤다 · 다른 플러그인이 역할 아이템을 고쳤다 …) 모양은 그대로일 수 있다 — 경고가 아니라 안내로.
+            // 모양이 빠졌거나 팩 파일이 다르면 경고(2026-10-14 테섭: 내용이 같은 팩을 "맞지 않아"로 알려 헷갈렸다).
+            val onlyInputs = problems.size == 1 && problems.single() == PackSync.INPUTS_CHANGED
+            if (onlyInputs) custom.logger.info("리소스팩: " + PackSync.INPUTS_CHANGED + " — 다시 만들어 확인합니다(모양이 같으면 팩도 그대로)")
+            else custom.logger.warning("리소스팩이 지금 아이템과 맞지 않아 다시 만듭니다 — " + problems.joinToString(" · "))
+            build { result ->
+                if (!result.ok) {
+                    custom.logger.warning("리소스팩을 다시 만들지 못했습니다: " + result.error)
+                } else {
+                    val sent = sendAll()
+                    custom.logger.info(
+                        "리소스팩을 다시 만들었습니다 — 파일 " + result.fileCount + "개 · " + result.millis + "ms · sha1 " + result.sha1.take(10) +
+                            (if (result.sha1.equals(recordedSha1, ignoreCase = true)) " (내용은 전과 같음)" else "") +
+                            (if (sent > 0) " · 접속한 " + sent + "명에게 보냄" else "") +
+                            (if (result.missingTextures.isNotEmpty()) " · 빠진 텍스처 " + result.missingTextures.size + "개" else ""),
+                    )
+                }
+                then(problems, result)
+            }
         }
     }
 
@@ -184,7 +301,17 @@ class PackService(private val custom: CustomItems) {
         val file = File(outputDir, "pack.sha1")
         if (file.isFile) sha1 = file.readText(Charsets.UTF_8).trim()
         guiIcons = hasTypeIcons()
+        boneItems = readBoneItems()
     }
+
+    /** 만든 팩의 BetterModel 뼈 아이템(`bettermodel:<경로>`) — 엔티티 블록의 파편 그림([CustomBlocks.debrisStack]). */
+    @Volatile
+    var boneItems: List<String> = emptyList()
+        private set
+
+    private fun readBoneItems(): List<String> = if (!outputZip.isFile) emptyList() else runCatching {
+        java.util.zip.ZipFile(outputZip).use { zip -> zip.entries().asSequence().mapNotNull { PackAssets.boneItem(it.name) }.toList() }
+    }.getOrDefault(emptyList())
 
     /**
      * 만든 팩에 종류 아이콘([TypeIcons])이 들었나 — 들었을 때만 관리 화면이 그 그림을 쓴다. 이 기능 전에 만든 팩에는 없고, 없는 모델을
@@ -326,6 +453,16 @@ class PackService(private val custom: CustomItems) {
         val stripped = NumberMigration.strip(merger.entries())
         for ((path, bytes) in stripped.changes) if (bytes == null) merger.remove(path) else merger.replace(NUMBERS, path, bytes)
 
+        // 4-1. 파편 그림 — 투명·엔티티 블록은 아이템 모양 파편을 쓰는데(CustomBlocks.burst), 그 모델에 파편 그림이 없으면 보라·검정이 된다(2026-10-10).
+        //      꽉 찬 방식도 — 클라이언트가 그 블록 모델의 파편 그림으로 그린다.
+        for (item in items) {
+            if (item.block == null || item.model.isBlank()) continue
+            val model = PackAssets.modelNameFor(item)
+            val path = "assets/" + model.substringBefore(':') + "/models/" + model.substringAfter(':') + ".json"
+            val patched = merger.entries()[path]?.toString(Charsets.UTF_8)?.let(PackAssets::withParticle) ?: continue
+            merger.replace(PARTICLES, path, patched.toByteArray(Charsets.UTF_8))
+        }
+
         // 5. 모델 목록(관리 화면)의 미리보기 — 팩의 모든 모델에 아이템 정의를 붙여 게임에서 그대로 보이게 한다.
         val previews = merger.entries().keys.mapNotNull { PackAssets.listedModel(it) }
         for (model in previews) merger.replace(PREVIEW, PackAssets.previewPath(model), PackAssets.itemJson(model).toByteArray(Charsets.UTF_8))
@@ -381,6 +518,10 @@ class PackService(private val custom: CustomItems) {
             val all = BlockStates.mappings(kind, merger.entries()[path]?.toString(Charsets.UTF_8)) + ours
             if (all.isEmpty()) continue
             merger.replace(BLOCKS, path, BlockStates.json(kind, all).toByteArray(Charsets.UTF_8))
+            if (kind == BlockKind.TRANSPARENT) {
+                merger.replace(BLOCKS, BlockStates.NO_PARTICLE_MODEL_PATH, BlockStates.NO_PARTICLE_MODEL_JSON.toByteArray(Charsets.UTF_8))
+                merger.replace(BLOCKS, BlockStates.NO_PARTICLE_TEXTURE_PATH, BlockStates.transparentPng())
+            }
             count += ours.size
         }
         return count to missing
@@ -444,7 +585,11 @@ class PackService(private val custom: CustomItems) {
     fun models(then: (List<String>) -> Unit) {
         custom.io.async({
             if (!outputZip.isFile) return@async emptyList()
-            java.util.zip.ZipFile(outputZip).use { zip -> zip.entries().asSequence().mapNotNull { PackAssets.previewModel(it.name) }.sorted().toList() }
+            // 전에 만든 팩에는 모델 플러그인 것의 미리보기도 들어 있다 — 다시 만들기 전에도 목록에서 뺀다.
+            java.util.zip.ZipFile(outputZip).use { zip ->
+                zip.entries().asSequence().mapNotNull { PackAssets.previewModel(it.name) }
+                    .filter { it.substringBefore(':') !in PackAssets.ENGINE_NAMESPACES }.sorted().toList()
+            }
         }, then)
     }
 
@@ -508,6 +653,7 @@ class PackService(private val custom: CustomItems) {
         const val NUMBERS = "(번호 걷어 내기)"
         const val PREVIEW = "(모델 목록 미리보기)"
         const val BLOCKS = "(블록 상태)"
+        const val PARTICLES = "(파편 그림)"
 
         /** jar 안의 서버 기본 팩(ItemsAdder 가 만든 것 — 옮겨 온 MMOItems 아이템의 모델 번호가 여기 있다). */
         const val DEFAULT_PACK = "pack/default-pack.zip"

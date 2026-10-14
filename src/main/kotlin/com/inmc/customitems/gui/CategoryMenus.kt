@@ -45,7 +45,7 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
                 "",
                 "<yellow>▶ 좌클릭: 보기</yellow>",
                 "<yellow>▶ 우클릭: 이름 바꾸기</yellow>",
-                "<yellow>▶ Shift+좌클릭: 손에 든 것으로 아이콘 · 빈손이면 자동</yellow>",
+                "<yellow>▶ Shift+좌클릭: 아이콘(아이템 올리기 · 비우면 자동)</yellow>",
                 "<yellow>▶ Q: 로어에 소분류 이름 켜기·끄기</yellow>",
                 "<red>▶ Shift+우클릭: 지우기</red>",
             ))) { event ->
@@ -106,12 +106,23 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
         }
     }
 
+    /** 아이템 올리기로 아이콘을(손에 든 것 대신, 사용자 요청 2026-10-14). 올리기 창의 ◀ 뒤로는 그대로 · [자동] 은 첫 아이템 모양으로. */
     private fun setIcon(category: Category) {
-        val hand = viewer.inventory.itemInMainHand
-        // 빈손이면 자동으로 되돌린다(첫 아이템 모양).
-        val (material, item) = if (hand.type.isAir) null to null else captureIcon(hand)
-        custom.categories.get(category.id)?.let { custom.categories.put(it.copy(icon = material, iconItem = item)) }
-        refresh()
+        object : kr.inmc.core.gui.ItemInputMenu(custom, viewer, "소분류 아이콘 — 아이템 올리기",
+            hint = listOf("<gray>모델·커스텀아이템 모양 그대로 아이콘이 됩니다.</gray>"), submitLabel = "아이콘으로", back = { open(viewer) },
+            onSubmit = { stack ->
+                val (material, item) = captureIcon(stack)
+                custom.categories.get(category.id)?.let { custom.categories.put(it.copy(icon = material, iconItem = item)) }
+                open(viewer)
+            }) {
+            override fun draw() {
+                super.draw()
+                set(ICON_AUTO_SLOT, Icon.of(Material.BOOKSHELF, "<yellow>자동</yellow>", listOf("<gray>그 소분류 첫 아이템 모양으로 되돌립니다.</gray>"))) {
+                    custom.categories.get(category.id)?.let { custom.categories.put(it.copy(icon = null, iconItem = null)) }
+                    this@CategoryMenu.open(viewer)
+                }
+            }
+        }.show()
     }
 
     private fun toggleLoreName(category: Category) {
@@ -139,6 +150,9 @@ class CategoryMenu(custom: CustomItems, private val viewer: Player, private val 
 
     companion object {
         const val SIZE = 54
+
+        /** 아이콘 올리기 창(core ItemInputMenu, 27칸)의 [자동] 칸 — 이 화면의 칸이 아니라서 SLOT_ 이름을 쓰지 않는다(MenuLayoutTest 는 이 화면 칸만 본다). */
+        const val ICON_AUTO_SLOT = 11
         const val SLOT_ALL = 48
         const val SLOT_UNSORTED = 49
         const val SLOT_CREATE = 50

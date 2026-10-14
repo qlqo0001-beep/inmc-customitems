@@ -187,39 +187,35 @@ class ItemListMenu(
 }
 
 /** 손에 든 것으로 새 아이템 — 버튼 모양. [type] 안에서 누르면 그 종류로 만든다. */
-internal fun registerButton(viewer: Player, type: TypeDef? = null): ItemStack {
-    val hand = viewer.inventory.itemInMainHand
-    if (hand.type.isAir) {
-        return Icon.of(
-            Material.BARRIER,
-            "<red>등록하려면 아이템을 손에 드세요</red>",
-            listOf(
-                "<gray>손에 든 것의 재질·이름·설명·인챈트를 읽어</gray>",
-                "<gray>새 정의를 만듭니다. 나머지는 설정 화면에서 채우세요.</gray>",
-            ),
-        )
-    }
-    return Icon.of(
-        Material.WRITABLE_BOOK,
-        "<green>손에 든 것으로 새 아이템 만들기</green>",
-        listOf(
-            "<gray>재질: <white>" + hand.type.name + "</white></gray>",
-            "<gray>종류: <white>" + (type?.name ?: "재질로 짐작") + "</white></gray>",
-            "",
-            "<yellow>▶ 클릭하면 이름을 물어봅니다</yellow>",
-        ),
-    )
-}
+internal fun registerButton(viewer: Player, type: TypeDef? = null): ItemStack = Icon.of(
+    Material.WRITABLE_BOOK,
+    "<green>새 아이템 만들기</green>",
+    listOf(
+        "<gray>바탕이 될 아이템을 화면에 올리면 재질·이름·설명·인챈트를</gray>",
+        "<gray>읽어 새 정의를 만듭니다. 나머지는 설정 화면에서 채우세요.</gray>",
+        "<gray>종류: <white>" + (type?.name ?: "재질로 짐작") + "</white></gray>",
+        "",
+        "<yellow>▶ 클릭: 아이템 올리기</yellow>",
+    ),
+)
 
 /**
- * 이름을 물어보고 손에 든 것을 등록한 뒤 설정 화면을 연다. 취소하거나 이름이 틀리면 [back].
+ * 바탕이 될 아이템을 올리는 화면([kr.inmc.core.gui.ItemInputMenu])을 열고, 올린 것으로 이름을 물어 등록한 뒤 설정 화면을 연다(사용자 요청 2026-10-14 —
+ * 손에 들고 누르던 것을 "만들기 → 올리기 → 등록" 으로). 취소하거나 이름이 틀리면 [back].
  *
  * 이름은 설정 파일의 **섹션 이름**이자 **참조 id** 가 된다. 점이 들어가면 YamlConfiguration 이 계층을
  * 만들어 다시 읽히지 않고, 콜론이 들어가면 참조가 깨진다.
  */
 internal fun promptRegister(custom: CustomItems, viewer: Player, type: TypeDef?, category: String = "", back: () -> Unit) {
-    val hand = viewer.inventory.itemInMainHand.clone()
-    if (hand.type.isAir) return
+    kr.inmc.core.gui.ItemInputMenu(
+        custom, viewer, "새 아이템 — 바탕 올리기",
+        hint = listOf("<gray>재질·이름·설명·인챈트를 이 아이템에서 읽습니다.</gray>"),
+        submitLabel = "이 아이템으로 만들기",
+        back = back,
+    ) { source -> promptName(custom, viewer, source, type, category, back) }.show()
+}
+
+private fun promptName(custom: CustomItems, viewer: Player, hand: ItemStack, type: TypeDef?, category: String, back: () -> Unit) {
 
     var created: String? = null
     Editors.promptText(

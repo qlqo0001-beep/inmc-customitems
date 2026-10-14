@@ -46,13 +46,58 @@ object PackAssets {
     /**
      * 모델 목록(관리 화면)에 보일 모델인가 — 팩 경로 `assets/<이름공간>/models/<경로>.json` → `<이름공간>:<경로>`. 바닐라(`minecraft`)와
      * 밑줄로 시작하는 내부 이름공간(IA 의 `_iainternal`)은 뺀다. 오버레이 안의 것도 뺀다(같은 모델의 판별 사본이다).
+     * **모델 플러그인이 제 모델을 조각조각 그리는 것도 뺀다**([ENGINE_NAMESPACES], 2026-10-10 사용자 요청) — BetterModel 의 뼈 하나하나
+     * (`bettermodel:b/…`)는 아이템 모양으로 고를 것이 아니고, 그 수천 개마다 미리보기 정의를 붙이면 팩만 커진다.
      */
     fun listedModel(path: String): String? {
         val match = MODEL_PATH.matchEntire(path) ?: return null
         val (namespace, model) = match.destructured
-        if (namespace == "minecraft" || namespace.startsWith("_")) return null
+        if (namespace == "minecraft" || namespace.startsWith("_") || namespace in ENGINE_NAMESPACES) return null
+        // 후렴초 파편을 지우는 우리 빈 모델 — 고를 모양이 아니다.
+        if ("$namespace:$model" == com.inmc.customitems.block.BlockStates.NO_PARTICLE_MODEL) return null
         return "$namespace:$model"
     }
+
+    /**
+     * 파편 그림(`textures.particle`)이 없는 모델이면 첫 텍스처를 파편 그림으로 넣은 JSON, 고칠 것이 없으면 null(2026-10-10).
+     * Blockbench 로 만든 모델은 `particle` 을 안 적는 일이 많은데, 그러면 그 아이템 모양 파편이 보라·검정(없는 그림)으로 나온다.
+     * 제 요소(`elements`)가 있는 모델만 — 요소 없이 부모를 따르는 모델은 부모의 파편 그림을 쓴다.
+     */
+    fun withParticle(json: String): String? {
+        val root = runCatching { com.google.gson.JsonParser.parseString(json).asJsonObject }.getOrNull() ?: return null
+        if (!root.has("elements")) return null
+        val textures = root.getAsJsonObject("textures") ?: return null
+        if (textures.has("particle")) return null
+        var value: String? = null
+        for ((_, element) in textures.entrySet()) {
+            var candidate = element.takeIf { it.isJsonPrimitive }?.asString ?: continue
+            var hops = 0
+            while (candidate.startsWith("#") && hops++ < 8) candidate = textures.get(candidate.substring(1))?.takeIf { it.isJsonPrimitive }?.asString ?: break
+            if (!candidate.startsWith("#")) {
+                value = candidate
+                break
+            }
+        }
+        textures.addProperty("particle", value ?: return null)
+        return com.google.gson.GsonBuilder().disableHtmlEscaping().create().toJson(root)
+    }
+
+    private val BONE_ITEM = Regex("^assets/bettermodel/items/(.+)\\.json$")
+
+    /** BetterModel 이 팩에 넣은 뼈 아이템 정의 → `bettermodel:<경로>`. 그 모델의 텍스처를 쓰는 아이템이라 파편 그림으로 쓴다. */
+    fun boneItem(path: String): String? = BONE_ITEM.matchEntire(path)?.let { "bettermodel:" + it.groupValues[1] }
+
+    /**
+     * [model] 의 뼈 아이템 하나 — BetterModel 은 `<모델>_<뼈>` 로 이름을 짓는다. 다른 모델 이름이 그 앞부분이면(`fan` 과 `fan_iron`) 더 긴 쪽의
+     * 것이므로 [known](BetterModel 이 아는 모델 이름) 가운데 가장 긴 앞부분이 [model] 인 것만 고른다. 없으면 null.
+     */
+    fun boneItemFor(model: String, items: List<String>, known: Set<String>): String? = items.sorted().firstOrNull { key ->
+        val name = key.substringAfterLast('/')
+        name.startsWith(model + "_") && known.filter { name.startsWith(it + "_") }.maxByOrNull { it.length } == model
+    }
+
+    /** 모델 플러그인(BetterModel · ModelEngine)이 쓰는 이름공간 — 그 플러그인이 엔티티에 붙여 그린다. */
+    val ENGINE_NAMESPACES = setOf("bettermodel", "modelengine")
 
     /**
      * 모델 하나를 게임에서 보려고 붙이는 아이템 정의. 1.21.4+ 는 `item_model` 이 모델이 아니라 **아이템 정의**를 가리키므로, 아이템이

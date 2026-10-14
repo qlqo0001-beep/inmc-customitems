@@ -57,6 +57,8 @@ class CustomItemsPlugin : JavaPlugin() {
             passiveTicker.start()
             metrics.start()
             logger.info("inmc-customitems 활성화 완료 - 아이템 " + custom.items.size + "개")
+            // 지금 팩이 지금 아이템으로 만든 것인지 — 아니면 다시 만들어 올린다(2026-10-14).
+            custom.pack.ensureInSync()
         }
     }
 
@@ -80,6 +82,8 @@ class CustomItemsPlugin : JavaPlugin() {
         // 빠지면 역할을 쓰는 플러그인들이 제 파일로 돌아간다(옮긴 뒤라면 빈 목록 — 우리 없이는 우리 아이템도 없다).
         kr.inmc.core.integration.ItemRoles.detach(custom.roleStore)
         custom.items.flushBlocking()
+        custom.tiers.flushBlocking()
+        custom.elements.flushBlocking()
         custom.sets.flushBlocking()
         custom.categories.flushBlocking()
         custom.upgrades.flushBlocking()
@@ -123,17 +127,20 @@ class CustomItemsPlugin : JavaPlugin() {
         }) { (configYaml, messagesYaml) ->
             custom.packConfig = com.inmc.customitems.pack.PackConfig.from(configYaml)
             custom.droppedSettings = com.inmc.customitems.listener.DroppedItemListener.Settings.from(configYaml)
+            custom.giveRecentDays = configYaml.getInt("give.recent-days", 30).coerceAtLeast(1)
             // 내려주기를 켜고 끄거나 포트를 바꿨으면 여기서 반영한다(같으면 그대로).
             custom.packHost.apply(custom.packConfig.host)
             custom.messages = Messages.from(messagesYaml)
 
-            custom.giveRecentDays = configYaml.getInt("give.recent-days", 30).coerceAtLeast(1)
             // 정의 객체가 교체되므로 열린 화면은 닫는다 - 그대로 두면 버려진 객체를 계속
             // 편집하게 되고, 저장은 되는데 반영이 안 된다.
             closeOpenMenus()
 
-            // 세트·강화 방식이 먼저다 — 아이템의 지문이 그 정의까지 담는다. 장착 칸 설정도("장착 칸 밖에서도 효과") —
+            // 등급·속성이 맨 먼저다 — 세트·강화표·아이템이 등급 id 와 속성 능력치를 쥐고, 아이템의 지문이 그 정의까지 담는다(2026-10-13).
+            // 세트·강화 방식이 그다음 — 아이템의 지문이 그 정의까지 담는다. 장착 칸 설정도("장착 칸 밖에서도 효과") —
             // 한 줄로 도는 일꾼이라 아래 stations 보다 먼저 읽히고, 아이템은 stations 다음이다.
+            custom.tiers.load {}
+            custom.elements.load {}
             custom.sets.load {
                 custom.upgrades.load {
                     custom.equipmentSettings.load {}

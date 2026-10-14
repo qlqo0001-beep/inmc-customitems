@@ -135,7 +135,8 @@ data class CustomItem(
     val id: String,
     val material: Material,
     val type: ItemType = ItemType.MISC,
-    val tier: Tier = Tier.COMMON,
+    /** 등급 id([Tier]) — 이름·색은 지금 등급 목록에서. 안 정하면 목록의 첫 등급. */
+    val tier: Tier = Tier.default(),
     /** 종류 아래의 소분류 id(`categories.yml`). 비우면 "분류 없음". 표시와 걸러보기 전용. */
     val category: String = "",
     /** 로어의 종류 줄 — 소분류 설정대로(기본) · 종류 이름 · 소분류 이름(사용자 결정 2026-10-01). */

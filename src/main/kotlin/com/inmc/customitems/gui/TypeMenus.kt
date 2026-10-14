@@ -89,14 +89,19 @@ class TypeEditMenu(custom: CustomItems, private val viewer: Player, private val 
         set(SLOT_ICON, typeIcon(type, "<yellow>아이콘</yellow>", listOf(
             "<gray>서랍에 보이는 아이콘. 모델 번호·커스텀아이템 모양 그대로 됩니다.</gray>",
             "<gray>기본 모양은 기본 종류면 종류 아이콘(팩), 만든 종류면 첫 아이템 모양.</gray>", "",
-            "<yellow>▶ 좌클릭: 손에 든 것으로 바꾸기</yellow>",
+            "<yellow>▶ 좌클릭: 아이템을 올려 그 모양으로</yellow>",
             "<yellow>▶ 우클릭: 기본 모양으로</yellow>",
         ))) { event ->
             if (event.isRightClick) {
                 custom.types.put(type.copy(icon = type.base.icon, iconItem = null))
             } else {
-                val hand = viewer.inventory.itemInMainHand
-                if (!hand.type.isAir) captureIcon(hand).let { (material, item) -> custom.types.put(type.copy(icon = material, iconItem = item)) }
+                // 손에 든 것 대신 아이템 올리기(사용자 요청 2026-10-14).
+                kr.inmc.core.gui.ItemInputMenu(custom, viewer, "종류 아이콘 — 아이템 올리기", hint = listOf("<gray>모델 번호·커스텀아이템 모양 그대로 아이콘이 됩니다.</gray>"),
+                    submitLabel = "아이콘으로", back = { open(viewer) }) { stack ->
+                    custom.types.get(id)?.let { now -> captureIcon(stack).let { (material, item) -> custom.types.put(now.copy(icon = material, iconItem = item)) } }
+                    open(viewer)
+                }.show()
+                return@set
             }
             refresh()
         }

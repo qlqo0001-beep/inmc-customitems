@@ -2,6 +2,7 @@ package com.inmc.customitems.listener
 
 import com.inmc.customitems.CustomItems
 import com.inmc.customitems.block.Mining
+import kr.inmc.core.util.Text
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.block.Block
@@ -69,6 +70,12 @@ class BlockListener(private val custom: CustomItems) : Listener {
 
         val target = if (clicked.isReplaceable) clicked else clicked.getRelative(event.blockFace)
         if (!target.isReplaceable || target.y < target.world.minHeight || target.y >= target.world.maxHeight) return
+        // 놓을 수 있는 면(천장 선풍기 …) — 누른 면이 아니면 아무 일도 없다.
+        val surface = item.block!!.surface
+        if (!surface.allows(event.blockFace)) {
+            player.sendActionBar(Text.render("<yellow>" + surface.label + "에만 놓을 수 있습니다 — " + surface.hint + "</yellow>"))
+            return
+        }
         val box = BoundingBox.of(target)
         if (target.world.getNearbyEntities(box) { it is LivingEntity && !(it is Player && it.gameMode == GameMode.SPECTATOR) }.isNotEmpty()) return
 
@@ -132,6 +139,8 @@ class BlockListener(private val custom: CustomItems) : Listener {
     fun afterBreak(event: BlockBreakEvent) {
         if (!custom.items.hasBlocks || event.block.type !in HOSTS) return
         val item = custom.blocks.at(event.block) ?: return
+        // 투명·엔티티 방식의 파편은 클라이언트가 못 그린다 — 부서진 것이 확정된 여기서(캐기·창작·다른 플러그인 모든 길) 한 번.
+        if (item.block?.kind != com.inmc.customitems.item.BlockKind.SOLID) custom.blocks.burst(event.block, item, event.block.blockData)
         custom.blocks.clear(event.block)
         if (event.player.gameMode != GameMode.CREATIVE) drop(event.block, custom.blocks.loot(item, event.player))
     }

@@ -42,6 +42,12 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
 
     val items = ItemRegistry(this)
 
+    /** 등급 목록(`tiers.yml`) — 관리자가 더하고 고친다(2026-10-13). */
+    val tiers = com.inmc.customitems.item.TierRegistry(this)
+
+    /** 속성 목록(`elements.yml`) — 속성마다 피해·저항 능력치가 생긴다(2026-10-13). */
+    val elements = com.inmc.customitems.item.ElementRegistry(this)
+
     val sets = com.inmc.customitems.item.ItemSetRegistry(this)
 
     /** 종류 아래의 소분류(`categories.yml`). 목록을 나눠 보는 서랍. */
@@ -116,15 +122,15 @@ class CustomItems(override val plugin: JavaPlugin) : InmcHost {
 
     val droppedItems = com.inmc.customitems.listener.DroppedItemListener(this)
 
+    /** `/커스텀아이템 지급 **` 의 "최근" — 이 날 수 안에 들어온 사람(`config.yml` 의 `give.recent-days`). */
+    @Volatile
+    var giveRecentDays: Int = 30
+
     val prompts = ChatPrompt(this)
 
     @Volatile
     var ready: Boolean = false
         private set
-
-    /** `/커스텀아이템 지급 **` 의 "최근" — 이 날 수 안에 들어온 사람(`config.yml` 의 `give.recent-days`). */
-    @Volatile
-    var giveRecentDays: Int = 30
 
     fun markReady() {
         ready = true

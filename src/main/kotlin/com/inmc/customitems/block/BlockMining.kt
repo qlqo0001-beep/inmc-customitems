@@ -35,7 +35,11 @@ import java.util.UUID
  */
 class BlockMining(private val custom: CustomItems) {
 
-    private class Session(val block: Block, val itemId: String) {
+    /**
+     * @param debris 캐는 동안 튀는 파편의 아이템(투명·엔티티 방식) — 클라이언트가 그 블록 모양으로 못 그려서 서버가 뿌린다. 꽉 찬 방식은 null(클라이언트가 그린다).
+     * @param face 치는 면 — 파편이 그 면에서 튄다.
+     */
+    private class Session(val block: Block, val itemId: String, val debris: org.bukkit.inventory.ItemStack?, val face: org.bukkit.block.BlockFace) {
         var progress = 0.0
         var stage = -1
     }
@@ -50,7 +54,8 @@ class BlockMining(private val custom: CustomItems) {
         if (current != null && current.block == block && current.itemId == item.id) return
         stop(player)
         freeze(player)
-        sessions[player.uniqueId] = Session(block, item.id)
+        val debris = if (spec.kind == BlockKind.SOLID) null else custom.blocks.debrisStack(item)
+        sessions[player.uniqueId] = Session(block, item.id, debris, player.getTargetBlockFace(REACH) ?: org.bukkit.block.BlockFace.UP)
         if (task == null) task = Bukkit.getScheduler().runTaskTimer(custom.plugin, Runnable { tick() }, 1L, 1L)
 
         val tool = held(player)
@@ -96,6 +101,7 @@ class BlockMining(private val custom: CustomItems) {
                 stop(player)
                 continue
             }
+            chip(session)
             val tool = held(player)
             if (!Mining.canBreak(spec, tool)) continue
             session.progress += Mining.perTick(spec, speed(player, spec, tool), Mining.yields(spec, tool))
@@ -110,6 +116,20 @@ class BlockMining(private val custom: CustomItems) {
             }
         }
         for ((player, session) in finished) finish(player, session)
+    }
+
+    /** 캐는 동안 치는 면에서 파편 하나(바닐라 클라이언트가 틱마다 하나 튀기는 것과 같은 빈도). */
+    private fun chip(session: Session) {
+        val stack = session.debris ?: return
+        val face = session.face
+        val block = session.block
+        val spread = 0.3
+        block.world.spawnParticle(
+            Particle.ITEM,
+            block.x + 0.5 + face.modX * 0.55, block.y + 0.5 + face.modY * 0.55, block.z + 0.5 + face.modZ * 0.55, 1,
+            if (face.modX != 0) 0.0 else spread, if (face.modY != 0) 0.0 else spread, if (face.modZ != 0) 0.0 else spread,
+            0.02, stack,
+        )
     }
 
     /** 아직 그 블록을 캐고 있는가 — 야생에서, 같은 세상, 그 블록을 보고 있고, 블록이 아직 그 아이템이다. */
@@ -127,7 +147,6 @@ class BlockMining(private val custom: CustomItems) {
         val item = custom.blocks.at(block) ?: return
         val spec = item.block ?: return
         val look = block.blockData
-        val shown = if (spec.kind == BlockKind.ENTITY) custom.items.create(item.id) else null
         // 부수기 사건 — 땅 보호가 막을 수 있다. 떨구기·경험치 값은 BlockListener 가 그 안에서 정한다.
         val event = BlockBreakEvent(block, player)
         if (!event.callEvent()) return
@@ -136,11 +155,8 @@ class BlockMining(private val custom: CustomItems) {
         if (event.expToDrop > 0) block.world.spawn(center, ExperienceOrb::class.java) { it.experience = event.expToDrop }
         // 바닐라는 도구로 부수면 내구도를 1 쓴다(단단함 0 은 안 쓴다).
         if (spec.hardness > 0.0 && ToolKind.ofMaterial(player.inventory.itemInMainHand.type) != null) player.damageItemStack(EquipmentSlot.HAND, 1)
-        if (shown != null) {
-            block.world.spawnParticle(Particle.ITEM, center, 24, 0.25, 0.25, 0.25, 0.05, shown)
-        } else {
-            block.world.spawnParticle(Particle.BLOCK, center, 40, 0.25, 0.25, 0.25, 0.0, look)
-        }
+        // 투명·엔티티의 파편은 부수기 사건의 MONITOR(BlockListener.afterBreak)가 이미 뿌렸다. 꽉 찬 것은 사건 없이 공기로 바꿨으니 여기서.
+        if (spec.kind == BlockKind.SOLID) custom.blocks.burst(block, item, look)
         block.world.playSound(center, look.soundGroup.breakSound, 1f, 0.8f)
     }
 

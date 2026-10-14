@@ -14,131 +14,35 @@ import org.bukkit.attribute.Attribute
  * 우리가 직접 계산하는 것들은 **아이템에 적힌 값을 전투 때 읽는다**. PDC 에 따로 찍지 않는
  * 이유는 관리자가 정의를 고쳤을 때 이미 나간 아이템도 같이 바뀌어야 하기 때문이다.
  */
-enum class Stat(
+class Stat private constructor(
     val id: String,
-    val display: String,
+    private val label: String,
     val unit: String = "",
     /** 대응하는 바닐라 속성. null 이면 우리가 직접 계산한다. */
     val attributeKey: String? = null,
     /** 백분율로 다루는 값인지. 화면과 로어가 이걸 보고 표기를 정한다. */
     val percent: Boolean = false,
     val category: Category = Category.UTILITY,
+    /** 속성 능력치면 그 속성의 id([ElementDef]). */
+    val element: String? = null,
 ) {
 
-    // --- 바닐라 속성으로 내려가는 것 ---------------------------------------------------
-    ATTACK_DAMAGE("attack-damage", "공격력", attributeKey = "attack_damage", category = Category.ATTACK),
-    ATTACK_SPEED("attack-speed", "공격 속도", attributeKey = "attack_speed", category = Category.ATTACK),
-    ARMOR("armor", "방어력", attributeKey = "armor", category = Category.DEFENSE),
-    ARMOR_TOUGHNESS("armor-toughness", "방어 강도", attributeKey = "armor_toughness", category = Category.DEFENSE),
-    MAX_HEALTH("max-health", "최대 체력", attributeKey = "max_health", category = Category.DEFENSE),
-    MOVEMENT_SPEED("movement-speed", "이동 속도", attributeKey = "movement_speed", category = Category.MOVEMENT),
-    KNOCKBACK_RESISTANCE("knockback-resistance", "밀림 저항", attributeKey = "knockback_resistance", category = Category.DEFENSE),
-    LUCK("luck", "행운", attributeKey = "luck"),
-    ATTACK_KNOCKBACK("attack-knockback", "공격 밀림", attributeKey = "attack_knockback", category = Category.ATTACK),
-    SWEEPING_DAMAGE_RATIO("sweeping-damage-ratio", "휩쓸기 피해 비율", attributeKey = "sweeping_damage_ratio", category = Category.ATTACK),
-    ENTITY_INTERACTION_RANGE("entity-interaction-range", "공격 거리", attributeKey = "entity_interaction_range", category = Category.ATTACK),
-    MAX_ABSORPTION("max-absorption", "최대 흡수 체력", attributeKey = "max_absorption", category = Category.DEFENSE),
-    EXPLOSION_KNOCKBACK_RESISTANCE("explosion-knockback-resistance", "폭발 밀림 저항", attributeKey = "explosion_knockback_resistance", category = Category.DEFENSE),
-    BURNING_TIME("burning-time", "불붙는 시간 배율", attributeKey = "burning_time", category = Category.DEFENSE),
-    FALL_DAMAGE_MULTIPLIER("fall-damage-multiplier", "낙하 피해 배율", attributeKey = "fall_damage_multiplier", category = Category.DEFENSE),
-    SAFE_FALL_DISTANCE("safe-fall-distance", "안전 낙하 거리", attributeKey = "safe_fall_distance", category = Category.MOVEMENT),
-    JUMP_STRENGTH("jump-strength", "점프력", attributeKey = "jump_strength", category = Category.MOVEMENT),
-    STEP_HEIGHT("step-height", "오를 수 있는 높이", attributeKey = "step_height", category = Category.MOVEMENT),
-    GRAVITY("gravity", "중력", attributeKey = "gravity", category = Category.MOVEMENT),
-    SNEAKING_SPEED("sneaking-speed", "웅크리기 속도", attributeKey = "sneaking_speed", category = Category.MOVEMENT),
-    MOVEMENT_EFFICIENCY("movement-efficiency", "험지 이동 효율", attributeKey = "movement_efficiency", category = Category.MOVEMENT),
-    WATER_MOVEMENT_EFFICIENCY("water-movement-efficiency", "물속 이동 효율", attributeKey = "water_movement_efficiency", category = Category.MOVEMENT),
-    OXYGEN_BONUS("oxygen-bonus", "산소", attributeKey = "oxygen_bonus", category = Category.MOVEMENT),
-    SCALE("scale", "크기", attributeKey = "scale", category = Category.MOVEMENT),
-    BLOCK_BREAK_SPEED("block-break-speed", "블록 파괴 속도", attributeKey = "block_break_speed"),
-    MINING_EFFICIENCY("mining-efficiency", "채굴 효율", attributeKey = "mining_efficiency"),
-    SUBMERGED_MINING_SPEED("submerged-mining-speed", "물속 채굴 속도", attributeKey = "submerged_mining_speed"),
-    BLOCK_INTERACTION_RANGE("block-interaction-range", "블록 닿는 거리", attributeKey = "block_interaction_range"),
+    /** 보이는 이름. 속성 능력치는 지금 속성 이름에서 짓는다(화염 → 화염 피해 · 화염 저항). 지운 속성이면 id 그대로. */
+    val display: String
+        get() {
+            val key = element ?: return label
+            val def = Elements.get(key) ?: return id
+            return def.name + if (percent) " 저항" else " 피해"
+        }
 
-    // --- 이 플러그인이 직접 계산하는 것 -------------------------------------------------
-    /** 치명타가 터질 확률(%). */
-    CRIT_CHANCE("crit-chance", "치명타 확률", "%", percent = true, category = Category.ATTACK),
+    /** 지금 [entries] 의 몇 번째인가 — 화면·로어의 순서. 지운 속성은 맨 뒤. */
+    val index: Int get() = indexes()[id] ?: Int.MAX_VALUE
 
-    /** 치명타일 때 피해 배수. 2.0 이면 두 배. */
-    CRIT_DAMAGE("crit-damage", "치명타 배수", "배", category = Category.ATTACK),
+    override fun equals(other: Any?): Boolean = other is Stat && other.id == id
 
-    /** 치명타 피해 +%. 배수에 더한다(배수 2 에 +50% 면 2.5 배). MMOItems 의 critical-strike-power. */
-    CRIT_POWER("crit-power", "치명타 피해", "%", percent = true, category = Category.ATTACK),
+    override fun hashCode(): Int = id.hashCode()
 
-    /** 준 피해의 이만큼(%)을 체력으로 돌려받는다. */
-    LIFESTEAL("lifesteal", "흡혈", "%", percent = true, category = Category.ATTACK),
-
-    /** 모든 피해에 더하는 고정값. */
-    DAMAGE_BONUS("damage-bonus", "추가 피해", category = Category.ATTACK),
-
-    /** 몹에게 주는 피해 +%. */
-    PVE_DAMAGE("pve-damage", "몹 피해", "%", percent = true, category = Category.ATTACK),
-
-    /** 플레이어에게 주는 피해 +%. */
-    PVP_DAMAGE("pvp-damage", "플레이어 피해", "%", percent = true, category = Category.ATTACK),
-
-    /** 화살·삼지창 같은 발사체 피해 +%. */
-    PROJECTILE_DAMAGE("projectile-damage", "발사체 피해", "%", percent = true, category = Category.ATTACK),
-
-    /** 언데드에게 주는 피해 +%. */
-    UNDEAD_DAMAGE("undead-damage", "언데드 피해", "%", percent = true, category = Category.ATTACK),
-
-    /** 기능의 피해 효과 +%. */
-    SKILL_DAMAGE("skill-damage", "기능 피해", "%", percent = true, category = Category.ATTACK),
-
-    /** 받는 피해를 이만큼(%) 줄인다. 방어구에 붙인다. */
-    DAMAGE_REDUCTION("damage-reduction", "피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 몹에게 받는 피해 -%. */
-    PVE_DEFENSE("pve-defense", "몹 피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 플레이어에게 받는 피해 -%. */
-    PVP_DEFENSE("pvp-defense", "플레이어 피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 발사체에게 받는 피해 -%. */
-    PROJECTILE_DEFENSE("projectile-defense", "발사체 피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 떨어져 받는 피해 -%. */
-    FALL_DEFENSE("fall-defense", "낙하 피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 불·용암에게 받는 피해 -%. */
-    FIRE_DEFENSE("fire-defense", "화염 피해 감소", "%", percent = true, category = Category.DEFENSE),
-
-    /** 맞은 상대에게 이만큼 되돌려준다. */
-    THORNS("thorns", "가시", category = Category.DEFENSE),
-
-    /** 공격을 통째로 피할 확률(%). */
-    DODGE_CHANCE("dodge-chance", "회피", "%", percent = true, category = Category.DEFENSE),
-
-    /** 방어 점수. 받는 피해에 100/(100+점수) 를 곱한다 — 100 이면 절반. MMOItems(MythicLib) 의 defense. */
-    DEFENSE_POINTS("defense", "방어 점수", category = Category.DEFENSE),
-
-    /** 막을 확률(%). 막으면 [BLOCK_POWER] 만큼 줄인다. */
-    BLOCK_CHANCE("block-chance", "막기 확률", "%", percent = true, category = Category.DEFENSE),
-
-    /** 막았을 때 줄이는 피해(%). 없으면 50%. */
-    BLOCK_POWER("block-power", "막기 위력", "%", percent = true, category = Category.DEFENSE),
-
-    /** 초당 회복하는 체력. */
-    HEALTH_REGEN("health-regen", "초당 체력 회복", category = Category.DEFENSE),
-
-    // --- 원소: 공격은 고정 피해 + 부가 효과, 저항은 상대의 그 원소 피해 -% -------------------
-    FIRE_DAMAGE("fire-damage", "화염 피해", category = Category.ELEMENT),
-    ICE_DAMAGE("ice-damage", "냉기 피해", category = Category.ELEMENT),
-    LIGHTNING_DAMAGE("lightning-damage", "번개 피해", category = Category.ELEMENT),
-    POISON_DAMAGE("poison-damage", "독 피해", category = Category.ELEMENT),
-    FIRE_RESIST("fire-resist", "화염 저항", "%", percent = true, category = Category.ELEMENT),
-    ICE_RESIST("ice-resist", "냉기 저항", "%", percent = true, category = Category.ELEMENT),
-    LIGHTNING_RESIST("lightning-resist", "번개 저항", "%", percent = true, category = Category.ELEMENT),
-    POISON_RESIST("poison-resist", "독 저항", "%", percent = true, category = Category.ELEMENT),
-
-    // --- 그 밖 ---------------------------------------------------------------------
-    /** 얻는 경험치 +%. */
-    EXP_BONUS("exp-bonus", "경험치 획득", "%", percent = true),
-
-    /** 기능의 재사용 대기 -%. 합산 최대 80%. */
-    COOLDOWN_REDUCTION("cooldown-reduction", "재사용 대기 감소", "%", percent = true),
-    ;
+    override fun toString(): String = id
 
     /** 화면이 능력치를 나눠 보여주는 묶음. */
     enum class Category(val display: String) {
@@ -162,9 +66,186 @@ enum class Stat(
 
     companion object {
 
+        // 상수보다 먼저 — companion 의 초기화는 적힌 순서다.
+        private val head = ArrayList<Stat>()
+        private val tail = ArrayList<Stat>()
+        private val elementStats = java.util.concurrent.ConcurrentHashMap<String, Stat>()
+
+        /** 속성 id — 영어 소문자·숫자만(능력치 이름을 읽을 때 `_` 를 `-` 로 바꾸므로 밑줄을 받으면 그 속성을 다시 못 찾는다). */
+        private val ELEMENT_ID = Regex("^[a-z0-9]+$")
+
+        private fun stat(
+            id: String,
+            display: String,
+            unit: String = "",
+            attributeKey: String? = null,
+            percent: Boolean = false,
+            category: Category = Category.UTILITY,
+            tail: Boolean = false,
+        ): Stat = Stat(id, display, unit, attributeKey, percent, category).also { if (tail) this.tail += it else head += it }
+
+        /** 그 속성의 고정 피해. 속성이 목록에 없어도 만든다 — 읽을 때 거르는 것은 [of] 다. */
+        fun elementDamage(element: String): Stat =
+            elementStats.getOrPut("$element-damage") { Stat("$element-damage", "", category = Category.ELEMENT, element = element) }
+
+        /** 그 속성 피해 -%(음수면 약점). */
+        fun elementResist(element: String): Stat =
+            elementStats.getOrPut("$element-resist") { Stat("$element-resist", "", "%", percent = true, category = Category.ELEMENT, element = element) }
+
+        // --- 바닐라 속성으로 내려가는 것 ---------------------------------------------------
+        val ATTACK_DAMAGE = stat("attack-damage", "공격력", attributeKey = "attack_damage", category = Category.ATTACK)
+        val ATTACK_SPEED = stat("attack-speed", "공격 속도", attributeKey = "attack_speed", category = Category.ATTACK)
+        val ARMOR = stat("armor", "방어력", attributeKey = "armor", category = Category.DEFENSE)
+        val ARMOR_TOUGHNESS = stat("armor-toughness", "방어 강도", attributeKey = "armor_toughness", category = Category.DEFENSE)
+        val MAX_HEALTH = stat("max-health", "최대 체력", attributeKey = "max_health", category = Category.DEFENSE)
+        val MOVEMENT_SPEED = stat("movement-speed", "이동 속도", attributeKey = "movement_speed", category = Category.MOVEMENT)
+        val KNOCKBACK_RESISTANCE = stat("knockback-resistance", "밀림 저항", attributeKey = "knockback_resistance", category = Category.DEFENSE)
+        val LUCK = stat("luck", "행운", attributeKey = "luck")
+        val ATTACK_KNOCKBACK = stat("attack-knockback", "공격 밀림", attributeKey = "attack_knockback", category = Category.ATTACK)
+        val SWEEPING_DAMAGE_RATIO = stat("sweeping-damage-ratio", "휩쓸기 피해 비율", attributeKey = "sweeping_damage_ratio", category = Category.ATTACK)
+        val ENTITY_INTERACTION_RANGE = stat("entity-interaction-range", "공격 거리", attributeKey = "entity_interaction_range", category = Category.ATTACK)
+        val MAX_ABSORPTION = stat("max-absorption", "최대 흡수 체력", attributeKey = "max_absorption", category = Category.DEFENSE)
+        val EXPLOSION_KNOCKBACK_RESISTANCE = stat("explosion-knockback-resistance", "폭발 밀림 저항", attributeKey = "explosion_knockback_resistance", category = Category.DEFENSE)
+        val BURNING_TIME = stat("burning-time", "불붙는 시간 배율", attributeKey = "burning_time", category = Category.DEFENSE)
+        val FALL_DAMAGE_MULTIPLIER = stat("fall-damage-multiplier", "낙하 피해 배율", attributeKey = "fall_damage_multiplier", category = Category.DEFENSE)
+        val SAFE_FALL_DISTANCE = stat("safe-fall-distance", "안전 낙하 거리", attributeKey = "safe_fall_distance", category = Category.MOVEMENT)
+        val JUMP_STRENGTH = stat("jump-strength", "점프력", attributeKey = "jump_strength", category = Category.MOVEMENT)
+        val STEP_HEIGHT = stat("step-height", "오를 수 있는 높이", attributeKey = "step_height", category = Category.MOVEMENT)
+        val GRAVITY = stat("gravity", "중력", attributeKey = "gravity", category = Category.MOVEMENT)
+        val SNEAKING_SPEED = stat("sneaking-speed", "웅크리기 속도", attributeKey = "sneaking_speed", category = Category.MOVEMENT)
+        val MOVEMENT_EFFICIENCY = stat("movement-efficiency", "험지 이동 효율", attributeKey = "movement_efficiency", category = Category.MOVEMENT)
+        val WATER_MOVEMENT_EFFICIENCY = stat("water-movement-efficiency", "물속 이동 효율", attributeKey = "water_movement_efficiency", category = Category.MOVEMENT)
+        val OXYGEN_BONUS = stat("oxygen-bonus", "산소", attributeKey = "oxygen_bonus", category = Category.MOVEMENT)
+        val SCALE = stat("scale", "크기", attributeKey = "scale", category = Category.MOVEMENT)
+        val BLOCK_BREAK_SPEED = stat("block-break-speed", "블록 파괴 속도", attributeKey = "block_break_speed")
+        val MINING_EFFICIENCY = stat("mining-efficiency", "채굴 효율", attributeKey = "mining_efficiency")
+        val SUBMERGED_MINING_SPEED = stat("submerged-mining-speed", "물속 채굴 속도", attributeKey = "submerged_mining_speed")
+        val BLOCK_INTERACTION_RANGE = stat("block-interaction-range", "블록 닿는 거리", attributeKey = "block_interaction_range")
+
+        // --- 이 플러그인이 직접 계산하는 것 -------------------------------------------------
+        /** 치명타가 터질 확률(%). */
+        val CRIT_CHANCE = stat("crit-chance", "치명타 확률", "%", percent = true, category = Category.ATTACK)
+
+        /** 치명타일 때 피해 배수. 2.0 이면 두 배. */
+        val CRIT_DAMAGE = stat("crit-damage", "치명타 배수", "배", category = Category.ATTACK)
+
+        /** 치명타 피해 +%. 배수에 더한다(배수 2 에 +50% 면 2.5 배). MMOItems 의 critical-strike-power. */
+        val CRIT_POWER = stat("crit-power", "치명타 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 준 피해의 이만큼(%)을 체력으로 돌려받는다. */
+        val LIFESTEAL = stat("lifesteal", "흡혈", "%", percent = true, category = Category.ATTACK)
+
+        /** 모든 피해에 더하는 고정값. */
+        val DAMAGE_BONUS = stat("damage-bonus", "추가 피해", category = Category.ATTACK)
+
+        /** 몹에게 주는 피해 +%. */
+        val PVE_DAMAGE = stat("pve-damage", "몹 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 플레이어에게 주는 피해 +%. */
+        val PVP_DAMAGE = stat("pvp-damage", "플레이어 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 화살·삼지창 같은 발사체 피해 +%. */
+        val PROJECTILE_DAMAGE = stat("projectile-damage", "발사체 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 언데드에게 주는 피해 +%. */
+        val UNDEAD_DAMAGE = stat("undead-damage", "언데드 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 기능의 피해 효과 +%. */
+        val SKILL_DAMAGE = stat("skill-damage", "기능 피해", "%", percent = true, category = Category.ATTACK)
+
+        /** 받는 피해를 이만큼(%) 줄인다. 방어구에 붙인다. */
+        val DAMAGE_REDUCTION = stat("damage-reduction", "피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 몹에게 받는 피해 -%. */
+        val PVE_DEFENSE = stat("pve-defense", "몹 피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 플레이어에게 받는 피해 -%. */
+        val PVP_DEFENSE = stat("pvp-defense", "플레이어 피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 발사체에게 받는 피해 -%. */
+        val PROJECTILE_DEFENSE = stat("projectile-defense", "발사체 피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 떨어져 받는 피해 -%. */
+        val FALL_DEFENSE = stat("fall-defense", "낙하 피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 불·용암에게 받는 피해 -%. */
+        val FIRE_DEFENSE = stat("fire-defense", "화염 피해 감소", "%", percent = true, category = Category.DEFENSE)
+
+        /** 맞은 상대에게 이만큼 되돌려준다. */
+        val THORNS = stat("thorns", "가시", category = Category.DEFENSE)
+
+        /** 공격을 통째로 피할 확률(%). */
+        val DODGE_CHANCE = stat("dodge-chance", "회피", "%", percent = true, category = Category.DEFENSE)
+
+        /** 방어 점수. 받는 피해에 100/(100+점수) 를 곱한다 — 100 이면 절반. MMOItems(MythicLib) 의 defense. */
+        val DEFENSE_POINTS = stat("defense", "방어 점수", category = Category.DEFENSE)
+
+        /** 막을 확률(%). 막으면 [BLOCK_POWER] 만큼 줄인다. */
+        val BLOCK_CHANCE = stat("block-chance", "막기 확률", "%", percent = true, category = Category.DEFENSE)
+
+        /** 막았을 때 줄이는 피해(%). 없으면 50%. */
+        val BLOCK_POWER = stat("block-power", "막기 위력", "%", percent = true, category = Category.DEFENSE)
+
+        /** 초당 회복하는 체력. */
+        val HEALTH_REGEN = stat("health-regen", "초당 체력 회복", category = Category.DEFENSE)
+
+        // --- 원소: 기본 넷의 상수. 능력치 자체는 속성 목록(elements.yml)이 만든다 — 관리자가 더한 것도 같은 모양이다 ---
+        val FIRE_DAMAGE = elementDamage("fire")
+        val ICE_DAMAGE = elementDamage("ice")
+        val LIGHTNING_DAMAGE = elementDamage("lightning")
+        val POISON_DAMAGE = elementDamage("poison")
+        val FIRE_RESIST = elementResist("fire")
+        val ICE_RESIST = elementResist("ice")
+        val LIGHTNING_RESIST = elementResist("lightning")
+        val POISON_RESIST = elementResist("poison")
+
+        // --- 그 밖 ---------------------------------------------------------------------
+        /** 얻는 경험치 +%. */
+        val EXP_BONUS = stat("exp-bonus", "경험치 획득", "%", percent = true, tail = true)
+
+        /** 기능의 재사용 대기 -%. 합산 최대 80%. */
+        val COOLDOWN_REDUCTION = stat("cooldown-reduction", "재사용 대기 감소", "%", percent = true, tail = true)
+
+
+        @Volatile
+        private var cached: List<Stat>? = null
+
+        @Volatile
+        private var cachedIndexes: Map<String, Int>? = null
+
+        /**
+         * 지금의 능력치 전부, 화면·로어 순서로 — 바닐라·우리 계산 → 속성(피해 전부 다음 저항 전부) → 경험치·재사용 대기.
+         * 속성 칸은 지금 속성 목록이 정한다(지운 속성은 빠진다).
+         */
+        val entries: List<Stat>
+            get() = cached ?: (head + Elements.all().map { elementDamage(it.id) } + Elements.all().map { elementResist(it.id) } + tail)
+                .also { cached = it }
+
+        private fun indexes(): Map<String, Int> =
+            cachedIndexes ?: entries.withIndex().associate { (i, stat) -> stat.id to i }.also { cachedIndexes = it }
+
+        /** 속성 목록이 바뀌었다([Elements.set]). */
+        internal fun rebuild() {
+            cached = null
+            cachedIndexes = null
+        }
+
+        /** 속성이 아닌 능력치. 속성 id 가 이것들과 겹치지 않게 본다([ElementDef.isValidId]). */
+        fun builtin(id: String): Stat? = head.firstOrNull { it.id == id } ?: tail.firstOrNull { it.id == id }
+
+        /**
+         * 적힌 이름의 능력치. `<속성>-damage` · `<속성>-resist` 는 **그 속성이 지금 목록에 있을 때만** — 없는 속성까지 받으면 MMOItems 의
+         * `magic-damage` · `physical-damage` 같은 남의 능력치 이름이 보이지 않는 속성 값으로 조용히 쌓인다(테스트 ItemSetTest).
+         * 그래서 속성 목록은 아이템보다 먼저 읽는다(CustomItemsPlugin.reload).
+         */
         fun of(id: String?): Stat? {
             val text = id?.trim()?.lowercase()?.replace('_', '-') ?: return null
-            return entries.firstOrNull { it.id == text }
+            builtin(text)?.let { return it }
+            val damage = text.endsWith("-damage")
+            if (!damage && !text.endsWith("-resist")) return null
+            val element = text.substringBeforeLast('-')
+            if (!ELEMENT_ID.matches(element) || Elements.get(element) == null) return null
+            return if (damage) elementDamage(element) else elementResist(element)
         }
 
         /**
@@ -267,31 +348,5 @@ enum class ItemType(val id: String, val display: String, val icon: Material, val
                 else -> MISC
             }
         }
-    }
-}
-
-/**
- * 희귀도.
- *
- * 색과 이름만 정한다. **설정값이 아니라 코드 목록인 이유**는 이게 아이템의 값이 아니라
- * 서버 전체가 공유하는 눈금이기 때문이다 — 아이템마다 다른 등급 체계를 만들 수 있으면
- * 등급이라는 말이 의미를 잃는다.
- */
-enum class Tier(val id: String, val display: String, val color: String, private val from: String, private val to: String) {
-    COMMON("common", "일반", "<white>", "#E6E6E6", "#9E9E9E"),
-    UNCOMMON("uncommon", "고급", "<green>", "#8CF58C", "#2FA84F"),
-    RARE("rare", "희귀", "<aqua>", "#7FDBFF", "#2F7DE1"),
-    EPIC("epic", "영웅", "<light_purple>", "#E79CFF", "#9B3FE0"),
-    LEGENDARY("legendary", "전설", "<gold>", "#FFE36E", "#FF9A1F"),
-    MYTHIC("mythic", "신화", "<red>", "#FF7A7A", "#C2185B"),
-    ;
-
-    /** 로어 맨 아래의 등급 배지. 등급마다 두 색을 잇는 그라데이션이고, 양옆 줄은 흐리게. */
-    fun badge(): String =
-        "<dark_gray>▬▬▬▬</dark_gray> <gradient:" + from + ":" + to + "><bold>✦ " + display + " ✦</bold></gradient> <dark_gray>▬▬▬▬</dark_gray>"
-
-    companion object {
-        fun of(id: String?): Tier =
-            entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: COMMON
     }
 }

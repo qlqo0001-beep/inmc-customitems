@@ -96,7 +96,15 @@ class ItemEditMenu(
         EditButton.TYPE_LABEL -> btn(typeLabelIcon(item)) { event ->
             mutate { it.copy(typeLabel = Editors.cycle(event, com.inmc.customitems.item.TypeLabel.entries.toList(), it.typeLabel)) }
         }
-        EditButton.TIER -> btn(tierIcon(item)) { event -> mutate { it.copy(tier = Editors.cycle(event, Tier.entries.toList(), it.tier)) } }
+        EditButton.TIER -> btn(tierIcon(item)) {
+            // 등급은 관리자가 늘린다(2026-10-13) — 늘 고르는 화면으로.
+            ChoiceMenu(
+                custom, viewer, "등급 고르기",
+                options = { Tier.choices.map { it.id to tierOption(it) } },
+                selected = { setOf(item.tier.id) },
+                back = { open(viewer) },
+            ) { picked -> mutate(reopen = false) { it.copy(tier = Tier(picked)) } }.open(viewer)
+        }
         EditButton.PERIOD -> btn(periodIcon(item)) { event -> editPeriod(event) }
 
         // --- 능력: 무엇을 하나 · 무엇이 붙나 · 언제·어디서 ---
@@ -242,7 +250,7 @@ class ItemEditMenu(
         listOf(
             "<gray>아이템의 바탕이 되는 바닐라 아이템입니다.</gray>",
             "",
-            "<yellow>▶ 좌클릭: 손에 든 것의 재질로</yellow>",
+            "<yellow>▶ 좌클릭: 아이템을 올려 그 재질로</yellow>",
             "<yellow>▶ 우클릭: 이름으로 입력</yellow>",
         ),
     )
@@ -418,9 +426,14 @@ class ItemEditMenu(
 
     private fun tierIcon(item: CustomItem) = Icon.of(
         Material.NETHER_STAR,
-        "<yellow>등급: " + item.tier.color + item.tier.display + "</yellow>",
-        Editors.optionList(Tier.entries.toList(), item.tier) { it.color + it.display } +
-            listOf("", "<gray>이름 색과 로어 첫 줄이 바뀝니다.</gray>") + Editors.cycleHint,
+        "<yellow>등급: " + item.tier.color + item.tier.display + "</yellow>" + (if (item.tier != Tier.NONE && item.tier.def == null) " <red>(지운 등급)</red>" else ""),
+        listOf("<gray>이름 색과 로어 맨 아래 배지가 바뀝니다.</gray>", "<dark_gray>등급 목록은 첫 화면의 등급 관리에서.</dark_gray>") + Editors.pickHint,
+    )
+
+    private fun tierOption(tier: Tier) = Icon.of(
+        Material.NETHER_STAR,
+        tier.color + tier.display,
+        tier.badge()?.let { listOf(it) } ?: listOf("<gray>배지를 그리지 않습니다.</gray>"),
     )
 
     private fun styleIcon(item: CustomItem) = Icon.of(
@@ -768,11 +781,12 @@ class ItemEditMenu(
         }
     }
 
-    /** 손에 든 것의 재질로. 빈손이면 이름을 묻는다 — 이름을 외워 적는 것보다 쉽다. */
+    /** 올린 아이템의 재질로(아이템 올리기 — 손에 든 것 대신, 사용자 요청 2026-10-14). 이름을 외워 적는 것보다 쉽다. */
     private fun materialFromHand() {
-        val hand = viewer.inventory.itemInMainHand
-        if (hand.type.isAir) return promptMaterial()
-        mutate { it.copy(material = hand.type) }
+        kr.inmc.core.gui.ItemInputMenu(custom, viewer, "재질 — 아이템 올리기", hint = listOf("<gray>올린 아이템의 재질로 바꿉니다.</gray>"),
+            submitLabel = "이 재질로", back = { open(viewer) }) { stack ->
+            mutate(reopen = false) { it.copy(material = stack.type) }
+        }.show()
     }
 
     private fun promptMaterial() {

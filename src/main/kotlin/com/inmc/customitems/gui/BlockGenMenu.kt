@@ -67,10 +67,8 @@ class BlockGenMenu(custom: CustomItems, viewer: Player, id: String, private val 
             if (rule.replace.size > 8) add("<dark_gray>…</dark_gray>")
             add("")
             add("<yellow>▶ 클릭: 고르기</yellow>")
-            add("<yellow>▶ Shift+클릭: 손에 든 블록 더하기</yellow>")
-        })) { event ->
-            if (event.isShiftClick) addHeld() else pickReplace()
-        }
+            add("<yellow>▶ 아래 가방의 블록을 Shift+클릭: 더하기</yellow>")
+        })) { pickReplace() }
 
         set(SLOT_HEIGHT, Icon.of(Material.LADDER, "<green>높이 <white>" + rule.minY + " ~ " + rule.maxY + "</white></green>", listOf(
             "<gray>오버월드 땅속은 -64 ~ 60쯤, 심층암은 0 아래.</gray>",
@@ -200,13 +198,17 @@ class BlockGenMenu(custom: CustomItems, viewer: Player, id: String, private val 
         }.show()
     }
 
-    private fun addHeld() {
-        val material = viewer.inventory.itemInMainHand.type
-        if (material.isAir || !material.isBlock) {
-            viewer.sendMessage(Text.render("<red>바꿀 블록으로 더할 블록을 손에 드세요.</red>"))
-            return
+    /** 가방의 블록을 Shift+클릭하면 바꿀 블록에 더한다(손에 든 것 대신, 사용자 요청 2026-10-14). 아이템은 그대로. */
+    override fun onPlayerInventoryClick(event: org.bukkit.event.inventory.InventoryClickEvent): Boolean {
+        if (!event.isShiftClick) return false
+        val material = event.currentItem?.type ?: return false
+        if (material.isAir) return false
+        if (!material.isBlock) {
+            viewer.sendMessage(Text.render("<red>블록만 더할 수 있습니다.</red>"))
+            return true
         }
         change { gen -> gen?.copy(replace = (gen.replace + material).distinct()) }
+        return true
     }
 
     private fun current(): OreGen? = item()?.block?.generation

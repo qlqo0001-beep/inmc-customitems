@@ -9,16 +9,26 @@ import com.inmc.customitems.util.Ph
 import com.inmc.customitems.verify.Verifier
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.builder.ArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import kr.inmc.core.integration.Mail
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import java.util.UUID
+import java.util.logging.Level
+
+/** 지급 대상 자리의 글자를 꺼내는 길 — 이름 인자에서 읽거나 `*`·`**` 그대로. */
+private typealias TargetArg = (CommandContext<CommandSourceStack>) -> String
 
 /**
  * `/커스텀아이템` 한 트리.
@@ -44,10 +54,11 @@ class CustomItemsCommand(private val custom: CustomItems) {
         builder.buildFuture()
     }
 
-    private val players = SuggestionProvider<CommandSourceStack> { _, builder ->
-        Bukkit.getOnlinePlayers()
-            .filter { it.name.startsWith(builder.remainingLowerCase, ignoreCase = true) }
-            .forEach { builder.suggest(it.name) }
+    /** 투명인 사람은 보는 사람이 볼 수 있을 때만 제안한다(core [Vanish]). */
+    private val players = SuggestionProvider<CommandSourceStack> { ctx, builder ->
+        Vanish.visibleNames(ctx.source.sender)
+            .filter { it.startsWith(builder.remainingLowerCase, ignoreCase = true) }
+            .forEach { builder.suggest(it) }
         builder.buildFuture()
     }
 
@@ -94,10 +105,7 @@ class CustomItemsCommand(private val custom: CustomItems) {
             .then(
                 Commands.argument("플레이어", StringArgumentType.word())
                     .requires { it.sender.hasPermission(EQUIPMENT_OTHER) }
-                    .suggests { _, builder ->
-                        Bukkit.getOnlinePlayers().forEach { builder.suggest(it.name) }
-                        builder.buildFuture()
-                    }
+                    .suggests(players)
                     .executes { ctx ->
                         val player = ctx.source.executor as? Player ?: ctx.source.sender as? Player
                             ?: return@executes 0.also { custom.messages.send(ctx.source.sender, "player-only") }
@@ -173,38 +181,36 @@ class CustomItemsCommand(private val custom: CustomItems) {
                     }),
             )
 
+            .then(withTargets(Commands.literal("세트지급"), ::setBranch))
+            .then(withTargets(Commands.literal("지급"), ::giveBranch))
+
+    /**
+     * 지급 대상 자리 — 플레이어 이름, `*`(접속자 전원), `**`(최근 접속자 전원). `*` 는 Brigadier 의 `word()` 가 못 읽는 글자라
+     * 같은 꼬리를 단 글자 그대로의 갈래로 둔다.
+     */
+    private fun withTargets(
+        root: LiteralArgumentBuilder<CommandSourceStack>,
+        tail: (TargetArg) -> ArgumentBuilder<CommandSourceStack, *>,
+    ): LiteralArgumentBuilder<CommandSourceStack> =
+        root
+            .then(Commands.literal("*").then(tail { "*" }))
+            .then(Commands.literal("**").then(tail { "**" }))
+            .then(Commands.argument("플레이어", StringArgumentType.word()).suggests(players).then(tail { StringArgumentType.getString(it, "플레이어") }))
+
+    private fun giveBranch(target: TargetArg): ArgumentBuilder<CommandSourceStack, *> =
+        Commands.argument("개수", IntegerArgumentType.integer(1, 2304))
             .then(
-                Commands.literal("세트지급")
-                    .then(
-                        Commands.argument("플레이어", StringArgumentType.word()).suggests(players)
-                            .then(
-                                Commands.argument("세트", StringArgumentType.word()).suggests(setIds).executes { ctx ->
-                                    giveSet(ctx.source.sender, StringArgumentType.getString(ctx, "플레이어"), StringArgumentType.getString(ctx, "세트"))
-                                },
-                            ),
-                    ),
+                Commands.argument("이름", StringArgumentType.greedyString())
+                    .suggests(itemIds)
+                    .executes { ctx ->
+                        give(ctx.source.sender, target(ctx), IntegerArgumentType.getInteger(ctx, "개수"), StringArgumentType.getString(ctx, "이름"))
+                    },
             )
-            .then(
-                Commands.literal("지급")
-                    .then(
-                        Commands.argument("플레이어", StringArgumentType.word()).suggests(players)
-                            .then(
-                                Commands.argument("개수", IntegerArgumentType.integer(1, 2304))
-                                    .then(
-                                        Commands.argument("이름", StringArgumentType.greedyString())
-                                            .suggests(itemIds)
-                                            .executes { ctx ->
-                                                give(
-                                                    ctx.source.sender,
-                                                    StringArgumentType.getString(ctx, "플레이어"),
-                                                    IntegerArgumentType.getInteger(ctx, "개수"),
-                                                    StringArgumentType.getString(ctx, "이름"),
-                                                )
-                                            },
-                                    ),
-                            ),
-                    ),
-            )
+
+    private fun setBranch(target: TargetArg): ArgumentBuilder<CommandSourceStack, *> =
+        Commands.argument("세트", StringArgumentType.word()).suggests(setIds).executes { ctx ->
+            giveSet(ctx.source.sender, target(ctx), StringArgumentType.getString(ctx, "세트"))
+        }
 
     private fun open(sender: CommandSender): Int {
         val player = sender as? Player ?: run {
@@ -266,6 +272,15 @@ class CustomItemsCommand(private val custom: CustomItems) {
         val plugin = custom.plugin as? CustomItemsPlugin ?: return 0
         plugin.reload {
             custom.messages.send(sender, "reloaded", Ph.of().count(custom.items.size))
+            // 다시 읽은 아이템·팩 소스로 팩이 어긋났으면 다시 만들어 올린다(2026-10-14). 콘솔에는 서비스가 적는다.
+            custom.pack.ensureInSync { problems, result ->
+                if (sender is org.bukkit.command.ConsoleCommandSender) return@ensureInSync
+                sender.sendMessage(Text.render(when {
+                    problems.isEmpty() -> "<gray>리소스팩: 지금 아이템과 맞습니다.</gray>"
+                    result?.ok == true -> "<green>리소스팩이 어긋나 다시 만들어 올렸습니다</green> <gray>— " + problems.joinToString(" · ") + "</gray>"
+                    else -> "<red>리소스팩이 어긋났는데 다시 만들지 못했습니다: " + (result?.error ?: "?") + "</red>"
+                }))
+            }
         }
         return 1
     }
@@ -367,51 +382,246 @@ class CustomItemsCommand(private val custom: CustomItems) {
             sender.sendMessage(Text.render("<dark_gray>config.yml 의 resource-pack.url 이 비어 있습니다.</dark_gray>"))
         }
         for (line in com.inmc.customitems.gui.PackMenu.hostLore(custom)) sender.sendMessage(Text.render(line))
+        when (val sync = custom.pack.lastSync) {
+            null -> sender.sendMessage(Text.render("<dark_gray>아이템과 맞는지 아직 확인하지 않았습니다(켤 때·리로드 때 확인합니다).</dark_gray>"))
+            else -> if (sync.isEmpty()) {
+                sender.sendMessage(Text.render("<gray>아이템과 맞음 <dark_gray>(마지막 확인 · 켤 때·리로드 때 확인)</dark_gray></gray>"))
+            } else {
+                sender.sendMessage(Text.render("<yellow>마지막 확인에서 어긋남:</yellow> <gray>" + sync.joinToString(" · ") + "</gray>"))
+            }
+        }
         return 1
     }
 
-    private fun give(sender: CommandSender, playerName: String, amount: Int, rawId: String): Int {
-        val target = Bukkit.getPlayerExact(playerName.trim()) ?: run {
-            custom.messages.send(sender, "player-not-found", Ph.of().player(playerName))
-            return 0
-        }
+    private fun give(sender: CommandSender, rawTarget: String, amount: Int, rawId: String): Int {
         val id = rawId.trim().lowercase()
-        val stack = custom.items.create(id, amount) ?: run {
+        if (custom.items.get(id) == null) {
             custom.messages.send(sender, "unknown-item", Ph.of().item(rawId))
             return 0
         }
-
-        val left = target.inventory.addItem(stack)
-        for (overflow in left.values) target.world.dropItem(target.location, overflow)
-        if (left.isNotEmpty()) custom.messages.send(target, "inventory-full")
-
-        val ph = Ph.of().player(target.name).item(id).amount(amount)
-        custom.messages.send(sender, "given", ph)
-        if (sender !== target) custom.messages.send(target, "received", ph)
-        return 1
+        return deliver(sender, rawTarget, "아이템 지급 · $id ×$amount", Ph.of().item(id).amount(amount)) { makeStacks(id, amount) }
     }
 
     /** 세트의 아이템을 하나씩 전부 준다. 보상 명령어(뽑기 상자 …)용 — 인첸트의 옛 `/인첸트 세트지급` 을 대신한다. */
-    private fun giveSet(sender: CommandSender, playerName: String, rawId: String): Int {
-        val target = Bukkit.getPlayerExact(playerName.trim()) ?: run {
-            custom.messages.send(sender, "player-not-found", Ph.of().player(playerName))
-            return 0
-        }
+    private fun giveSet(sender: CommandSender, rawTarget: String, rawId: String): Int {
         val set = custom.sets.get(rawId.trim()) ?: run {
             custom.messages.send(sender, "unknown-set", Ph.of().item(rawId))
             return 0
         }
-        val stacks = custom.items.all().filter { it.set == set.id }.mapNotNull { custom.items.create(it.id, 1) }
-        var overflowed = false
-        for (stack in stacks) for (overflow in target.inventory.addItem(stack).values) {
-            target.world.dropItem(target.location, overflow)
-            overflowed = true
+        val members = custom.items.all().filter { it.set == set.id }.map { it.id }
+        if (members.isEmpty()) {
+            // 빈 세트를 그대로 넘기면 빈 우편이 거절돼 "우편에 넣지 못했습니다" 로 보인다.
+            custom.messages.send(sender, "set-empty", Ph.of().item(set.name))
+            return 0
         }
-        if (overflowed) custom.messages.send(target, "inventory-full")
-        val ph = Ph.of().player(target.name).item(set.name).amount(stacks.size)
-        custom.messages.send(sender, "given", ph)
-        if (sender !== target) custom.messages.send(target, "received", ph)
-        return 1
+        return deliver(sender, rawTarget, "세트 지급 · ${set.id}", Ph.of().item(set.name).amount(members.size)) {
+            members.mapNotNull { custom.items.create(it, 1) }
+        }
+    }
+
+    /**
+     * [amount] 개를 묶음들로 — 한 번 만들면 한 묶음(칼은 1개)까지라 그대로 주면 개수가 잘렸다([Give.split]).
+     * 역할 공급처가 한 묶음보다 크게 만들어도 한 묶음으로 자른다(우편에 넣을 때 바이트로 바뀌는 것이 묶음 하나다).
+     */
+    private fun makeStacks(id: String, amount: Int): List<ItemStack> =
+        Give.split(
+            amount,
+            make = { left -> custom.items.create(id, left)?.also { if (it.amount > it.maxStackSize) it.amount = it.maxStackSize.coerceAtLeast(1) } },
+            sizeOf = { it.amount },
+            trim = { stack, size -> stack.amount = size },
+        )
+
+    /**
+     * 대상마다 [make] 로 새로 만들어 준다(사람마다 제 몫을 굴린다). 접속한 사람은 가방에, 넘친 것은 우편(없으면 발밑),
+     * 접속하지 않은 사람은 우편 — 우편이 없으면 거절한다. 한 사람에게 두 길로 주지 않는다.
+     *
+     * `*`·`**` 는 한 틱에 몰아 만들지 않고 [spread] 로 틱에 나눠 준다. `**` 의 "최근 접속자" 찾기는 사람마다 플레이어 파일을
+     * 읽으므로 워커에서 한다(메인에서 디스크를 만지지 않는다). 그래서 둘은 결과 알림이 조금 늦게 온다.
+     */
+    private fun deliver(sender: CommandSender, rawTarget: String, source: String, ph: Ph, make: () -> List<ItemStack>): Int {
+        when (val target = Give.parse(rawTarget)) {
+            is Give.Target.Named -> {
+                val online = Bukkit.getPlayerExact(target.name)
+                if (online != null) {
+                    handOver(online, make(), source)
+                    val named = ph.copy().player(online.name)
+                    custom.messages.send(sender, "given", named)
+                    if (sender !== online) custom.messages.send(online, "received", named)
+                    return 1
+                }
+                val offline = Bukkit.getOfflinePlayerIfCached(target.name)?.takeIf { it.hasPlayedBefore() } ?: run {
+                    custom.messages.send(sender, "player-not-found", Ph.of().player(target.name))
+                    return 0
+                }
+                val name = offline.name ?: target.name
+                if (!Mail.available) {
+                    custom.messages.send(sender, "mail-unavailable")
+                    return 0
+                }
+                val sent = mail(offline.uniqueId, source, make())
+                if (!sent.ok) {
+                    custom.messages.send(sender, "mail-failed", Ph.of().player(name))
+                    return 0
+                }
+                custom.messages.send(sender, "given-mail", ph.copy().player(name))
+                if (sent.rest.isNotEmpty()) custom.messages.send(sender, "mail-skipped", Ph.of().player(name).count(sent.rest.size))
+                return 1
+            }
+
+            Give.Target.Online -> {
+                val players = Bukkit.getOnlinePlayers().map { it.uniqueId to it.name }
+                spread(sender, players, source, ph, make) { tally ->
+                    custom.messages.send(sender, "given-all", ph.copy().count(tally.direct + tally.mailed))
+                }
+                return 1
+            }
+
+            Give.Target.Recent -> {
+                // 접속하지 않은 사람은 우편으로만 줄 수 있다 — 우편이 없으면 접속한 사람에게도 주지 않는다(반쪽 지급을 막는다).
+                if (!Mail.available) {
+                    custom.messages.send(sender, "mail-unavailable")
+                    return 0
+                }
+                val online = Bukkit.getOnlinePlayers().map { it.uniqueId to it.name }
+                val onlineIds = online.mapTo(HashSet()) { it.first }
+                val days = custom.giveRecentDays
+                custom.messages.send(sender, "give-recent-searching", Ph.of().value(days.toString()))
+                // getOfflinePlayers 는 playerdata 폴더를, lastSeen 은 사람마다 그 파일을 읽는다 — 워커에서.
+                custom.io.async({
+                    val now = System.currentTimeMillis()
+                    Bukkit.getOfflinePlayers()
+                        .filter { it.uniqueId !in onlineIds && Give.seenWithin(it.lastSeen, now, days) }
+                        .map { it.uniqueId to (it.name ?: it.uniqueId.toString()) }
+                }) { offline ->
+                    spread(sender, online + offline, source, ph, make) { tally ->
+                        custom.messages.send(sender, "given-recent", ph.copy().count(tally.direct + tally.mailed).value(tally.mailed.toString()))
+                    }
+                }
+                return 1
+            }
+        }
+    }
+
+    /** 여럿에게 나눠 준 결과. */
+    private class Tally {
+        var direct = 0
+        var mailed = 0
+        val failed = ArrayList<String>()
+        val skipped = ArrayList<String>()
+        var skippedStacks = 0
+    }
+
+    /**
+     * [recipients](uuid, 이름)에게 틱을 나눠 준다. 차례가 왔을 때 접속해 있으면 가방에(넘친 것은 [handOver]), 아니면 우편 — 우편이 없으면
+     * 그 사람은 건너뛴다(`*` 를 치는 사이에 나간 사람). 다 돌면 [summary] 뒤에 못 넣은 사람들을 알린다.
+     */
+    private fun spread(
+        sender: CommandSender,
+        recipients: List<Pair<UUID, String>>,
+        source: String,
+        ph: Ph,
+        make: () -> List<ItemStack>,
+        summary: (Tally) -> Unit,
+    ) {
+        val tally = Tally()
+        val jobs = recipients.map { (id, name) ->
+            {
+                val player = Bukkit.getPlayer(id)
+                when {
+                    player != null -> {
+                        val stacks = make()
+                        handOver(player, stacks, source)
+                        if (sender !== player) custom.messages.send(player, "received", ph.copy().player(player.name))
+                        tally.direct++
+                        stacks.size
+                    }
+
+                    Mail.available -> {
+                        val stacks = make()
+                        val sent = mail(id, source, stacks)
+                        if (!sent.ok) {
+                            tally.failed += name
+                        } else {
+                            tally.mailed++
+                            if (sent.rest.isNotEmpty()) {
+                                tally.skipped += name
+                                tally.skippedStacks += sent.rest.size
+                            }
+                        }
+                        stacks.size
+                    }
+
+                    else -> 0
+                }
+            }
+        }
+        drip(jobs) {
+            summary(tally)
+            if (tally.failed.isNotEmpty()) custom.messages.send(sender, "mail-failed", Ph.of().player(Give.names(tally.failed)))
+            if (tally.skipped.isNotEmpty()) {
+                custom.messages.send(sender, "mail-skipped", Ph.of().player(Give.names(tally.skipped)).count(tally.skippedStacks))
+            }
+        }
+    }
+
+    /**
+     * [jobs] 를 틱마다 묶음 [Give.TICK_BUDGET] 개 몫씩 돈다(적어도 한 사람) — 칼 2304개 × 300명을 한 틱에 만들면 서버가 멈춘다.
+     * 하나가 던져도 나머지는 계속 돈다. 다 돌면 [done]. 도중에 플러그인이 꺼지면 남은 사람은 받지 못한다.
+     */
+    private fun drip(jobs: List<() -> Int>, done: () -> Unit) {
+        val queue = jobs.iterator()
+        val next: () -> Int? = {
+            if (!queue.hasNext()) {
+                null
+            } else {
+                runCatching(queue.next()).getOrElse {
+                    custom.plugin.logger.log(Level.WARNING, "지급 실패", it)
+                    0
+                }
+            }
+        }
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(custom.plugin, { task ->
+            if (!Give.tick(Give.TICK_BUDGET, next)) {
+                task.cancel()
+                done()
+            }
+        }, 1L, 1L)
+    }
+
+    /** 가방에 넣고 넘친 것은 우편으로(우편이 없거나 못 넣은 것은 발밑). */
+    private fun handOver(player: Player, stacks: List<ItemStack>, source: String) {
+        val left = stacks.flatMap { player.inventory.addItem(it).values }
+        if (left.isEmpty()) return
+        val sent = if (Mail.available) mail(player.uniqueId, source, left) else null
+        if (sent?.ok == true) custom.messages.send(player, "inventory-full-mail")
+        val ground = sent?.rest ?: left
+        if (ground.isEmpty()) return
+        for (overflow in ground) player.world.dropItem(player.location, overflow)
+        custom.messages.send(player, "inventory-full")
+    }
+
+    /** [ok] = 우편 한 통이 들어갔다. [rest] = 우편에 넣지 못한 묶음(못 넣었으면 전부). */
+    private class Mailed(val ok: Boolean, val rest: List<ItemStack>)
+
+    /**
+     * 우편에 넣는다. [Mail.send] 는 바이트로 못 바꾸는 묶음을 말없이 빼고도 true 를 주므로, 여기서 먼저 바꿔 못 바꾼 것을 돌려준다
+     * — 부른 쪽이 발밑에 떨구거나 보낸 사람에게 알린다.
+     */
+    private fun mail(playerId: UUID, source: String, stacks: List<ItemStack>): Mailed {
+        val bytes = ArrayList<ByteArray>()
+        val rest = ArrayList<ItemStack>()
+        for (stack in stacks) {
+            if (stack.type.isAir || stack.amount <= 0) continue
+            val data = runCatching { stack.serializeAsBytes() }.getOrNull()
+            if (data == null) rest += stack else bytes += data
+        }
+        if (rest.isNotEmpty()) custom.plugin.logger.warning("우편에 넣을 수 없는 아이템 ${rest.size}묶음 ($source → $playerId)")
+        if (bytes.isEmpty()) return Mailed(false, stacks)
+        val ok = Mail.deposit(
+            playerId,
+            Mail.Parcel(kind = Mail.Kind.REWARD, origin = custom.plugin.name, source = source, items = bytes),
+        )
+        return if (ok) Mailed(true, rest) else Mailed(false, stacks)
     }
 
     companion object {

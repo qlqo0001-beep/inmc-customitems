@@ -257,9 +257,7 @@ object ItemBuilder {
         "",
         "<gray>정체를 알 수 없는 아이템입니다.</gray>",
         "<dark_gray>감정서를 끌어다 놓으면 밝혀집니다.</dark_gray>",
-        "",
-        definition.tier.badge(),
-    )
+    ) + definition.tier.badge()?.let { listOf("", it) }.orEmpty()
 
     /**
      * 1.21 부품. 서버·버전이 모르는 부품은 그것만 건너뛴다 — 여기서 터지면 아이템 자체가 안 만들어진다.
@@ -446,8 +444,11 @@ object ItemBuilder {
             addAll(statusLines)
         }
 
-        add("")
-        add(tierOf(definition, instance, lookup).badge())
+        // 등급 없음(·지운 등급)이면 배지 줄이 없다.
+        tierOf(definition, instance, lookup).badge()?.let {
+            add("")
+            add(it)
+        }
 
         if (definition.lore.isNotEmpty()) {
             add("")

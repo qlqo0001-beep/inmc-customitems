@@ -157,6 +157,10 @@ object BlockStates {
     private fun chorusJson(custom: Map<String, String>): String {
         val customMasks = (0 until 64).filter { chorusKey(it) in custom }.toSet()
         val parts = JsonArray()
+        // 맨 앞 — 모든 상태에 붙는 빈 모델(그리는 것 없음, 파편만 투명). 클라이언트는 여러 조각 블록의 파편 그림을 상태와 상관없이 첫 조각에서 하나만
+        // 쓴다(26.2 MultiPartModel.SharedBakedState) — 바닐라 줄기가 앞이면 모든 커스텀 후렴초가 보라 줄기 파편으로 부서진다(테섭 2026-10-10).
+        // 커스텀 블록의 파편은 서버가 아이템 모양으로 뿌린다(CustomBlocks.burst · BlockMining). 바닐라 후렴초는 파편이 안 보이게 된다.
+        parts.add(JsonObject().apply { add("apply", JsonObject().apply { addProperty("model", NO_PARTICLE_MODEL) }) })
         for (element in JsonParser.parseString(VANILLA_CHORUS).asJsonObject.getAsJsonArray("multipart")) {
             val part = element.asJsonObject.deepCopy()
             val (face, value) = part.getAsJsonObject("when").entrySet().single().let { it.key to (it.value.asString == "true") }
@@ -178,6 +182,18 @@ object BlockStates {
             })
         }
         return GSON.toJson(JsonObject().apply { add("multipart", parts) })
+    }
+
+    /** 후렴초 첫 조각의 모델 — 요소 없음, 파편 그림만 투명. 팩에 [NO_PARTICLE_MODEL_PATH]·[NO_PARTICLE_TEXTURE_PATH] 를 같이 넣는다. */
+    const val NO_PARTICLE_MODEL = "inmc:block/no_particle"
+    const val NO_PARTICLE_MODEL_PATH = "assets/inmc/models/block/no_particle.json"
+    const val NO_PARTICLE_TEXTURE_PATH = "assets/inmc/textures/block/no_particle.png"
+    const val NO_PARTICLE_MODEL_JSON = """{"textures":{"particle":"inmc:block/no_particle"}}"""
+
+    /** 16×16 다 투명한 그림(블록 아틀라스에 들어가는 `block/` 폴더). */
+    fun transparentPng(): ByteArray {
+        val image = java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        return java.io.ByteArrayOutputStream().also { javax.imageio.ImageIO.write(image, "png", it) }.toByteArray()
     }
 
     private fun stateObject(mask: Int): JsonObject = JsonObject().apply {

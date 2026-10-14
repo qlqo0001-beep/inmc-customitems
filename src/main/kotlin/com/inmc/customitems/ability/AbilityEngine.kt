@@ -182,13 +182,8 @@ class AbilityEngine(private val custom: CustomItems) {
             EffectType.PARTICLE -> {
                 val particle = particle(ability.value("particle")) ?: return
                 val spread = ability.number("spread")
-                target.world.spawnParticle(
-                    particle,
-                    target.location.add(0.0, 1.0, 0.0),
-                    ability.int("count"),
-                    spread, spread, spread,
-                    0.0,
-                )
+                // 색·블록 자료가 필요한 입자는 core 가 기본 자료를 넣는다 — 고르는 화면의 미리보기와 같은 모습(2026-10-14).
+                kr.inmc.core.util.Particles.spawn(particle, target.location.add(0.0, 1.0, 0.0), ability.int("count"), spread, spread, spread, 0.0)
             }
 
             EffectType.COMMAND -> {
@@ -288,7 +283,7 @@ class AbilityEngine(private val custom: CustomItems) {
                 repeat((ability.number("length") * 2).toInt()) {
                     point.add(step)
                     if (!point.block.isPassable) return
-                    point.world.spawnParticle(particle, point, 1, 0.0, 0.0, 0.0, 0.0)
+                    kr.inmc.core.util.Particles.spawn(particle, point, 1, 0.0, 0.0, 0.0, 0.0)
                     for (entity in around(point, 1.0, player, players)) if (hit.add(entity)) hurt(entity, ability.number("damage"), player)
                 }
             }
@@ -409,8 +404,7 @@ class AbilityEngine(private val custom: CustomItems) {
 
     private fun sound(raw: String): Sound? = Registries.sound(raw)
 
-    private fun particle(raw: String): Particle? =
-        runCatching { Particle.valueOf(raw.trim().uppercase().replace('.', '_')) }.getOrNull()
+    private fun particle(raw: String): Particle? = kr.inmc.core.util.Particles.of(raw)
 
     companion object {
         /** 기능이 쏜 발사체에 적는 피해. */

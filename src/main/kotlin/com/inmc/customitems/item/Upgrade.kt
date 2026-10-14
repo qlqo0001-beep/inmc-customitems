@@ -103,7 +103,8 @@ data class UpgradeStep(
             failChance = section.getDouble("fail-chance", 100.0).coerceIn(0.0, 100.0),
             stats = readStats(section, "stats"),
             percents = readStats(section, "percents"),
-            tier = section.getString("tier")?.let { raw -> Tier.entries.firstOrNull { it.id.equals(raw.trim(), ignoreCase = true) } },
+            // 목록에 없는 등급도 그대로 쥔다 — 지운 등급을 같은 id 로 되살리면 이어진다(Tier).
+            tier = section.getString("tier")?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let(::Tier),
             customModelData = section.getInt("custom-model-data", 0).coerceAtLeast(0),
             texture = section.getString("texture").orEmpty(),
             model = section.getString("model").orEmpty(),
@@ -332,7 +333,7 @@ data class UpgradeStone(
             bonus = section.getDouble("bonus", 0.0).coerceIn(-100.0, 100.0),
             chance = section.getDouble("chance", 0.0).coerceIn(0.0, 100.0),
             chances = section.getConfigurationSection("chances")?.let { node ->
-                node.getKeys(false).mapNotNull { key -> Tier.entries.firstOrNull { it.id.equals(key, ignoreCase = true) }?.let { it to node.getDouble(key).coerceIn(0.0, 100.0) } }.toMap()
+                node.getKeys(false).associate { key -> Tier(key.trim().lowercase()) to node.getDouble(key).coerceIn(0.0, 100.0) }
             }.orEmpty(),
         )
     }

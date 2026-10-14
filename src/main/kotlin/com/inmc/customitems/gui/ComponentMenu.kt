@@ -72,8 +72,12 @@ class ComponentMenu(custom: CustomItems, viewer: Player, id: String) :
             Editors.optionList(Components.SLOTS, parts.equipSlot) { Components.slotLabel(it) } + listOf(
                 "", "<gray>아무 아이템이나 그 칸에 입게 합니다(모자·등 장식).</gray>", "<gray>능력치도 그 칸에서 돕니다.</gray>",
             ) + Editors.cycleHint)) { event -> change { it.copy(equipSlot = Editors.cycle(event, Components.SLOTS, it.equipSlot)) } }
-        set(SLOT_COLOR, textIcon(Material.RED_DYE, "색", parts.color, listOf("<gray>가죽 갑옷·물약 색. 예: <white>#FF8800</white></gray>"))) { e ->
-            text(e, "색 (#RRGGBB)", listOf("<gray>예: <white>#FF8800</white></gray>"), { if (Components.parseColor(it) == null) "#RRGGBB 모양으로 적으세요: $it" else null }) { c, v -> c.copy(color = "#" + v.removePrefix("#").uppercase()) }
+        set(SLOT_COLOR, textIcon(Material.RED_DYE, "색", parts.color, listOf("<gray>가죽 갑옷·물약 색 — 색표·RGB 로 고릅니다.</gray>"))) {
+            // 고르는 화면(색표 + RGB) — 사용자 요청 2026-10-14. 색 없음 = 지우기.
+            kr.inmc.core.gui.ColorPickMenu(custom, viewer, "색", custom.prompts, current = parts.color, allowNone = true, back = { open(viewer) }) { hex ->
+                change(false) { it.copy(color = hex.orEmpty()) }
+                open(viewer)
+            }.show()
         }
         set(SLOT_TRIM_PATTERN, textIcon(Material.SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE, "장식 무늬", parts.trimPattern, listOf(
             "<gray>갑옷에만. 예: <white>sentry</white>, <white>silence</white></gray>", "<gray>재료와 둘 다 있어야 붙습니다.</gray>",

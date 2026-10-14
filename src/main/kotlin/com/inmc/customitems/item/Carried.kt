@@ -20,7 +20,7 @@ object Carried {
         val stacking = talismans.filter { !it.definition.noDuplicate }
         val single = talismans.filter { it.definition.noDuplicate }.groupBy { it.definition.id }.values.map { it.maxWith(best) }
         val relic = candidates.filter { it.definition.type == ItemType.RELIC }
-            .maxWithOrNull(compareBy<Candidate>({ it.tier.ordinal }, { it.level }, { -it.index }))
+            .maxWithOrNull(compareBy<Candidate>({ it.tier.rank }, { it.level }, { -it.index }))
         return (stacking + single + listOfNotNull(relic)).sortedBy { it.index }
     }
 }

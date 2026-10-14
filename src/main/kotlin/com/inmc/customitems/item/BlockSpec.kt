@@ -45,6 +45,10 @@ enum class BlockKind(val id: String, val label: String, val base: org.bukkit.Mat
  * @param silkTouch 섬세한 손길 도구로 캐면 [drops] 대신 블록 자신이 나온다(바닐라 광석).
  * @param fortune 행운이 [drops] 의 개수를 늘린다(바닐라 광석 공식).
  * @param generation 월드 생성(광맥) — 처음 만들어지는 청크에 심는다([com.inmc.customitems.block.OreGenerator]). 엔티티 방식은 안 된다. 지문에서 뺀다.
+ * @param model 엔티티 방식이면 그 자리에 세울 **BetterModel 모델** 이름(`plugins/BetterModel/models/<이름>.bbmodel`) — 애니메이션 `idle` 이 돈다
+ *   ([com.inmc.customitems.block.BlockModels], Nexo·ModelEngine 가구 2026-10-09). 비면 아이템 모양 그대로. 블록 상태 방식은 비어 있다.
+ * @param surface 놓을 수 있는 면 — [Surface]. 천장이면 모델의 기준점이 칸의 윗면이다(위에 매달린 모델).
+ * @param lights 놓으면 같이 켜는 빛(바닐라 빛 블록) — 빈 칸(공기)에만 두고, 부수면 같이 치운다.
  */
 data class BlockSpec(
     val kind: BlockKind,
@@ -60,6 +64,9 @@ data class BlockSpec(
     val expMin: Int = 0,
     val expMax: Int = 0,
     val generation: com.inmc.customitems.block.OreGen? = null,
+    val model: String = "",
+    val surface: Surface = Surface.ANY,
+    val lights: List<BlockLight> = emptyList(),
 ) {
 
     /** 기본값은 적지 않는다 — 적으면 이 칸이 생긴 것만으로 모든 블록 아이템의 지문이 바뀌어 다시 그린다. */
@@ -82,6 +89,9 @@ data class BlockSpec(
             section.set("exp-max", expMax)
         }
         generation?.save(section.createSection("generation"))
+        if (model.isNotBlank()) section.set("model", model)
+        if (surface != Surface.ANY) section.set("surface", surface.id)
+        if (lights.isNotEmpty()) section.set("lights", lights.map { it.text })
     }
 
     companion object {
@@ -113,6 +123,9 @@ data class BlockSpec(
                 expMin = section.getInt("exp-min", 0).coerceIn(0, expMax),
                 expMax = expMax,
                 generation = if (kind.usesState) com.inmc.customitems.block.OreGen.load(section.getConfigurationSection("generation")) else null,
+                model = if (kind == BlockKind.ENTITY) section.getString("model").orEmpty().trim() else "",
+                surface = Surface.of(section.getString("surface")) ?: Surface.ANY,
+                lights = section.getStringList("lights").mapNotNull(BlockLight::parse),
             )
         }
     }
@@ -144,5 +157,50 @@ data class BlockDrop(val item: StoredItem, val min: Int = 1, val max: Int = 1, v
             val max = section.getInt("max", amount).coerceIn(min, MAX_AMOUNT)
             return BlockDrop(item, min, max, section.getDouble("chance", 100.0).coerceIn(0.0, 100.0))
         }
+    }
+}
+
+/** 커스텀 블록을 놓을 수 있는 면 — 들고 우클릭한 면으로 가린다(Nexo 의 `limited_placing`). */
+enum class Surface(val id: String, val label: String, val hint: String) {
+    ANY("any", "아무 면", "어느 면을 눌러도 놓입니다"),
+    FLOOR("floor", "바닥", "블록의 윗면을 눌러야 놓입니다"),
+    WALL("wall", "벽", "블록의 옆면을 눌러야 놓입니다"),
+    CEILING("ceiling", "천장", "블록의 아랫면을 눌러야 놓입니다"),
+    ;
+
+    fun allows(face: org.bukkit.block.BlockFace): Boolean = when (this) {
+        ANY -> true
+        FLOOR -> face == org.bukkit.block.BlockFace.UP
+        WALL -> face.modY == 0 && face != org.bukkit.block.BlockFace.SELF
+        CEILING -> face == org.bukkit.block.BlockFace.DOWN
+    }
+
+    companion object {
+        fun of(raw: String?): Surface? = entries.firstOrNull { it.id.equals(raw?.trim(), ignoreCase = true) }
+    }
+}
+
+/**
+ * 놓으면 같이 켜는 빛 하나 — 블록 자리에서 [dx]·[dy]·[dz] 칸, 밝기 [level](0~15). 적는 모양은 Nexo 와 같다: `"0,-1,0 15"`.
+ * 거리는 [MAX_DISTANCE] 칸 안 — 멀면 놓는 사람이 안 불러온 청크에 닿는다.
+ */
+data class BlockLight(val dx: Int, val dy: Int, val dz: Int, val level: Int) {
+
+    val text: String get() = "$dx,$dy,$dz $level"
+
+    companion object {
+        const val MAX_DISTANCE = 8
+
+        /** `"0,-1,0 15"` → 빛. 모양이 틀리면 null(그 줄만 버린다). 밝기를 빼면 15. */
+        fun parse(raw: String): BlockLight? {
+            val match = PATTERN.matchEntire(raw.trim()) ?: return null
+            val (x, y, z) = match.destructured.toList().take(3).map { it.toIntOrNull() ?: return null }
+            if ((x == 0 && y == 0 && z == 0) || listOf(x, y, z).any { it !in -MAX_DISTANCE..MAX_DISTANCE }) return null
+            val level = match.groupValues[4].ifEmpty { "15" }.toIntOrNull() ?: return null
+            return BlockLight(x, y, z, level.coerceIn(0, 15))
+        }
+
+        /** `x,y,z` (쉼표 옆 공백 허용) + 빈칸 + 밝기(뺄 수 있다). */
+        private val PATTERN = Regex("^(-?\\d+)\\s*,\\s*(-?\\d+)\\s*,\\s*(-?\\d+)(?:\\s+(\\d+))?$")
     }
 }

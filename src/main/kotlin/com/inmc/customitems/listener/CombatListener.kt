@@ -5,6 +5,9 @@ import com.inmc.customitems.ability.AbilityEngine
 import com.inmc.customitems.ability.Trigger
 import com.inmc.customitems.item.AttackStyle
 import com.inmc.customitems.item.CustomItem
+import com.inmc.customitems.item.ElementDef
+import com.inmc.customitems.item.Elements
+import com.inmc.customitems.item.Registries
 import com.inmc.customitems.item.Stat
 import com.inmc.customitems.player.StatService
 import kr.inmc.core.util.Text
@@ -22,7 +25,6 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.EntityShootBowEvent
 import org.bukkit.potion.PotionEffect
-import org.bukkit.potion.PotionEffectType
 import java.util.Random
 
 /**
@@ -116,29 +118,33 @@ class CombatListener(private val custom: CustomItems) : Listener {
     }
 
     /**
-     * 원소 피해. 각자 고정값을 더하고 부가 효과를 건다. 맞는 쪽이 플레이어면 그 원소의 저항만큼 줄인다.
-     * 몹은 저항이 없다.
+     * 속성 피해. 속성마다([Elements] — 관리자가 만든다, 2026-10-13) 고정값을 더하고 맞힐 때 효과를 건다. 맞는 쪽이 플레이어면 그 속성의
+     * 저항만큼 줄인다 — **음수 저항은 약점**이라 더 맞는다(-100 이면 두 배, MMOItems 의 weakness). 몹은 저항이 없다.
      */
     private fun elements(stats: StatService.Snapshot, attacker: Player, victim: LivingEntity): Double {
         val resist = (victim as? Player)?.let { custom.stats.of(it) }
         var total = 0.0
-        for ((damageStat, resistStat) in ELEMENTS) {
-            val raw = stats.stat(damageStat)
+        for (element in Elements.all()) {
+            val raw = stats.stat(Stat.elementDamage(element.id))
             if (raw <= 0.0) continue
-            val cut = (resist?.stat(resistStat) ?: 0.0).coerceIn(0.0, 100.0)
+            val cut = (resist?.stat(Stat.elementResist(element.id)) ?: 0.0).coerceIn(MIN_RESIST, 100.0)
             val dealt = raw * (1.0 - cut / 100.0)
             if (dealt <= 0.0) continue
             total += dealt
-            when (damageStat) {
-                Stat.FIRE_DAMAGE -> victim.fireTicks = maxOf(victim.fireTicks, 40)
-                Stat.ICE_DAMAGE -> victim.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 30, 1))
-                Stat.LIGHTNING_DAMAGE -> victim.world.spawnParticle(Particle.ELECTRIC_SPARK, victim.location.add(0.0, 1.0, 0.0), 12, 0.3, 0.5, 0.3, 0.05)
-                Stat.POISON_DAMAGE -> victim.addPotionEffect(PotionEffect(PotionEffectType.POISON, 40, 0))
-                else -> Unit
-            }
+            hitEffect(element, victim)
         }
         if (total > 0.0) attacker.world.spawnParticle(Particle.CRIT, victim.location.add(0.0, 1.0, 0.0), 6, 0.2, 0.3, 0.2, 0.0)
         return total
+    }
+
+    /** 속성의 맞힐 때 효과 — 태우기 · 물약 · 입자. 모르는 물약·입자는 그것만 건너뛴다(오타 하나로 공격이 죽으면 안 된다). */
+    private fun hitEffect(element: ElementDef, victim: LivingEntity) {
+        if (element.burn > 0) victim.fireTicks = maxOf(victim.fireTicks, element.burn)
+        if (element.potion.isNotBlank() && element.potionTicks > 0) {
+            Registries.potionEffect(element.potion)?.let { victim.addPotionEffect(PotionEffect(it, element.potionTicks, element.potionLevel - 1)) }
+        }
+        // 색·블록 같은 자료가 있어야 하는 입자는 core 가 기본 자료를 넣는다(고르는 화면의 미리보기와 같은 모습).
+        kr.inmc.core.util.Particles.of(element.particle)?.let { kr.inmc.core.util.Particles.spawn(it, victim.location.add(0.0, 1.0, 0.0), 12, 0.3, 0.5, 0.3, 0.05) }
     }
 
     /**
@@ -252,11 +258,7 @@ class CombatListener(private val custom: CustomItems) : Listener {
         /** 막기 위력을 안 적었으면 절반. */
         const val DEFAULT_BLOCK_POWER = 50.0
 
-        val ELEMENTS = listOf(
-            Stat.FIRE_DAMAGE to Stat.FIRE_RESIST,
-            Stat.ICE_DAMAGE to Stat.ICE_RESIST,
-            Stat.LIGHTNING_DAMAGE to Stat.LIGHTNING_RESIST,
-            Stat.POISON_DAMAGE to Stat.POISON_RESIST,
-        )
+        /** 약점의 끝 — 저항 -100% 면 속성 피해를 두 배로 맞는다. 더 내려가면 한 대에 죽는 아이템이 된다. */
+        const val MIN_RESIST = -100.0
     }
 }

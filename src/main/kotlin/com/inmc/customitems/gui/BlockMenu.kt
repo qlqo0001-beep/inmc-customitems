@@ -6,13 +6,16 @@ import com.inmc.customitems.block.Mining
 import com.inmc.customitems.block.ToolGrades
 import com.inmc.customitems.block.ToolKind
 import com.inmc.customitems.item.BlockKind
+import com.inmc.customitems.item.BlockLight
 import com.inmc.customitems.item.BlockSpec
 import com.inmc.customitems.item.ItemType
+import com.inmc.customitems.item.Surface
 import com.inmc.customitems.pack.PackAssets
 import kr.inmc.core.gui.DialogForm
 import kr.inmc.core.gui.Editors
 import kr.inmc.core.gui.Icon
 import kr.inmc.core.gui.Paging
+import kr.inmc.core.gui.PickMenu
 import kr.inmc.core.util.Text
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -36,7 +39,10 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         fillEmpty(Icon.EDGE)
 
         choice(SLOT_OFF, Material.STRUCTURE_VOID, "블록 아님", spec == null, listOf("<gray>들고 우클릭해도 놓이지 않습니다.</gray>")) {
-            mutate { it.copy(block = null) }
+            mutate {
+                it.block?.let { old -> parked[id] = old }
+                it.copy(block = null)
+            }
         }
         choice(SLOT_SOLID, Material.NOTE_BLOCK, BlockKind.SOLID.label, spec?.kind == BlockKind.SOLID, listOf(
             "<gray>ItemsAdder 의 REAL_NOTE 와 같습니다.</gray>",
@@ -71,8 +77,11 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
                 })
                 add("")
                 add("<yellow>모양을 바꿨으면 리소스팩을 다시 만드세요.</yellow>")
-            } else {
+            } else if (spec.model.isBlank()) {
                 add("<gray>모양: <white>이 아이템의 모양 그대로</white></gray>")
+            } else {
+                add("<gray>모양: <white>BetterModel " + spec.model + "</white></gray>")
+                modelProblem(spec.model)?.let { add("<red>$it</red>") }
             }
             add("<dark_gray>방식을 바꾸면 이미 놓인 블록은 이 아이템으로 알아보지 못합니다.</dark_gray>")
         }))
@@ -81,6 +90,7 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
             drawMining(spec)
             drawYield(spec)
             drawGeneration(spec)
+            drawPlacement(spec)
         }
 
         set(Paging.SLOT_BACK, Icon.back()) { back?.invoke() ?: ItemEditMenu(custom, viewer, id).open(viewer) }
@@ -218,6 +228,83 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         })) { BlockGenMenu(custom, viewer, id) { open(viewer) }.open(viewer) }
     }
 
+    // --- 놓기 — 놓는 면 · 빛 · BetterModel 모델 (Nexo 가구, 2026-10-09) ----------------------------
+
+    private fun drawPlacement(spec: BlockSpec) {
+        set(SLOT_SURFACE, Icon.of(Material.LADDER, "<yellow>놓는 면: <white>" + spec.surface.label + "</white></yellow>",
+            listOf("<gray>" + spec.surface.hint + ".</gray>", "") +
+                Editors.optionList(Surface.entries, spec.surface) { it.label } +
+                listOf("", "<dark_gray>천장이면 BetterModel 모델이 칸의 윗면에 매달립니다.</dark_gray>", "<yellow>▶ 좌클릭: 다음 · 우클릭: 이전</yellow>"))) { event ->
+            change { it.copy(surface = Editors.cycle(event, Surface.entries, spec.surface)) }
+        }
+
+        set(SLOT_LIGHTS, Icon.of(Material.LIGHT, "<yellow>빛 <white>" + spec.lights.size + "</white>개</yellow>", buildList {
+            for (light in spec.lights.take(6)) add("<gray>· <white>" + light.text + "</white></gray>")
+            if (spec.lights.size > 6) add("<dark_gray>…</dark_gray>")
+            add("<gray>놓으면 같이 켜는 빛 블록 — 이 블록에서 x,y,z 칸과 밝기(0~15).</gray>")
+            add("<gray>빈 칸(공기)에만 켜고, 부수면 같이 끕니다.</gray>")
+            add("<dark_gray>이미 놓인 블록은 다시 놓아야 바뀝니다.</dark_gray>")
+            add("")
+            add("<yellow>▶ 좌클릭: 적기 · 우클릭: 비우기</yellow>")
+        })) { event ->
+            if (event.isRightClick) {
+                change { it.copy(lights = emptyList()) }
+                return@set
+            }
+            DialogForm("빛 — $id")
+                .line("<gray>한 줄에 하나 — <white>x,y,z 밝기</white> (예: <white>0,-1,0 15</white> = 바로 아래 칸, 가장 밝게).</gray>")
+                .line("<gray>거리는 " + BlockLight.MAX_DISTANCE + "칸까지. 읽지 못한 줄은 버립니다.</gray>")
+                .text("lights", "빛", spec.lights.joinToString("\n") { it.text }, multiline = true)
+                .show(custom.plugin, viewer, onCancel = { open(it) }) { _, values ->
+                    val lines = values.text("lights").lines().filter { it.isNotBlank() }
+                    val parsed = lines.mapNotNull(BlockLight::parse)
+                    if (parsed.size < lines.size) viewer.sendMessage(Text.render("<yellow>" + (lines.size - parsed.size) + "줄을 읽지 못해 버렸습니다.</yellow>"))
+                    change(false) { it.copy(lights = parsed) }
+                }
+        }
+
+        if (spec.kind != BlockKind.ENTITY) {
+            set(SLOT_MODEL, Icon.of(Material.GRAY_DYE, "<dark_gray>BetterModel 모델</dark_gray>", listOf("<gray>엔티티 방식만 씁니다.</gray>")))
+            return
+        }
+        set(SLOT_MODEL, Icon.of(Material.LEATHER_HORSE_ARMOR, "<aqua>BetterModel 모델: <white>" + spec.model.ifBlank { "없음" } + "</white></aqua>", buildList {
+            add("<gray>이 자리에 세울 움직이는 모델 — 애니메이션 <white>idle</white> 이 늘 돕니다.</gray>")
+            add("<gray>plugins/BetterModel/models 의 .bbmodel 파일 이름입니다.</gray>")
+            add("<gray>없으면 이 아이템의 모양이 그대로 떠 있습니다.</gray>")
+            if (spec.model.isNotBlank()) modelProblem(spec.model)?.let { add("<red>$it</red>") }
+            add("<dark_gray>이미 놓인 블록은 다시 놓아야 바뀝니다.</dark_gray>")
+            add("")
+            add("<yellow>▶ 좌클릭: 고르기 · 우클릭: 비우기</yellow>")
+        })) { event ->
+            if (event.isRightClick) {
+                change { it.copy(model = "") }
+                return@set
+            }
+            val names = custom.blocks.models.known().sorted()
+            if (names.isEmpty()) {
+                viewer.sendMessage(Text.render("<red>" + (modelProblem("") ?: "BetterModel 에 모델이 없습니다 — plugins/BetterModel/models 에 .bbmodel 을 넣고 /bettermodel reload") + "</red>"))
+                return@set
+            }
+            PickMenu(
+                owner = custom,
+                viewer = viewer,
+                title = "<dark_gray>BetterModel 모델 — $id</dark_gray>",
+                options = names,
+                icon = { name -> Icon.of(if (name == spec.model) Material.LIME_DYE else Material.LEATHER_HORSE_ARMOR, "<white>$name</white>", listOf("<dark_gray>plugins/BetterModel/models/$name.bbmodel</dark_gray>")) },
+                back = { open(viewer) },
+            ) { name -> change(false) { it.copy(model = name) } }.show()
+        }
+    }
+
+    /** 모델을 세울 수 없는 까닭. 세울 수 있으면 null. [model] 이 비면 BetterModel 자체만 본다. */
+    private fun modelProblem(model: String): String? {
+        val models = custom.blocks.models
+        if (!models.available) return "BetterModel 이 없거나 연동에 실패했습니다 — 아이템 모양으로 놓입니다."
+        val known = models.known()
+        if (model.isNotBlank() && known.isNotEmpty() && model !in known) return "BetterModel 이 모르는 모델입니다 — plugins/BetterModel/models/$model.bbmodel 을 넣고 /bettermodel reload"
+        return null
+    }
+
     private fun change(reopen: Boolean = true, update: (BlockSpec) -> BlockSpec) =
         mutate(reopen) { current -> current.copy(block = current.block?.let(update)) }
 
@@ -236,16 +323,24 @@ class BlockMenu(custom: CustomItems, viewer: Player, id: String, private val bac
         // 기타에 그냥 있던 것(만든 종류·소분류 없음)이 처음 블록이 되면 블록 종류로 옮긴다(사용자 결정 2026-10-01 — 블록은 따로).
         mutate {
             val fresh = it.block == null && it.type == ItemType.MISC && it.customType.isBlank() && it.category.isBlank()
-            it.copy(block = (it.block ?: BlockSpec(kind)).copy(kind = kind, state = state), type = if (fresh) ItemType.BLOCK else it.type)
+            // 블록 아님에서 돌아오면 그 전 설정(모델·놓는 면·빛·단단함 …)을 되살린다 — 빈 설정으로 시작하면 천장 모델이 바닥 기준으로 놓였다(테섭 2026-10-10).
+            val base = it.block ?: parked.remove(id) ?: BlockSpec(kind)
+            it.copy(block = base.copy(kind = kind, state = state), type = if (fresh) ItemType.BLOCK else it.type)
         }
     }
 
     companion object {
+        /** "블록 아님"으로 바꾸기 전의 설정(아이템 id → 설정). 다시 방식을 고르면 되살린다. 서버를 다시 켜면 잊는다. */
+        private val parked = HashMap<String, BlockSpec>()
+
         const val SLOT_OFF = 10
         const val SLOT_SOLID = 12
         const val SLOT_TRANSPARENT = 14
         const val SLOT_ENTITY = 16
         const val SLOT_INFO = 22
+        const val SLOT_SURFACE = 19
+        const val SLOT_LIGHTS = 20
+        const val SLOT_MODEL = 25
 
         const val SLOT_HARDNESS = 28
         const val SLOT_TOOL = 29

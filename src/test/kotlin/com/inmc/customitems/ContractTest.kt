@@ -22,6 +22,7 @@ class ContractTest {
         "dev/lone/itemsadder",
         "com/nexomc/nexo",
         "io/th0rgal/oraxen",
+        "kr/toxicity/model",
     )
 
     /**

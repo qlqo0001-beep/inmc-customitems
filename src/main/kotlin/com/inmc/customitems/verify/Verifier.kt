@@ -136,6 +136,8 @@ class Sandbox(val custom: CustomItems, val player: Player) {
     private val tables = LinkedHashSet<String>()
     private val categories = LinkedHashSet<String>()
     private val types = LinkedHashSet<String>()
+    private val tiers = LinkedHashSet<String>()
+    private val elements = LinkedHashSet<String>()
     private val equipped = ArrayList<Pair<com.inmc.customitems.player.EquipmentStore.Group, Int>>()
     private var inventoryEffects: Boolean? = null
 
@@ -161,6 +163,20 @@ class Sandbox(val custom: CustomItems, val player: Player) {
         custom.types.put(type)
         types += type.id
         return type
+    }
+
+    /** 검사용 등급 — 목록 맨 위에 더하고 끝에 지운다. */
+    fun tier(def: com.inmc.customitems.item.TierDef): com.inmc.customitems.item.Tier {
+        custom.tiers.put(def)
+        tiers += def.id
+        return com.inmc.customitems.item.Tier(def.id)
+    }
+
+    /** 검사용 속성 — 끝에 지운다. */
+    fun element(def: com.inmc.customitems.item.ElementDef): com.inmc.customitems.item.ElementDef {
+        custom.elements.put(def)
+        elements += def.id
+        return def
     }
 
     fun table(table: com.inmc.customitems.item.UpgradeTable) {
@@ -242,5 +258,7 @@ class Sandbox(val custom: CustomItems, val player: Player) {
         for (id in sets) custom.sets.remove(id)
         for (id in categories) custom.categories.remove(id)
         for (id in types) custom.types.remove(id)
+        for (id in tiers) custom.tiers.remove(id)
+        for (id in elements) custom.elements.remove(id)
     }
 }

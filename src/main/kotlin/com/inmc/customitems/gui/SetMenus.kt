@@ -15,7 +15,7 @@ import org.bukkit.entity.Player
 private val SET_ID = Regex("^[a-z0-9_]{1,32}$")
 
 private fun bonusLines(bonus: SetBonus): List<String> =
-    bonus.stats.map { (stat, value) -> stat.line(value) } + bonus.potions.map { (potion, level) -> "<gray>" + potion + " " + level + "</gray>" } +
+    bonus.stats.map { (stat, value) -> stat.line(value) } + bonus.potions.map { (potion, level) -> "<gray>" + kr.inmc.core.util.PotionEffects.lang(potion) + " " + level + "</gray>" } +
         listOfNotNull(if (bonus.effects.isEmpty()) null else "<light_purple>인첸트 효과</light_purple> " + CustomEnchantHook.describeEffects(bonus.effects))
 
 /** 아이템 세트 목록. */
@@ -128,25 +128,30 @@ class SetBonusMenu(custom: CustomItems, private val viewer: Player, private val 
         }
         for ((potion, level) in bonus.potions) {
             if (slot >= LIST) break
-            set(slot++, Icon.of(Material.POTION, "<gray>" + potion + " " + level + "</gray>", listOf("<gray>입는 동안 걸립니다.</gray>", "", "<red>▶ 우클릭: 빼기</red>"))) { event ->
-                if (!event.isRightClick) return@set
-                change { it.copy(potions = it.potions - potion) }
+            set(slot++, Icon.of(Material.POTION, "<gray>" + kr.inmc.core.util.PotionEffects.lang(potion) + " <white>" + level + "</white></gray>", listOf(
+                "<gray>입는 동안 걸립니다.</gray>", "",
+                "<yellow>▶ 좌클릭: 단계 +1 · Shift+좌클릭: 단계 -1</yellow>", "<red>▶ 우클릭: 빼기</red>",
+            ))) { event ->
+                when {
+                    event.isRightClick -> change { it.copy(potions = it.potions - potion) }
+                    event.isShiftClick -> change { it.copy(potions = it.potions + (potion to (level - 1).coerceAtLeast(1))) }
+                    else -> change { it.copy(potions = it.potions + (potion to (level + 1).coerceAtMost(255))) }
+                }
                 refresh()
             }
         }
         set(SLOT_ADD_STAT, Icon.of(Material.LIME_DYE, "<green>능력치 추가</green>", listOf("<gray>바닐라 속성도 사람에게 직접 붙습니다.</gray>"))) {
             StatPickMenu(custom, viewer, "<dark_gray>세트 능력치</dark_gray>", back = { open(viewer) }) { askStat(it) }.open(viewer)
         }
-        set(SLOT_ADD_POTION, Icon.of(Material.BREWING_STAND, "<green>물약 추가</green>", listOf("<gray>예: <white>speed 1</white> (신속 I)</gray>"))) {
-            Editors.promptText(custom.prompts, viewer, "물약 단계", listOf("<gray><white>물약 단계</white> 모양. 예: <white>speed 1</white> · <white>night_vision 1</white></gray>"), reopen = { open(viewer) }) { raw ->
-                val name = raw.trim().substringBefore(' ').lowercase()
-                val level = raw.trim().substringAfter(' ', "1").trim().toIntOrNull()?.coerceIn(1, 255) ?: 1
-                if (com.inmc.customitems.item.Registries.potionEffect(name) == null) {
-                    viewer.sendMessage(Text.render("<red>그런 물약이 없습니다: $name</red>"))
-                    return@promptText
-                }
-                change { it.copy(potions = it.potions + (name to level)) }
-            }
+        set(SLOT_ADD_POTION, Icon.of(Material.BREWING_STAND, "<green>물약 추가</green>", listOf(
+            "<gray>모든 효과를 한국어 이름으로 보여 주는 화면에서 고릅니다(단계 1).</gray>",
+            "<gray>단계는 더한 뒤 그 칸을 눌러 올립니다.</gray>",
+        ))) {
+            kr.inmc.core.gui.PotionPickMenu(custom, viewer, back = { open(viewer) }) { type ->
+                val name = kr.inmc.core.util.PotionEffects.id(type)
+                change { it.copy(potions = it.potions + (name to (it.potions[name] ?: 1))) }
+                open(viewer)
+            }.show()
         }
         set(SLOT_EFFECTS, effectsIcon(bonus)) {
             val opened = CustomEnchantHook.editEffects(

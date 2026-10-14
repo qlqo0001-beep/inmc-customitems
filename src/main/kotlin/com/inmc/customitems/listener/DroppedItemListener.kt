@@ -124,8 +124,11 @@ class DroppedItemListener(private val custom: CustomItems) : Listener {
         private val MARK = NamespacedKey("inmc", "dropped_look")
         private val UUID_TEXT = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
-        /** 등급색(`<gold>` 같은 이름 태그) → 발광 색. */
-        fun colorOf(tier: Tier): NamedTextColor =
-            NamedTextColor.NAMES.value(tier.color.removePrefix("<").removeSuffix(">")) ?: NamedTextColor.WHITE
+        /** 등급색(`<gold>` 같은 이름 태그 · 관리자가 정한 `<#RRGGBB>`) → 발광 색. 바닐라 발광은 이름 있는 열여섯 색뿐이라 가장 가까운 것. */
+        fun colorOf(tier: Tier): NamedTextColor {
+            val text = tier.color.removePrefix("<").removeSuffix(">")
+            NamedTextColor.NAMES.value(text)?.let { return it }
+            return net.kyori.adventure.text.format.TextColor.fromHexString(text)?.let(NamedTextColor::nearestTo) ?: NamedTextColor.WHITE
+        }
     }
 }

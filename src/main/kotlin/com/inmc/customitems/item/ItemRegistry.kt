@@ -146,6 +146,16 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         for (item in byId.values) revisions[item.id] = fingerprint(item)
     }
 
+    /** 등급 목록이 바뀌었다 — 이름 색·배지가 달라지므로 지문을 다시 뜬다. */
+    fun onTiersChanged() {
+        for (item in byId.values) revisions[item.id] = fingerprint(item)
+    }
+
+    /** 속성 목록이 바뀌었다 — 로어의 속성 능력치 이름이 달라지거나(지우면) 줄이 빠지므로 지문을 다시 뜬다. */
+    fun onElementsChanged() {
+        for (item in byId.values) revisions[item.id] = fingerprint(item)
+    }
+
     /** 세트가 바뀌었다 — 그 세트의 아이템은 로어(세트 효과)가 달라지므로 지문을 다시 뜬다. */
     fun onSetChanged(setId: String) {
         for (item in byId.values) if (item.set == setId) revisions[item.id] = fingerprint(item)
@@ -264,6 +274,15 @@ class ItemRegistry(private val plugin: CustomItems) : YamlFileStore(
         plugin.types.of(item).takeIf { it != TypeDef.of(item.type) }?.save(yaml.createSection("__type"))
         // 로어의 종류 줄이 소분류 이름일 때만 적는다 — 소분류를 켜고 끄거나 이름을 바꾸면 그 아이템들이 다시 그려진다.
         plugin.categories.of(item)?.takeIf { item.typeLabel.showsCategory(it) }?.let { yaml.set("__label", it.name) }
+        // 등급·속성은 기본과 다를 때만 적는다 — 목록 파일이 생긴 것만으로 모든 아이템을 다시 그리지 않게(2026-10-13).
+        val tierDef = item.tier.def
+        if (tierDef != Tier.DEFAULTS.firstOrNull { it.id == item.tier.id }) {
+            if (tierDef == null) yaml.set("__tier", "gone") else tierDef.save(yaml.createSection("__tier"))
+        }
+        for (element in item.stats.keys.mapNotNull { it.element }.distinct()) {
+            val name = Elements.get(element)?.name
+            if (name != ElementDef.DEFAULTS.firstOrNull { it.id == element }?.name) yaml.set("__element_$element", name ?: "gone")
+        }
         // 배낭 로어의 "칸수" 줄(2026-10-07) — 배낭만 지문을 한 번 바꿔 이미 나간 배낭도 다시 그려지게.
         if (item.isBackpack) yaml.set("__slots_line", true)
         return java.util.zip.CRC32().apply { update(yaml.saveToString().toByteArray(Charsets.UTF_8)) }.value
